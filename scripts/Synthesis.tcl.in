@@ -1,0 +1,13 @@
+# Templated synthesis script.
+#
+# Use CMake to substitute variables with:
+#   configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
+
+open_project ${MM_PROJECT_NAME} 
+open_solution ${MM_PART_NAME}  
+set_part ${MM_PART_NAME} 
+add_files -cflags "-DMM_SYNTHESIS -DHLSLIB_SYNTHESIS ${CMAKE_CXX_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I${CMAKE_BINARY_DIR}" "${MM_SRC_SYNTHESIS}" 
+set_top ${MM_ENTRY_FUNCTION} 
+create_clock -period ${MM_TARGET_TIMING} -name default
+csynth_design
+exit

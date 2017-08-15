@@ -1,0 +1,21 @@
+/// @author    Johannes de Fine Licht (johannes.definelicht@inf.ethz.ch)
+/// @date      July 2017 
+/// @copyright This software is copyrighted under the BSD 3-Clause License. 
+
+#pragma once
+
+#include "hlslib/Operators.h"
+
+using Data_t = ${MM_DATA_TYPE}; 
+constexpr int kLatency = ${MM_REDUCE_LATENCY};
+#if ${MM_REDUCE_LATENCY} <= 1
+#define MM_INTEGER_TYPE
+#endif
+constexpr int kKernelWidth = ${MM_KERNEL_WIDTH};
+constexpr int kMemoryWidthBytes = 64; // 512-bit memory port
+constexpr int kSize = ${MM_SIZE};
+constexpr int kTileSizeN = ${MM_TILE_SIZE_N};
+constexpr int kTileSizeP = ${MM_TILE_SIZE_P};
+
+using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;
+using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
