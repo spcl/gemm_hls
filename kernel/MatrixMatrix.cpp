@@ -29,7 +29,8 @@ BlocksN:
   BlocksP:
     for (int bp = 0; bp < kBlocksP; ++bp) {
 
-      KernelPack_t cLocal[kTileSizeN][kTileSizePKernel] = {Data_t(0)};
+      KernelPack_t cLocal[kTileSizeN][kTileSizePKernel] = {
+          OperatorReduce::identity()};
       #pragma HLS ARRAY_PARTITION variable=cLocal dim=1 complete
 
       // Loop over collapsed dimension
