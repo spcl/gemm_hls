@@ -66,11 +66,6 @@ Blocks_N:
         #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE
 
-        if (i == 0) {
-          std::cout << kBlocksN * kBlocksP * (kSize * (i_loadA_tn_end + i_streamB_tp_end) +
-                              i_storeC_tn_end * i_storeC_tp_end) << "\n";
-        }
-
         switch (state) {
 
           case State::loadingA: {
