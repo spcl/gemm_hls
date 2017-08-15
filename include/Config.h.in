@@ -7,10 +7,6 @@
 #include "hlslib/Operators.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
-constexpr int kLatency = ${MM_REDUCE_LATENCY};
-#if ${MM_REDUCE_LATENCY} <= 1
-#define MM_INTEGER_TYPE
-#endif
 constexpr int kKernelWidth = ${MM_KERNEL_WIDTH};
 constexpr int kMemoryWidthBytes = 64; // 512-bit memory port
 constexpr int kSize = ${MM_SIZE};
