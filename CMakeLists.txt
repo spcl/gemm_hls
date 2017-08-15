@@ -12,7 +12,6 @@ set(MM_TARGET_CLOCK 0 CACHE STRING "Target clock for kernel (<=0 is default).")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
-set(MM_REDUCE_LATENCY 16 CACHE STRING "Latency of reduce operation.")
 set(MM_KERNEL_WIDTH 4 CACHE STRING "Kernel data path width in number of operands.")
 set(MM_SIZE 256 CACHE STRING "Size of matrix dimension.")
 set(MM_TILE_SIZE_N 32 CACHE STRING "Tile size in N.")
