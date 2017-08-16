@@ -43,7 +43,6 @@ Blocks_N:
 //       #pragma HLS STREAM variable=cLocal depth=kTileSizePKernel
 // #endif
       KernelPack_t cLocal[kTileSizePKernel];
-      State state = State::streaming;
 
       int i_loadA_tn = 0;
       const int i_loadA_tn_end = kTileSizeN - id;
@@ -68,97 +67,91 @@ Blocks_N:
         #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE
 
-        switch (state) {
+        if (i < loopBound - i_storeC_tn_end * i_storeC_tp_end) {
 
-          case State::streaming: {
-            // Grab next from previous iteration. This way we avoid that the
-            // last processing elements overwrites its next value before it is
-            // used
-            if (i_streamB_tp == 0) {
-              aVal = aNext;
-            }
-            const bool loadA =
-                (i_streamB_tp < i_loadA_tn_end) && (i_outer < i_outer_end - 1);
-            if (loadA) {
-              const auto aRead = hlslib::ReadBlocking(aIn);
-              // Don't forward on the last iteration
-              if (i_loadA_tn == 0) {
-                aNext = aRead;
-              } else {
-                hlslib::WriteBlocking(aOut, aRead, 1);
-              }
-              if (i_loadA_tn == i_loadA_tn_end - 1) {
-                i_loadA_tn = 0;
-              } else {
-                ++i_loadA_tn;
-              }
-            }
-            if (i < i_saturated_end) {
-              break;
-            }
-            const auto readB = hlslib::ReadBlocking(bIn); 
-            if (id < kTileSizeN - 1) {
-              hlslib::WriteBlocking(bOut, readB, 1); // Forward B
-            }
-            KernelPack_t cAcc;
-            if (i_outer > 0) {
-              cAcc = cLocal[i_streamB_tp];
-              #pragma HLS DEPENDENCE variable=cLocal inter false
-              // cAcc = hlslib::ReadOptimistic(cLocal);
+          // Grab next from previous iteration. This way we avoid that the
+          // last processing elements overwrites its next value before it is
+          // used
+          if (i_streamB_tp == 0) {
+            aVal = aNext;
+          }
+          const bool loadA =
+              (i_streamB_tp < i_loadA_tn_end) && (i_outer < i_outer_end - 1);
+          if (loadA) {
+            const auto aRead = hlslib::ReadBlocking(aIn);
+            // Don't forward on the last iteration
+            if (i_loadA_tn == 0) {
+              aNext = aRead;
             } else {
-              cAcc = KernelPack_t(OperatorReduce::identity());
+              hlslib::WriteBlocking(aOut, aRead, 1);
             }
-            KernelPack_t result;
-          UnrollVector:
-            for (int w = 0; w < kKernelWidth; ++w) {
-              #pragma HLS UNROLL
-              const auto map = OperatorMap::Apply(readB[w], aVal);
-              result[w] = OperatorReduce::Apply(map, cAcc[w]);
+            if (i_loadA_tn == i_loadA_tn_end - 1) {
+              i_loadA_tn = 0;
+            } else {
+              ++i_loadA_tn;
             }
-            // hlslib::WriteOptimistic(cLocal, result, kTileSizePKernel);
-            cLocal[i_streamB_tp] = result;
+          }
+          if (i < i_saturated_end) {
+            continue;
+          }
+          const auto readB = hlslib::ReadBlocking(bIn); 
+          if (id < kTileSizeN - 1) {
+            hlslib::WriteBlocking(bOut, readB, 1); // Forward B
+          }
+          KernelPack_t cAcc;
+          if (i_outer > 0) {
+            cAcc = cLocal[i_streamB_tp];
             #pragma HLS DEPENDENCE variable=cLocal inter false
-            if (i_streamB_tp == i_streamB_tp_end - 1) {
-              i_streamB_tp = 0;
-              if (i_outer == i_outer_end - 1) {
-                i_outer = 0;
-                state = State::storingC;
-              } else {
-                ++i_outer;
-              }
+            // cAcc = hlslib::ReadOptimistic(cLocal);
+          } else {
+            cAcc = KernelPack_t(OperatorReduce::identity());
+          }
+          KernelPack_t result;
+        UnrollVector:
+          for (int w = 0; w < kKernelWidth; ++w) {
+            #pragma HLS UNROLL
+            const auto map = OperatorMap::Apply(readB[w], aVal);
+            result[w] = OperatorReduce::Apply(map, cAcc[w]);
+          }
+          // hlslib::WriteOptimistic(cLocal, result, kTileSizePKernel);
+          cLocal[i_streamB_tp] = result;
+          #pragma HLS DEPENDENCE variable=cLocal inter false
+          if (i_streamB_tp == i_streamB_tp_end - 1) {
+            i_streamB_tp = 0;
+            if (i_outer == i_outer_end - 1) {
+              i_outer = 0;
             } else {
-              ++i_streamB_tp;
+              ++i_outer;
             }
-            break;
+          } else {
+            ++i_streamB_tp;
           }
 
-          case State::storingC: {
-            if (i_storeC_tn == 0) {
-              // hlslib::WriteBlocking(cOut, hlslib::ReadOptimistic(cLocal), 1);
-              hlslib::WriteBlocking(cOut, cLocal[i_storeC_tp], 1);
-              #pragma HLS DEPENDENCE variable=cLocal inter false
-            } else {
-              hlslib::WriteBlocking(cOut, hlslib::ReadBlocking(cIn), 1);
-            }
-            if (i_storeC_tp == i_storeC_tp_end - 1) {
-              i_storeC_tp = 0;
-              if (i_storeC_tn == i_storeC_tn_end - 1) {
-                i_storeC_tn = 0;
-                // Not technically necessary as they will be reset by the loop,
-                // but useful for flattening in the future
-                state = State::streaming;
-              } else {
-                ++i_storeC_tn;
-              }
-            } else {
-              ++i_storeC_tp;
-            }
-            break;
-          }
+        } else {
 
+          if (i_storeC_tn == 0) {
+            // hlslib::WriteBlocking(cOut, hlslib::ReadOptimistic(cLocal), 1);
+            hlslib::WriteBlocking(cOut, cLocal[i_storeC_tp], 1);
+            #pragma HLS DEPENDENCE variable=cLocal inter false
+          } else {
+            hlslib::WriteBlocking(cOut, hlslib::ReadBlocking(cIn), 1);
+          }
+          if (i_storeC_tp == i_storeC_tp_end - 1) {
+            i_storeC_tp = 0;
+            if (i_storeC_tn == i_storeC_tn_end - 1) {
+              i_storeC_tn = 0;
+              // Not technically necessary as they will be reset by the loop,
+              // but useful for flattening in the future
+            } else {
+              ++i_storeC_tn;
+            }
+          } else {
+            ++i_storeC_tp;
+          }
         }
 
       }
+
     }
   }
 }
