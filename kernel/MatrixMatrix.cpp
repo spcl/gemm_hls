@@ -19,8 +19,7 @@ inline int GlobalIndexKernel(int bn, int bp, int tn, int tp) {
 }
 
 enum class State {
-  loadingA,
-  streamingB,
+  streaming,
   storingC
 };
 
@@ -44,7 +43,7 @@ Blocks_N:
 //       #pragma HLS STREAM variable=cLocal depth=kTileSizePKernel
 // #endif
       KernelPack_t cLocal[kTileSizePKernel];
-      State state = State::loadingA;
+      State state = State::streaming;
 
       int i_loadA_tn = 0;
       const int i_loadA_tn_end = kTileSizeN - id;
@@ -56,11 +55,14 @@ Blocks_N:
       const int i_storeC_tn_end = id + 1;
       int i_storeC_tp = 0;
       const int i_storeC_tp_end = kTileSizePKernel;
-      Data_t aVal;
+      Data_t aNext, aVal;
+      // bool loadA = true;
+      int i_saturated = 0;
+      const int i_saturated_end = kTileSizeN - id; 
 
       // Manually flattened loop
     Flattened:
-      for (int i = 0; i < kSize * (i_loadA_tn_end + i_streamB_tp_end) +
+      for (int i = 0; i < i_loadA_tn_end + kSize * i_streamB_tp_end +
                               i_storeC_tn_end * i_storeC_tp_end;
            ++i) {
         #pragma HLS LOOP_FLATTEN
@@ -68,22 +70,32 @@ Blocks_N:
 
         switch (state) {
 
-          case State::loadingA: {
-            aVal = hlslib::ReadBlocking(aIn);
-            // Don't write on the last iteration
-            if (i_loadA_tn < kTileSizeN - id - 1) {
-              hlslib::WriteBlocking(aOut, aVal, 1);
+          case State::streaming: {
+            const bool loadA =
+                (i_streamB_tp < i_loadA_tn_end) && (i_outer < i_outer_end - 1);
+            if (loadA) {
+              const auto aRead = hlslib::ReadBlocking(aIn);
+              // Don't forward on the last iteration
+              if (i_loadA_tn < kTileSizeN - id - 1) {
+                hlslib::WriteBlocking(aOut, aRead, 1);
+              } else {
+                aNext = aRead;
+              }
+              if (i_loadA_tn == i_loadA_tn_end - 1) {
+                if (i < i_saturated_end) {
+                  aVal = aNext;
+                }
+                i_loadA_tn = 0;
+              } else {
+                ++i_loadA_tn;
+              }
             }
-            if (i_loadA_tn == i_loadA_tn_end - 1) {
-              i_loadA_tn = 0;
-              state = State::streamingB;
-            } else {
-              ++i_loadA_tn;
+            if (i < i_saturated_end) {
+              break;
             }
-            break;
-          }
-
-          case State::streamingB: {
+            // if (i_streamB_tp == 0) {
+            //   aVal = aNext;
+            // }
             const auto readB = hlslib::ReadBlocking(bIn); 
             if (id < kTileSizeN - 1) {
               hlslib::WriteBlocking(bOut, readB, 1); // Forward B
@@ -108,12 +120,12 @@ Blocks_N:
             #pragma HLS DEPENDENCE variable=cLocal inter false
             if (i_streamB_tp == i_streamB_tp_end - 1) {
               i_streamB_tp = 0;
+              aVal = aNext;
               if (i_outer == i_outer_end - 1) {
                 i_outer = 0;
                 state = State::storingC;
               } else {
                 ++i_outer;
-                state = State::loadingA;
               }
             } else {
               ++i_streamB_tp;
@@ -133,7 +145,9 @@ Blocks_N:
               i_storeC_tp = 0;
               if (i_storeC_tn == i_storeC_tn_end - 1) {
                 i_storeC_tn = 0;
-                state = State::loadingA;
+                // Not technically necessary as they will be reset by the loop,
+                // but useful for flattening in the future
+                state = State::streaming;
               } else {
                 ++i_storeC_tn;
               }
