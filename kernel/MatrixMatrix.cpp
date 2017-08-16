@@ -286,6 +286,7 @@ void MatrixMatrix(Data_t const a[], MemoryPack_t const b[], MemoryPack_t c[]) {
   HLSLIB_DATAFLOW_FUNCTION(ReadBKernel, bMem, bPipes[0]);
 
 #ifdef MM_SYNTHESIS
+UnrollCompute:
   for (int tn = 0; tn < kTileSizeN; ++tn) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, tn, aPipes[tn], bPipes[tn],
