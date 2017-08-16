@@ -31,6 +31,16 @@ void MatrixMatrixStage(int id,
                        hlslib::Stream<KernelPack_t> &bOut,
                        hlslib::Stream<KernelPack_t> &cOut) {
 
+  int i_loadA_tn = 0;
+  const int i_loadA_tn_end = kTileSizeN - id;
+  int i_streamB_tp = 0;
+  const int i_streamB_tp_end = kTileSizePKernel;
+  int i_outer = 0;
+  const int i_outer_end = kSize;
+  int i_storeC = 0;
+  const int i_storeC_end = (kTileSizeN - id) * kTileSizePKernel;
+  const int i_saturated_end = kTileSizeN - id; 
+
 Blocks_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   Blocks_P:
@@ -44,30 +54,17 @@ Blocks_N:
 // #endif
       KernelPack_t cLocal[kTileSizePKernel];
 
-      int i_loadA_tn = 0;
-      const int i_loadA_tn_end = kTileSizeN - id;
-      int i_streamB_tp = 0;
-      const int i_streamB_tp_end = kTileSizePKernel;
-      int i_outer = 0;
-      const int i_outer_end = kSize;
-      int i_storeC_tn = 0;
-      const int i_storeC_tn_end = kTileSizeN - id;
-      int i_storeC_tp = 0;
-      const int i_storeC_tp_end = kTileSizePKernel;
       Data_t aNext, aVal;
-      // bool loadA = true;
-      int i_saturated = 0;
-      const int i_saturated_end = kTileSizeN - id; 
 
       // Manually flattened loop
-      const int loopBound = i_loadA_tn_end + kSize * i_streamB_tp_end +
-                        i_storeC_tn_end * i_storeC_tp_end;
+      const int loopBound =
+          i_loadA_tn_end + kSize * i_streamB_tp_end + i_storeC_end;
     Flattened:
       for (int i = 0; i < loopBound; ++i) {
         #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE
 
-        if (i < loopBound - i_storeC_tn_end * i_storeC_tp_end) {
+        if (i < loopBound - i_storeC_end) {
 
           // Grab next from previous iteration. This way we avoid that the
           // last processing elements overwrites its next value before it is
@@ -129,25 +126,19 @@ Blocks_N:
 
         } else {
 
-          if (i_storeC_tn == 0) {
+          if (i_storeC < kTileSizePKernel) {
             // hlslib::WriteBlocking(cOut, hlslib::ReadOptimistic(cLocal), 1);
-            hlslib::WriteBlocking(cOut, cLocal[i_storeC_tp], 1);
+            hlslib::WriteBlocking(cOut, cLocal[i_storeC], 1);
             #pragma HLS DEPENDENCE variable=cLocal inter false
           } else {
             hlslib::WriteBlocking(cOut, hlslib::ReadBlocking(cIn), 1);
           }
-          if (i_storeC_tp == i_storeC_tp_end - 1) {
-            i_storeC_tp = 0;
-            if (i_storeC_tn == i_storeC_tn_end - 1) {
-              i_storeC_tn = 0;
-              // Not technically necessary as they will be reset by the loop,
-              // but useful for flattening in the future
-            } else {
-              ++i_storeC_tn;
-            }
+          if (i_storeC == i_storeC_end - 1) {
+            i_storeC = 0;
           } else {
-            ++i_storeC_tp;
+            ++i_storeC;
           }
+
         }
 
       }
