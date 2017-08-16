@@ -8,6 +8,14 @@
 #include <sstream>
 #include <iostream>
 
+// -------------    --------------   --------------
+// | A  A  A  A |   | B  B  .  . |   | C  C  .  . |
+// | A  A  A  A |   | B  B  .  . |   | C  C  .  . |
+// | .  .  .  . | X | B  B  .  . | = | .  .  .  . |
+// | .  .  .  . |   | B  B  .  . |   | .  .  .  . |
+// | .  .  .  . |   | B  B  .  . |   | .  .  .  . |
+// -------------    --------------   --------------
+
 inline int GlobalIndex(int bn, int bp, int tn, int tp) {
   #pragma HLS INLINE
   return (bn * kTileSizeN + tn) * kSize + bp * kTileSizeP + tp;
@@ -22,11 +30,6 @@ inline int GlobalIndexMemory(int bn, int bp, int tn, int tp) {
   #pragma HLS INLINE
   return (bn * kTileSizeN + tn) * kSizeMemory + bp * kTileSizePMemory + tp;
 }
-
-enum class State {
-  streaming,
-  storingC
-};
 
 void MatrixMatrixStage(int id,
                        hlslib::Stream<Data_t> &aIn,
@@ -43,7 +46,7 @@ void MatrixMatrixStage(int id,
   int i_outer = 0;
   const int i_outer_end = kSize;
   int i_storeC = 0;
-  const int i_storeC_end = (kTileSizeN - id) * kTileSizePKernel;
+  const int i_storeC_end = (id + 1) * kTileSizePKernel;
   const int i_saturated_end = kTileSizeN - id; 
 
 Blocks_N:
@@ -82,10 +85,10 @@ Blocks_N:
           if (loadA) {
             const auto aRead = hlslib::ReadBlocking(aIn);
             // Don't forward on the last iteration
-            if (i_loadA_tn == 0) {
-              aNext = aRead;
-            } else {
+            if (i_loadA_tn < kTileSizeN - id - 1) {
               hlslib::WriteBlocking(aOut, aRead, 1);
+            } else {
+              aNext = aRead;
             }
             if (i_loadA_tn == i_loadA_tn_end - 1) {
               i_loadA_tn = 0;
@@ -290,8 +293,8 @@ UnrollCompute:
   for (int tn = 0; tn < kTileSizeN; ++tn) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, tn, aPipes[tn], bPipes[tn],
-                             cPipes[tn + 1], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn]);
+                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
+                             cPipes[tn + 1]);
   }
 #else
   int arr[kTileSizeN];
@@ -302,16 +305,17 @@ UnrollCompute:
     bPipes[tn].set_name("bPipes[" + std::to_string(tn) + "]");
     cPipes[tn].set_name("cPipes[" + std::to_string(tn) + "]");
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, arr[tn], aPipes[tn], bPipes[tn],
-                             cPipes[tn + 1], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn]);
+                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
+                             cPipes[tn + 1]);
   }
   aPipes[kTileSizeN].set_name("aPipes[" + std::to_string(kTileSizeN) + "]");
   bPipes[kTileSizeN].set_name("bPipes[" + std::to_string(kTileSizeN) + "]");
   cPipes[kTileSizeN].set_name("cPipes[" + std::to_string(kTileSizeN) + "]");
 #endif
 
-  HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[0], cMem);
+  HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[kTileSizeN], cMem);
   HLSLIB_DATAFLOW_FUNCTION(WriteCMemory, cMem, c);
 
   HLSLIB_DATAFLOW_FINALIZE();
 }
+
