@@ -18,6 +18,11 @@ inline int GlobalIndexKernel(int bn, int bp, int tn, int tp) {
   return (bn * kTileSizeN + tn) * kSizeKernel + bp * kTileSizePKernel + tp;
 }
 
+inline int GlobalIndexMemory(int bn, int bp, int tn, int tp) {
+  #pragma HLS INLINE
+  return (bn * kTileSizeN + tn) * kSizeMemory + bp * kTileSizePMemory + tp;
+}
+
 enum class State {
   streaming,
   storingC
@@ -148,7 +153,6 @@ Blocks_N:
 }
 
 void ReadA(Data_t const a[], hlslib::Stream<Data_t> &aPipe) {
-
 ReadA_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   ReadA_Block_P:
@@ -166,7 +170,7 @@ ReadA_Block_N:
   }
 }
 
-void ReadB(KernelPack_t const b[], hlslib::Stream<KernelPack_t> &bPipe) {
+void ReadBMemory(MemoryPack_t const b[], hlslib::Stream<MemoryPack_t> &bPipe) {
 ReadB_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   ReadB_Block_P:
@@ -174,17 +178,72 @@ ReadB_Block_N:
     ReadB_M:
       for (int m = 0; m < kSize; ++m) {
       ReadB_P:
-        for (int tp = 0; tp < kTileSizePKernel; ++tp) {
+        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          hlslib::WriteBlocking(bPipe, b[GlobalIndexKernel(0, bp, m, tp)], 1);
+          hlslib::WriteBlocking(bPipe, b[GlobalIndexMemory(0, bp, m, tp)], 1);
+        }
+      }
+    }
+  }
+
+}
+
+void ReadBKernel(hlslib::Stream<MemoryPack_t> &bMem,
+                 hlslib::Stream<KernelPack_t> &bPipe) {
+ReadB_Block_N:
+  for (int bn = 0; bn < kBlocksN; ++bn) {
+  ReadB_Block_P:
+    for (int bp = 0; bp < kBlocksP; ++bp) {
+    ReadB_M:
+      for (int m = 0; m < kSize; ++m) {
+      ReadB_P_Memory:
+        for (int tpm = 0; tpm < kTileSizePMemory; ++tpm) {
+          MemoryPack_t mem;
+        ReadB_P_KernelPerMemory:
+          for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) { 
+            #pragma HLS LOOP_FLATTEN
+            #pragma HLS PIPELINE
+            if (kpm == 0) {
+              mem = hlslib::ReadBlocking(bMem);
+            }
+            const KernelPack_t kernel = mem[kpm];
+            hlslib::WriteBlocking(bPipe, kernel, 1);
+          }
         }
       }
     }
   }
 }
 
-void WriteC(hlslib::Stream<KernelPack_t> &cPipe, KernelPack_t c[]) {
+void WriteCKernel(hlslib::Stream<KernelPack_t> &cPipe,
+                  hlslib::Stream<MemoryPack_t> &cMem) {
+WriteCKernel_Block_N:
+  for (int bn = 0; bn < kBlocksN; ++bn) {
+  WriteCKernel_Block_P:
+    for (int bp = 0; bp < kBlocksP; ++bp) {
+    WriteCKernel_N:
+      for (int tn = 0; tn < kTileSizeN; ++tn) {
+      WriteCKernel_P_Memory:
+        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
+          MemoryPack_t mem;
+        WriteCKernel_P_Kernel:
+          for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
+            #pragma HLS LOOP_FLATTEN
+            #pragma HLS PIPELINE
+            const auto read = hlslib::ReadBlocking(cPipe);
+            mem[kpm] = read;
+            if (kpm == kKernelPerMemory - 1) {
+              hlslib::WriteBlocking(cMem, mem, 1);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void WriteCMemory(hlslib::Stream<MemoryPack_t> &cMem, MemoryPack_t c[]) {
 WriteC_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   WriteC_Block_P:
@@ -192,17 +251,17 @@ WriteC_Block_N:
     WriteC_N:
       for (int tn = 0; tn < kTileSizeN; ++tn) {
       WriteC_P:
-        for (int tp = 0; tp < kTileSizePKernel; ++tp) {
+        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          c[GlobalIndexKernel(bn, bp, tn, tp)] = hlslib::ReadBlocking(cPipe);
+          c[GlobalIndexMemory(bn, bp, tn, tp)] = hlslib::ReadBlocking(cMem);
         }
       }
     }
   }
 }
 
-void MatrixMatrix(Data_t const a[], KernelPack_t const b[], KernelPack_t c[]) {
+void MatrixMatrix(Data_t const a[], MemoryPack_t const b[], MemoryPack_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
@@ -215,13 +274,16 @@ void MatrixMatrix(Data_t const a[], KernelPack_t const b[], KernelPack_t c[]) {
   #pragma HLS DATAFLOW
 
   hlslib::Stream<Data_t> aPipes[kTileSizeN + 1];
+  hlslib::Stream<MemoryPack_t> bMem("bMem");
   hlslib::Stream<KernelPack_t> bPipes[kTileSizeN + 1];
   hlslib::Stream<KernelPack_t> cPipes[kTileSizeN + 1];
+  hlslib::Stream<MemoryPack_t> cMem("cMem");
 
   HLSLIB_DATAFLOW_INIT();
 
   HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aPipes[0]);
-  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(ReadBMemory, b, bMem);
+  HLSLIB_DATAFLOW_FUNCTION(ReadBKernel, bMem, bPipes[0]);
 
 #ifdef MM_SYNTHESIS
   for (int tn = 0; tn < kTileSizeN; ++tn) {
@@ -247,7 +309,8 @@ void MatrixMatrix(Data_t const a[], KernelPack_t const b[], KernelPack_t c[]) {
   cPipes[kTileSizeN].set_name("cPipes[" + std::to_string(kTileSizeN) + "]");
 #endif
 
-  HLSLIB_DATAFLOW_FUNCTION(WriteC, cPipes[0], c);
+  HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[0], cMem);
+  HLSLIB_DATAFLOW_FUNCTION(WriteCMemory, cMem, c);
 
   HLSLIB_DATAFLOW_FINALIZE();
 }

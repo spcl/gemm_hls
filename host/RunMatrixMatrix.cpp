@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   
   std::vector<Data_t> a, b, cRef;
   std::vector<Data_t> aMem;
-  std::vector<KernelPack_t> bMem, cMem;
+  std::vector<MemoryPack_t> bMem, cMem;
   if (verify) {
     a = std::vector<Data_t>(kSize * kSize);
     std::for_each(a.begin(), a.end(),
@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
     cRef = std::vector<Data_t>(kSize * kSize, 0);
 
     aMem = a;
-    bMem = Pack<Data_t, kKernelWidth>(b);
-    cMem = Pack<Data_t, kKernelWidth>(cRef);
+    bMem = Pack(b);
+    cMem = Pack(cRef);
   }
 
   try {
@@ -52,9 +52,9 @@ int main(int argc, char **argv) {
     std::cout << "Initializing device memory..." << std::flush;
     auto aDevice = context.MakeBuffer<Data_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank1, kSize * kSize);
-    auto bDevice = context.MakeBuffer<KernelPack_t, hlslib::ocl::Access::read>(
+    auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank0, kSize * kSizeKernel);
-    auto cDevice = context.MakeBuffer<KernelPack_t, hlslib::ocl::Access::write>(
+    auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
         hlslib::ocl::MemoryBank::bank1, kSize * kSizeKernel);
     std::cout << " Done.\n";
 

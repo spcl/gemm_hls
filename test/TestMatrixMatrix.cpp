@@ -28,14 +28,14 @@ int main() {
   std::for_each(b.begin(), b.end(),
                 [&dist, &rng](Data_t &in) { in = dist(rng); });
 
-  const auto bKernel = Pack<Data_t, kKernelWidth>(b);
-  auto cKernel = Pack<Data_t, kKernelWidth>(cReference);
+  const auto bKernel = Pack(b);
+  auto cKernel = Pack(cReference);
 
   Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cReference.begin(),
                                      kSize, kSize, kSize);
   MatrixMatrix(a.data(), bKernel.data(), cKernel.data());
 
-  const auto cTest = Unpack<Data_t, kKernelWidth>(cKernel);
+  const auto cTest = Unpack(cKernel);
 
   for (int i = 0; i < kSize; ++i) {
     for (int j = 0; j < kSize; ++j) {

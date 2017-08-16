@@ -31,21 +31,27 @@ void Naive(IteratorRead aBegin, IteratorRead bBegin, IteratorWrite cBegin,
   }
 }
 
-template <typename T, int width>
-std::vector<hlslib::DataPack<T, width>> Pack(std::vector<T> const &in) {
-  std::vector<hlslib::DataPack<T, width>> result(in.size() / width);
-  for (int i = 0, iMax = in.size() / width; i < iMax; ++i) {
-    result[i] = hlslib::DataPack<T, width>(&in[i * width]);
+std::vector<MemoryPack_t> Pack(std::vector<Data_t> const &in) {
+  std::vector<MemoryPack_t> result(in.size() / kMemoryWidth);
+  for (int i = 0, iMax = in.size() / kMemoryWidth; i < iMax; ++i) {
+    KernelPack_t pack[kKernelPerMemory];
+    for (int j = 0; j < kKernelPerMemory; ++j) {
+      pack[j] = KernelPack_t(&in[i * kMemoryWidth + j * kKernelWidth]);
+    }
+    result[i] = MemoryPack_t(pack);
   }
   return result;
 }
 
-template <typename T, int width>
-std::vector<T> Unpack(std::vector<hlslib::DataPack<T, width>> const &in) {
-  std::vector<T> result(in.size() * width);
+std::vector<Data_t> Unpack(std::vector<MemoryPack_t> const &in) {
+  std::vector<Data_t> result(in.size() * kMemoryWidth);
   for (int i = 0, iMax = in.size(); i < iMax; ++i) {
-    for (int j = 0; j < width; ++j) {
-      result[i * width + j] = in[i][j];
+    const MemoryPack_t mem = in[i];
+    for (int j = 0; j < kKernelPerMemory; ++j) {
+      const KernelPack_t pack = mem[j];
+      for (int k = 0; k < kKernelWidth; ++k) {
+        result[i * kMemoryWidth + j * kKernelWidth + k] = pack[k]; 
+      }
     }
   }
   return result;
