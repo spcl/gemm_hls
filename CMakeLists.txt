@@ -15,8 +15,8 @@ set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
 set(MM_KERNEL_WIDTH 4 CACHE STRING "Kernel data path width in number of operands.")
 set(MM_SIZE 256 CACHE STRING "Size of matrix dimension.")
-set(MM_TILE_SIZE_N 32 CACHE STRING "Tile size in N.")
-set(MM_TILE_SIZE_P 32 CACHE STRING "Tile size in P.")
+set(MM_TILE_SIZE_N 16 CACHE STRING "Tile size in N.")
+set(MM_TILE_SIZE_P 64 CACHE STRING "Tile size in P.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 
@@ -36,6 +36,8 @@ set(MM_KERNEL_SRC
     ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(Stats src/Stats.cpp)
 
 add_executable(TestMatrixMatrix test/TestMatrixMatrix.cpp)
 target_link_libraries(TestMatrixMatrix ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} mmkernel)

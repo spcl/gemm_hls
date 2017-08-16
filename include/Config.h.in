@@ -12,6 +12,7 @@ constexpr int kMemoryWidthBytes = 64; // 512-bit memory port
 constexpr int kSize = ${MM_SIZE};
 constexpr int kTileSizeN = ${MM_TILE_SIZE_N};
 constexpr int kTileSizeP = ${MM_TILE_SIZE_P};
+constexpr float kFrequency = ${MM_TARGET_CLOCK};
 
 using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;
 using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
