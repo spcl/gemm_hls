@@ -61,10 +61,10 @@ Blocks_N:
       const int i_saturated_end = kTileSizeN - id; 
 
       // Manually flattened loop
+      const int loopBound = i_loadA_tn_end + kSize * i_streamB_tp_end +
+                        i_storeC_tn_end * i_storeC_tp_end;
     Flattened:
-      for (int i = 0; i < i_loadA_tn_end + kSize * i_streamB_tp_end +
-                              i_storeC_tn_end * i_storeC_tp_end;
-           ++i) {
+      for (int i = 0; i < loopBound; ++i) {
         #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE
 

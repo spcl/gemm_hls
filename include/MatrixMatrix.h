@@ -36,6 +36,10 @@ constexpr int kTileSizePKernel = kTileSizeP / kKernelWidth;
 static_assert(kTileSizePKernel % kKernelWidth == 0,
               "Tile size in P must be divisable by kernel width");
 
+static_assert(kTileSizePKernel >= kTileSizeN, "Horizontal tile size with "
+                                              "vectorization must be higher "
+                                              "than vertical tile size.");
+
 // constexpr int kTileSizePMemory = kTileSizeP / kMemoryWidth;
 // static_assert(kTileSizePMemory % kMemoryWidth == 0,
 //               "Tile size in P must be divisable by memory width");
