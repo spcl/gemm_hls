@@ -8,7 +8,8 @@ project(sdaccel_mm C CXX)
 set(MM_PART_NAME "xcku115-flvb2104-2-e" CACHE STRING "Part name for HLS.")
 set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
     "DSA string for xocc.")
-set(MM_TARGET_CLOCK 0 CACHE STRING "Target clock for kernel (<=0 is default).")
+set(MM_TARGET_CLOCK 250 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
+set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -43,7 +44,11 @@ add_test(TestMatrixMatrix TestMatrixMatrix)
 set(MM_PROJECT_NAME "MatrixMatrix")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
 set(MM_ENTRY_FUNCTION "MatrixMatrix")
-set(MM_TARGET_TIMING "5")
+if(MM_TARGET_CLOCK GREATER 0)
+  set(MM_TARGET_TIMING "${MM_TARGET_CLOCK}")
+else()
+  set(MM_TARGET_TIMING "5")
+endif()
 configure_file(scripts/Synthesis.tcl.in SynthesizeMatrixMatrix.tcl)
 add_custom_target(synthesize_matrix_matrix
   COMMAND ${SDAccel_VIVADO_HLS} -f SynthesizeMatrixMatrix.tcl) 
