@@ -71,6 +71,12 @@ Blocks_N:
         switch (state) {
 
           case State::streaming: {
+            // Grab next from previous iteration. This way we avoid that the
+            // last processing elements overwrites its next value before it is
+            // used
+            if (i_streamB_tp == 0) {
+              aVal = aNext;
+            }
             const bool loadA =
                 (i_streamB_tp < i_loadA_tn_end) && (i_outer < i_outer_end - 1);
             if (loadA) {
@@ -82,9 +88,6 @@ Blocks_N:
                 aNext = aRead;
               }
               if (i_loadA_tn == i_loadA_tn_end - 1) {
-                if (i < i_saturated_end) {
-                  aVal = aNext;
-                }
                 i_loadA_tn = 0;
               } else {
                 ++i_loadA_tn;
@@ -93,9 +96,6 @@ Blocks_N:
             if (i < i_saturated_end) {
               break;
             }
-            // if (i_streamB_tp == 0) {
-            //   aVal = aNext;
-            // }
             const auto readB = hlslib::ReadBlocking(bIn); 
             if (id < kTileSizeN - 1) {
               hlslib::WriteBlocking(bOut, readB, 1); // Forward B
@@ -120,7 +120,6 @@ Blocks_N:
             #pragma HLS DEPENDENCE variable=cLocal inter false
             if (i_streamB_tp == i_streamB_tp_end - 1) {
               i_streamB_tp = 0;
-              aVal = aNext;
               if (i_outer == i_outer_end - 1) {
                 i_outer = 0;
                 state = State::storingC;
