@@ -52,7 +52,7 @@ Blocks_N:
       int i_outer = 0;
       const int i_outer_end = kSize;
       int i_storeC_tn = 0;
-      const int i_storeC_tn_end = id + 1;
+      const int i_storeC_tn_end = kTileSizeN - id;
       int i_storeC_tp = 0;
       const int i_storeC_tp_end = kTileSizePKernel;
       Data_t aNext, aVal;
@@ -82,10 +82,10 @@ Blocks_N:
             if (loadA) {
               const auto aRead = hlslib::ReadBlocking(aIn);
               // Don't forward on the last iteration
-              if (i_loadA_tn < kTileSizeN - id - 1) {
-                hlslib::WriteBlocking(aOut, aRead, 1);
-              } else {
+              if (i_loadA_tn == 0) {
                 aNext = aRead;
+              } else {
+                hlslib::WriteBlocking(aOut, aRead, 1);
               }
               if (i_loadA_tn == i_loadA_tn_end - 1) {
                 i_loadA_tn = 0;
@@ -243,8 +243,8 @@ void MatrixMatrix(Data_t const a[], KernelPack_t const b[], KernelPack_t c[]) {
   for (int tn = 0; tn < kTileSizeN; ++tn) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, tn, aPipes[tn], bPipes[tn],
-                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn + 1]);
+                             cPipes[tn + 1], aPipes[tn + 1], bPipes[tn + 1],
+                             cPipes[tn]);
   }
 #else
   int arr[kTileSizeN];
@@ -255,15 +255,15 @@ void MatrixMatrix(Data_t const a[], KernelPack_t const b[], KernelPack_t c[]) {
     bPipes[tn].set_name("bPipes[" + std::to_string(tn) + "]");
     cPipes[tn].set_name("cPipes[" + std::to_string(tn) + "]");
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, arr[tn], aPipes[tn], bPipes[tn],
-                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn + 1]);
+                             cPipes[tn + 1], aPipes[tn + 1], bPipes[tn + 1],
+                             cPipes[tn]);
   }
   aPipes[kTileSizeN].set_name("aPipes[" + std::to_string(kTileSizeN) + "]");
   bPipes[kTileSizeN].set_name("bPipes[" + std::to_string(kTileSizeN) + "]");
   cPipes[kTileSizeN].set_name("cPipes[" + std::to_string(kTileSizeN) + "]");
 #endif
 
-  HLSLIB_DATAFLOW_FUNCTION(WriteC, cPipes[kTileSizeN], c);
+  HLSLIB_DATAFLOW_FUNCTION(WriteC, cPipes[0], c);
 
   HLSLIB_DATAFLOW_FINALIZE();
 }

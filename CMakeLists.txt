@@ -50,6 +50,7 @@ add_custom_target(synthesize_matrix_matrix
 if(SDAccel_FOUND)
   set(MM_XOCC_COMMAND
     -t hw
+    -O3
     -s
     -o MatrixMatrix.xclbin
     -I${CMAKE_SOURCE_DIR}/include
