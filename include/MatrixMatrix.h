@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "Config.h"
 #include "hlslib/DataPack.h"
 
@@ -44,7 +45,14 @@ static_assert(kTileSizePKernel >= kTileSizeN, "Horizontal tile size with "
                                               "vectorization must be higher "
                                               "than vertical tile size.");
 
-constexpr int kTransposeDepth = 4 * kTileSizeN;
+template <typename T,
+          class = typename std::enable_if<std::is_integral<T>::value, T>::type>
+constexpr T PowerOfTwo(T number, unsigned char power) {
+  return (number > 0) ? PowerOfTwo(number >> 1, power + 1) : (1 << (power - 1));
+}
+
+// Force HLS to implement these with BRAM by setting the minimum depth to 128
+constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kTileSizeN, 0);
 
 extern "C" {
 
