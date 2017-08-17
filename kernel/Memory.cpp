@@ -4,33 +4,34 @@
 
 #include "Memory.h"
 
-inline int GlobalIndex(int bn, int bp, int tn, int tp) {
+inline int GetAIndex(int bn, int tn, int m) {
   #pragma HLS INLINE
-  return (bn * kTileSizeN + tn) * kSize + bp * kTileSizeP + tp;
+  return bn * kTileSizeN * kSizeMMemory + tn * kSizeMMemory + m;
 }
 
-inline int GlobalIndexKernel(int bn, int bp, int tn, int tp) {
+inline int GetBIndex(int bp, int m, int tp) {
   #pragma HLS INLINE
-  return (bn * kTileSizeN + tn) * kSizeKernel + bp * kTileSizePKernel + tp;
+  return m * kSizePMemory + bp * kTileSizePMemory + tp;
 }
 
-inline int GlobalIndexMemory(int bn, int bp, int tn, int tp) {
+inline int GetCIndex(int bn, int bp, int tn, int tp) {
   #pragma HLS INLINE
-  return (bn * kTileSizeN + tn) * kSizeMemory + bp * kTileSizePMemory + tp;
+  return bn * kSizePMemory * kTileSizeN + tn * kSizePMemory +
+         bp * kTileSizePMemory + tp;
 }
 
 void ReadBMemory(MemoryPack_t const b[], hlslib::Stream<MemoryPack_t> &bPipe) {
-ReadB_Block_N:
+ReadBMemory_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
-  ReadB_Block_P:
+  ReadBMemory_Block_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
-    ReadB_M:
-      for (int m = 0; m < kSize; ++m) {
-      ReadB_P:
+    ReadBMemory_M:
+      for (int m = 0; m < kSizeM; ++m) {
+      ReadBMemory_P:
         for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          hlslib::WriteBlocking(bPipe, b[GlobalIndexMemory(0, bp, m, tp)], 1);
+          hlslib::WriteBlocking(bPipe, b[GetBIndex(bp, m, tp)], 1);
         }
       }
     }
@@ -45,7 +46,7 @@ ReadB_Block_N:
   ReadB_Block_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
     ReadB_M:
-      for (int m = 0; m < kSize; ++m) {
+      for (int m = 0; m < kSizeM; ++m) {
       ReadB_P_Memory:
         for (int tpm = 0; tpm < kTileSizePMemory; ++tpm) {
           MemoryPack_t mem;
@@ -102,7 +103,7 @@ WriteCMemory_Block_N:
         for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          c[GlobalIndexMemory(bn, bp, tn, tp)] = hlslib::ReadBlocking(cMem);
+          c[GetCIndex(bn, bp, tn, tp)] = hlslib::ReadBlocking(cMem);
         }
       }
     }
@@ -117,12 +118,12 @@ ReadASplit_Block_N:
   ReadASplit_Block_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
     ReadASplit_M:
-      for (int m = 0; m < kSizeMemory; ++m) {
+      for (int m = 0; m < kSizeMMemory; ++m) {
       ReadASplit_N:
         for (int tn = 0; tn < kTileSizeN; ++tn) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          const auto read = a[GlobalIndexMemory(bn, 0, tn, m)];
+          const auto read = a[GetAIndex(bn, tn, m)];
         ReadASplit_KernelPerMemory:
           for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
             #pragma HLS UNROLL
@@ -148,7 +149,7 @@ ReadARotate_Block_N:
   ReadARotate_Block_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
     ReadARotate_M_Memory:
-      for (int m = 0; m < kSizeMemory; ++m) {
+      for (int m = 0; m < kSizeMMemory; ++m) {
       ReadARotate_MemoryWidth:
         for (int mw = 0; mw < kMemoryWidth; ++mw) { 
         ReadARotate_N:

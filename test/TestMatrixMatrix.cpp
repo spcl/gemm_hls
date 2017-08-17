@@ -12,9 +12,9 @@
 
 int main() {
 
-  std::vector<Data_t> a(kSize * kSize);
-  std::vector<Data_t> b(kSize * kSize);
-  std::vector<Data_t> cReference(kSize * kSize, 0);
+  std::vector<Data_t> a(kSizeN * kSizeM);
+  std::vector<Data_t> b(kSizeM * kSizeP);
+  std::vector<Data_t> cReference(kSizeN * kSizeP, 0);
 
   std::random_device rd;
   std::default_random_engine rng(rd());
@@ -32,15 +32,15 @@ int main() {
   auto cKernel = Pack(cReference);
 
   Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cReference.begin(),
-                                     kSize, kSize, kSize);
+                                     kSizeN, kSizeM, kSizeP);
   MatrixMatrix(aKernel.data(), bKernel.data(), cKernel.data());
 
   const auto cTest = Unpack(cKernel);
 
-  for (int i = 0; i < kSize; ++i) {
-    for (int j = 0; j < kSize; ++j) {
-      const auto testVal = cTest[i * kSize + j];
-      const auto refVal = cReference[i * kSize + j];
+  for (int i = 0; i < kSizeN; ++i) {
+    for (int j = 0; j < kSizeP; ++j) {
+      const auto testVal = cTest[i * kSizeP + j];
+      const auto refVal = cReference[i * kSizeP + j];
       const auto diff = std::abs(testVal - refVal);
       if (diff > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j

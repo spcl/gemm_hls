@@ -27,7 +27,7 @@ void MatrixMatrixStage(int id, hlslib::Stream<Data_t> &aIn,
   int i_streamB_tp = 0;
   const int i_streamB_tp_end = kTileSizePKernel;
   int i_outer = 0;
-  const int i_outer_end = kSize;
+  const int i_outer_end = kSizeM;
   int i_storeC = 0;
   const int i_storeC_end = (id + 1) * kTileSizePKernel;
   const int i_saturated_end = kTileSizeN - id; 
@@ -49,7 +49,7 @@ Blocks_N:
 
       // Manually flattened loop
       const int loopBound =
-          i_loadA_tn_end + kSize * i_streamB_tp_end + i_storeC_end;
+          i_loadA_tn_end + kSizeM * i_streamB_tp_end + i_storeC_end;
     Flattened:
       for (int i = 0; i < loopBound; ++i) {
         #pragma HLS LOOP_FLATTEN

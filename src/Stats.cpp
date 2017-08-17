@@ -6,7 +6,7 @@ int main(int argc, char **argv) {
     frequency = std::stof(argv[1]);
   }
   const unsigned long long nOps =
-      2 * static_cast<unsigned long long>(kSize) * kSize * kSize;
+      2 * static_cast<unsigned long long>(kSizeN) * kSizeM * kSizeP;
   std::cout << "Frequency:            " << frequency << " MHz\n";
   std::cout << "Number of operations: " << nOps << " ("
             << static_cast<float>(nOps) << ")\n";

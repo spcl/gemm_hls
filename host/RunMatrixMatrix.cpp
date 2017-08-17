@@ -27,13 +27,13 @@ int main(int argc, char **argv) {
   std::vector<Data_t> a, b, cRef;
   std::vector<MemoryPack_t> aMem, bMem, cMem;
   if (verify) {
-    a = std::vector<Data_t>(kSize * kSize);
+    a = std::vector<Data_t>(kSizeN * kSizeM);
     std::for_each(a.begin(), a.end(),
                   [&dist, &rng](Data_t &in) { in = dist(rng); });
-    b = std::vector<Data_t>(kSize * kSize);
+    b = std::vector<Data_t>(kSizeM * kSizeP);
     std::for_each(b.begin(), b.end(),
                   [&dist, &rng](Data_t &in) { in = dist(rng); });
-    cRef = std::vector<Data_t>(kSize * kSize, 0);
+    cRef = std::vector<Data_t>(kSizeN * kSizeP, 0);
 
     aMem = Pack(a);
     bMem = Pack(b);
@@ -48,11 +48,11 @@ int main(int argc, char **argv) {
 
     std::cout << "Initializing device memory..." << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, kSize * kSizeKernel);
+        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeMMemory);
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, kSize * kSizeKernel);
+        hlslib::ocl::MemoryBank::bank0, kSizeM * kSizePMemory);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank1, kSize * kSizeKernel);
+        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizePMemory);
     std::cout << " Done.\n";
 
     if (verify) {
@@ -71,9 +71,10 @@ int main(int argc, char **argv) {
     const auto elapsed = kernel.ExecuteTask();
     std::cout << " Done.\n";
 
-    const auto perf = 1e-9 * (2 * static_cast<float>(kSize) * kSize * kSize)
-                      / elapsed.first;
-    
+    const auto perf = 1e-9 *
+                      (2 * static_cast<float>(kSizeN) * kSizeM * kSizeP) /
+                      elapsed.first;
+
     std::cout << "Kernel executed in " << elapsed.first
               << " seconds, corresponding to a performance of " << perf
               << " GOp/s.\n";;
@@ -94,16 +95,16 @@ int main(int argc, char **argv) {
   if (verify) {
     std::cout << "Running reference implementation..." << std::flush;
     Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cRef.begin(),
-                                       kSize, kSize, kSize);
+                                       kSizeN, kSizeM, kSizeP);
     std::cout << " Done.\n";
 
     // Convert to single element vector
     const auto cTest = Unpack(cMem); 
 
-    for (int i = 0; i < kSize; ++i) {
-      for (int j = 0; j < kSize; ++j) {
-        const auto testVal = cTest[i * kSize + j];
-        const auto refVal = cRef[i * kSize + j];
+    for (int i = 0; i < kSizeN; ++i) {
+      for (int j = 0; j < kSizeP; ++j) {
+        const auto testVal = cTest[i * kSizeP + j];
+        const auto refVal = cRef[i * kSizeP + j];
         const auto diff = std::abs(testVal - refVal);
         if (diff > static_cast<Data_t>(1e-3)) {
           // std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal

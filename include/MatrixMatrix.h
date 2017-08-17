@@ -17,20 +17,28 @@ static_assert(kMemoryWidth % kKernelWidth == 0,
 using KernelPack_t = hlslib::DataPack<Data_t, kKernelWidth>;
 using MemoryPack_t = hlslib::DataPack<KernelPack_t, kKernelPerMemory>;
 
-constexpr int kSizeKernel = kSize / kKernelWidth;
-static_assert(kSize % kKernelWidth == 0,
-              "Matrix dimensions must be divisable by kernel width.");
+// constexpr int kSizeKernel = kSize / kKernelWidth;
+// static_assert(kSize % kKernelWidth == 0,
+//               "Matrix dimensions must be divisable by kernel width.");
 
-constexpr int kSizeMemory = kSize / kMemoryWidth;
-static_assert(kSize % kMemoryWidth == 0,
-              "Matrix dimensions must be divisable by memory width.");
+// constexpr int kSizeMemory = kSize / kMemoryWidth;
+// static_assert(kSize % kMemoryWidth == 0,
+//               "Matrix dimensions must be divisable by memory width.");
 
-constexpr int kBlocksN = kSize / kTileSizeN;
-static_assert(kSize % kTileSizeN == 0,
+constexpr int kSizeMMemory = kSizeM / kMemoryWidth;
+static_assert(kSizeM % kMemoryWidth == 0,
+              "M must be divisable by memory width.");
+
+constexpr int kSizePMemory = kSizeP / kMemoryWidth;
+static_assert(kSizeP % kMemoryWidth == 0,
+              "P must be divisable by memory width.");
+
+constexpr int kBlocksN = kSizeN / kTileSizeN;
+static_assert(kSizeN % kTileSizeN == 0,
               "N must be divisable by tile size in N.");
 
-constexpr int kBlocksP = kSize / kTileSizeP;
-static_assert(kSize % kTileSizeP == 0,
+constexpr int kBlocksP = kSizeP / kTileSizeP;
+static_assert(kSizeP % kTileSizeP == 0,
               "P must be divisable by tile size in P.");
 
 constexpr int kTileSizePKernel = kTileSizeP / kKernelWidth;
