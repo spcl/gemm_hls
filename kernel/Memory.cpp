@@ -92,13 +92,13 @@ WriteCKernel_Block_N:
 }
 
 void WriteCMemory(hlslib::Stream<MemoryPack_t> &cMem, MemoryPack_t c[]) {
-WriteC_Block_N:
+WriteCMemory_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
-  WriteC_Block_P:
+  WriteCMemory_Block_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
-    WriteC_N:
+    WriteCMemory_N:
       for (int tn = 0; tn < kTileSizeN; ++tn) {
-      WriteC_P:
+      WriteCMemory_P:
         for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
@@ -123,8 +123,10 @@ ReadASplit_Block_N:
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
           const auto read = a[GlobalIndexMemory(bn, 0, tn, m)];
+        ReadASplit_KernelPerMemory:
           for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
             #pragma HLS UNROLL
+          ReadASplit_KernelWidth:
             for (int kw = 0; kw < kKernelWidth; ++kw) {
               #pragma HLS UNROLL
               hlslib::WriteBlocking(aSplit[kpm * kKernelWidth + kw],
