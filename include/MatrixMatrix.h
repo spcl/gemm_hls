@@ -44,8 +44,10 @@ static_assert(kTileSizePKernel >= kTileSizeN, "Horizontal tile size with "
                                               "vectorization must be higher "
                                               "than vertical tile size.");
 
+constexpr int kTransposeDepth = 4 * kTileSizeN;
+
 extern "C" {
 
-void MatrixMatrix(Data_t const *aMem, MemoryPack_t const *bMem,
+void MatrixMatrix(MemoryPack_t const *aMem, MemoryPack_t const *bMem,
                   MemoryPack_t *cMem);
 }

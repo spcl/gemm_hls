@@ -33,7 +33,8 @@ configure_file(include/Config.h.in Config.h)
 enable_testing()
 
 set(MM_KERNEL_SRC
-    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp)
+    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
+    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
