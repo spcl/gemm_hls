@@ -15,11 +15,9 @@ int main(int argc, char **argv) {
   
   std::random_device rd;
   std::default_random_engine rng(rd());
-#ifdef MM_INTEGER_TYPE 
-  std::uniform_int_distribution<Data_t> dist(1, 10);
-#else
-  std::uniform_real_distribution<Data_t> dist(0, 1);
-#endif
+  typename std::conditional<
+      std::is_integral<Data_t>::value, std::uniform_int_distribution<Data_t>,
+      std::uniform_real_distribution<Data_t>>::type dist(1, 10);
 
   bool verify = false;
   if (argc > 1 && std::string(argv[1]) == "on") {

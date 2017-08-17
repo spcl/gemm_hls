@@ -6,8 +6,9 @@
 #include "MatrixMatrix.h"
 #include <algorithm>
 #include <iostream>
-#include <vector>
 #include <random>
+#include <type_traits>
+#include <vector>
 
 int main() {
 
@@ -17,11 +18,9 @@ int main() {
 
   std::random_device rd;
   std::default_random_engine rng(rd());
-#ifdef MM_INTEGER_TYPE 
-  std::uniform_int_distribution<Data_t> dist(1, 10);
-#else
-  std::uniform_real_distribution<Data_t> dist(0, 1);
-#endif
+  typename std::conditional<
+      std::is_integral<Data_t>::value, std::uniform_int_distribution<Data_t>,
+      std::uniform_real_distribution<Data_t>>::type dist(1, 10);
 
   std::for_each(a.begin(), a.end(),
                 [&dist, &rng](Data_t &in) { in = dist(rng); });
