@@ -72,7 +72,7 @@ if(SDAccel_FOUND)
     # Matrices A and C use the same interface
     --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
     --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
-    --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM2.core.OCL_REGION_0.M02_AXI
+    --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM2.core.OCL_REGION_0.M00_AXI
     --max_memory_ports all)
   if(MM_TARGET_CLOCK GREATER 0)
     set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}

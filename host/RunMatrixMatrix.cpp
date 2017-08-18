@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank1, kSizeM * kSizePMemory);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank2, kSizeN * kSizePMemory);
+        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizePMemory);
     std::cout << " Done.\n";
 
     if (verify) {
