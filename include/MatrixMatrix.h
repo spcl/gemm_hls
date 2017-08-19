@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include "Config.h"
 #include "hlslib/DataPack.h"
 

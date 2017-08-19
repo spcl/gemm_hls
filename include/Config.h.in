@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
 #include "hlslib/Operators.h"
+#include <cstdint>
+#include "hls_half.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
 constexpr int kKernelWidth = ${MM_KERNEL_WIDTH};
