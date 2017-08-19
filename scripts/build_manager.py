@@ -182,7 +182,7 @@ class Consumption(object):
 
   def __repr__(self):
     return ",".join(map(str, [
-        self.status, self.conf.to_string(), self.clock,
+        self.status, self.conf.to_csv(), self.clock,
         self.dsp, self.lut, self.ff, self.bram, self.power]))
 
 
@@ -347,6 +347,9 @@ def check_build_status(conf):
   if m:
     return "failed_placement"
   m = re.search("Routing results verification failed due to partially-conflicted nets", report)
+  if m:
+    return "failed_routing"
+  m = re.search("route_design ERROR", log)
   if m:
     return "failed_routing"
   m = re.search("Internal Data Exception", log)
