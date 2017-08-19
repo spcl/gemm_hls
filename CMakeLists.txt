@@ -21,6 +21,8 @@ set(MM_TILE_SIZE_N 16 CACHE STRING "Tile size in N.")
 set(MM_TILE_SIZE_P 64 CACHE STRING "Tile size in P.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
+set(MM_ADD_RESOURCE OFF CACHE STRING "")
+set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")  
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -29,6 +31,13 @@ find_package(Threads REQUIRED)
 
 include_directories(include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+if(MM_ADD_RESOURCE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHLSLIB_OPERATOR_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
+endif() 
+if(MM_MULTIPLY_RESOURCE) 
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHLSLIB_OPERATOR_MULTIPLY_RESOURCE=${MM_MULTIPLY_RESOURCE}") 
+endif() 
 
 configure_file(include/Config.h.in Config.h)
 

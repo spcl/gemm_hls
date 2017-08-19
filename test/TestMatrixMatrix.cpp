@@ -19,13 +19,13 @@ int main() {
   std::random_device rd;
   std::default_random_engine rng(rd());
   typename std::conditional<
-      std::is_integral<Data_t>::value, std::uniform_int_distribution<Data_t>,
-      std::uniform_real_distribution<Data_t>>::type dist(1, 10);
+      std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
+      std::uniform_real_distribution<double>>::type dist(1, 10);
 
   std::for_each(a.begin(), a.end(),
-                [&dist, &rng](Data_t &in) { in = dist(rng); });
+                [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
   std::for_each(b.begin(), b.end(),
-                [&dist, &rng](Data_t &in) { in = dist(rng); });
+                [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
 
   const auto aKernel = Pack(a);
   const auto bKernel = Pack(b);

@@ -16,8 +16,8 @@ int main(int argc, char **argv) {
   std::random_device rd;
   std::default_random_engine rng(rd());
   typename std::conditional<
-      std::is_integral<Data_t>::value, std::uniform_int_distribution<Data_t>,
-      std::uniform_real_distribution<Data_t>>::type dist(1, 10);
+      std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
+      std::uniform_real_distribution<double>>::type dist(1, 10);
 
   bool verify = false;
   if (argc > 1 && std::string(argv[1]) == "on") {
@@ -29,10 +29,10 @@ int main(int argc, char **argv) {
   if (verify) {
     a = std::vector<Data_t>(kSizeN * kSizeM);
     std::for_each(a.begin(), a.end(),
-                  [&dist, &rng](Data_t &in) { in = dist(rng); });
+                  [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
     b = std::vector<Data_t>(kSizeM * kSizeP);
     std::for_each(b.begin(), b.end(),
-                  [&dist, &rng](Data_t &in) { in = dist(rng); });
+                  [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
     cRef = std::vector<Data_t>(kSizeN * kSizeP, 0);
 
     aMem = Pack(a);
