@@ -585,8 +585,8 @@ if __name__ == "__main__":
     argDict = vars(args)
 
     procs = int(argDict["procs"])
-    if "cmakeOpts" in argDict:
-      cmakeOpts = ["-D" + arg for arg in argDict["cmakeOpts"]]
+    if "cmakeOpts" in argDict and argDict["cmakeOpts"]:
+      cmakeOpts = ["-D" + arg for arg in argDict["cmakeOpts"].split(" ")]
     else:
       cmakeOpts = []
     del argDict["procs"]
