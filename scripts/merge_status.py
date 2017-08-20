@@ -23,6 +23,9 @@ if __name__ == "__main__":
       for line in sourceFile:
         m = re.search(pattern, line)
         if m:
+          if m.group(1) in ["no_build", "failed_unknown"]:
+            print("Skipping unfinished build " + str(m.groups()[1:]))
+            continue
           statusStr = ",".join(m.groups()[1:])
           if statusStr in content:
             if line not in content:
