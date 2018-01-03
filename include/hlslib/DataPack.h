@@ -99,6 +99,18 @@ public:
     }
   }
 
+  template <unsigned outWidth>
+  DataPack<T, outWidth> Range(const unsigned at) const {
+    #pragma HLS INLINE
+    static_assert(outWidth < width, "Invalid width");
+    DataPack<T, outWidth> out;
+    for (int i = 0; i < outWidth; ++i) {
+      #pragma HLS UNROLL
+      out[i] = Get(at + i);
+    }
+    return out;
+  }
+
   void operator<<(T const arr[width]) {
     #pragma HLS INLINE
     Pack(arr);
@@ -211,5 +223,74 @@ std::ostream& operator<<(std::ostream &os, DataPack<T, width> const &rhs) {
   os << "}";
   return os;
 }
+
+#define HLSLIB_DATAPACK_BINARY_OP(op, inplace) \
+template <typename T, int width> \
+hlslib::DataPack<T, width> operator op( \
+    hlslib::DataPack<T, width> const &a, \
+    hlslib::DataPack<T, width> const &b) { \
+  _Pragma("HLS INLINE") \
+  hlslib::DataPack<T, width> res; \
+  for (int i = 0; i < width; ++i) { \
+    _Pragma("HLS UNROLL") \
+    res[i] = a[i] op b[i]; \
+  } \
+  return res; \
+} \
+template <typename T, typename U, int width> \
+hlslib::DataPack<T, width> operator op( \
+    hlslib::DataPack<T, width> const &a, \
+    U const &b) { \
+  _Pragma("HLS INLINE") \
+  hlslib::DataPack<T, width> res; \
+  for (int i = 0; i < width; ++i) { \
+    _Pragma("HLS UNROLL") \
+    res[i] = a[i] op b; \
+  } \
+  return res; \
+} \
+template <typename T, typename U, int width> \
+hlslib::DataPack<T, width> operator op( \
+    U const &a, \
+    hlslib::DataPack<T, width> const &b) { \
+  _Pragma("HLS INLINE") \
+  hlslib::DataPack<T, width> res; \
+  for (int i = 0; i < width; ++i) { \
+    _Pragma("HLS UNROLL") \
+    res[i] = a op b[i]; \
+  } \
+  return res; \
+} \
+template <typename T, int width> \
+hlslib::DataPack<T, width> operator inplace( \
+    hlslib::DataPack<T, width> const &a, \
+    hlslib::DataPack<T, width> const &b) { \
+  _Pragma("HLS INLINE") \
+  for (int i = 0; i < width; ++i) { \
+    _Pragma("HLS UNROLL") \
+    a[i] inplace b[i]; \
+  } \
+} \
+template <typename T, typename U, int width> \
+hlslib::DataPack<T, width> operator inplace( \
+    hlslib::DataPack<T, width> const &a, \
+    U const &b) { \
+  _Pragma("HLS INLINE") \
+  for (int i = 0; i < width; ++i) { \
+    _Pragma("HLS UNROLL") \
+    a[i] inplace b; \
+  } \
+}
+HLSLIB_DATAPACK_BINARY_OP(+, +=);
+HLSLIB_DATAPACK_BINARY_OP(*, *=);
+HLSLIB_DATAPACK_BINARY_OP(-, -=);
+HLSLIB_DATAPACK_BINARY_OP(/, /=);
+HLSLIB_DATAPACK_BINARY_OP(<<, <<=);
+HLSLIB_DATAPACK_BINARY_OP(>>, >>=);
+HLSLIB_DATAPACK_BINARY_OP(^, ^=);
+HLSLIB_DATAPACK_BINARY_OP(|, |=);
+HLSLIB_DATAPACK_BINARY_OP(&, &=);
+HLSLIB_DATAPACK_BINARY_OP(%, %=);
+#undef HLSLIB_DATAPACK_BINARY_OP
 
 } // End namespace hlslib 

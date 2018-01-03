@@ -563,8 +563,8 @@ private:
     }
   }
 
-  template <typename T, Access access, typename... Ts>
-  void SetKernelArguments(size_t index, Buffer<T, access> &arg, Ts &... args) {
+  template <typename T, typename... Ts>
+  void SetKernelArguments(size_t index, T &arg, Ts &... args) {
     SetKernelArguments(index, arg);
     SetKernelArguments(index + 1, args...);
   }

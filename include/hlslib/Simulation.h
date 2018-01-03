@@ -7,6 +7,7 @@
 #ifndef HLSLIB_SYNTHESIS
 #include <thread>
 #include <vector>
+#include "hlslib/Stream.h"
 #endif
 
 // This header provides functionality to simulate dataflow functions that
@@ -34,9 +35,6 @@ namespace hlslib {
 #define HLSLIB_DATAFLOW_FUNCTION(func, ...) func(__VA_ARGS__)
 #define HLSLIB_DATAFLOW_FINALIZE()
 #else
-#include <vector>
-#include <thread>
-#include "hlslib/Stream.h"
 namespace {
 class _Dataflow {
 private:

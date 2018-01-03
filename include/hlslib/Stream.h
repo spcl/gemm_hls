@@ -53,6 +53,12 @@ void WriteBlocking(Stream<T> &stream, T const &val, int) {
 }
 
 template <typename T>
+void WriteBlocking(Stream<T> &stream, T const &val) {
+  #pragma HLS INLINE
+  stream.write(val);
+}
+
+template <typename T>
 void WriteOptimistic(Stream<T> &stream, T const &val, int) {
   #pragma HLS INLINE
   stream.write(val);
@@ -139,6 +145,13 @@ bool ReadNonBlocking(Stream<T> &stream, T &output) {
 template <typename T>
 void WriteBlocking(Stream<T> &stream, T const &val, int size) {
   stream.WriteBlocking(val, size);
+}
+
+/// Attempt to write to a stream, blocking until a value can be written. Useful
+/// for inter-process communication and generally asynchronous behavior.
+template <typename T>
+void WriteBlocking(Stream<T> &stream, T const &val) {
+  stream.WriteBlocking(val);
 }
 
 /// Attempt to write to a stream, throwing an exception if the stream is full.

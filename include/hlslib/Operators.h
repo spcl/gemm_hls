@@ -4,24 +4,49 @@
 
 #pragma once
 
+#include "hlslib/Resource.h"
 #include <limits>
 
 namespace hlslib {
 
 namespace op {
 
+#ifdef HLSLIB_OPERATOR_ADD_RESOURCE
+#define HLSLIB_OPERATOR_ADD_RESOURCE_PRAGMA(var)                                 \
+  HLSLIB_RESOURCE_PRAGMA(var, HLSLIB_OPERATOR_ADD_RESOURCE)
+#else
+#define HLSLIB_OPERATOR_ADD_RESOURCE_PRAGMA(var)
+#endif
+
 template <typename T>
 struct Add {
-  static T Apply(T const &a, T const &b) { return a + b; }
+  static T Apply(T const &a, T const &b) {
+    #pragma HLS INLINE
+    const T res = a + b;
+    HLSLIB_OPERATOR_ADD_RESOURCE_PRAGMA(res);
+    return res;
+  }
   static constexpr T identity() { return 0; }
 private:
   Add() = delete;
   ~Add() = delete;
 };
 
+#ifdef HLSLIB_OPERATOR_MULTIPLY_RESOURCE
+#define HLSLIB_OPERATOR_MULTIPLY_RESOURCE_PRAGMA(var)                                 \
+  HLSLIB_RESOURCE_PRAGMA(var, HLSLIB_OPERATOR_MULTIPLY_RESOURCE)
+#else
+#define HLSLIB_OPERATOR_MULTIPLY_RESOURCE_PRAGMA(var)
+#endif
+
 template <typename T>
 struct Multiply {
-  static T Apply(T const &a, T const &b) { return a * b; }
+  static T Apply(T const &a, T const &b) {
+    #pragma HLS INLINE
+    const T res = a * b;
+    HLSLIB_OPERATOR_MULTIPLY_RESOURCE_PRAGMA(res);
+    return res;
+  }
   static constexpr T identity() { return 1; }
 private:
   Multiply() = delete;
