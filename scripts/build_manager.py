@@ -10,6 +10,7 @@ import shutil
 import signal
 import subprocess as sp
 import sys
+import time
 
 PROJECT_CONFIG = {
   "kernelName": "MatrixMatrix",
@@ -538,6 +539,7 @@ def benchmark(repetitions, timeout):
     repsDone = 0
     timeouts = 0
     while repsDone < repetitions:
+      time.sleep(0.5)
       print("Running iteration {} / {}...".format(repsDone + 1, repetitions))
       try:
         ret = run_process("./RunMatrixMatrix.exe".split(),
