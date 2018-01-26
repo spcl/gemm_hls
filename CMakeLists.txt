@@ -10,6 +10,7 @@ set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
     "DSA string for xocc.")
 set(MM_TARGET_CLOCK 250 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
+set(MM_USE_SIMPLE OFF CACHE STRING "Use simple version of the GEMM kernel.")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -24,12 +25,12 @@ set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
 set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")  
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
 
 find_package(SDAccel REQUIRED)
 find_package(Threads REQUIRED)
 
-include_directories(include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
+include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 if(MM_ADD_RESOURCE)
@@ -43,9 +44,15 @@ configure_file(include/Config.h.in Config.h)
 
 enable_testing()
 
-set(MM_KERNEL_SRC
-    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
-    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+if(NOT MM_USE_SIMPLE)
+  set(MM_KERNEL_SRC
+      ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
+      ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+else()
+  set(MM_KERNEL_SRC
+      ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrixSimple.cpp
+      ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+endif()
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
