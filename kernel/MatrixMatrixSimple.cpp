@@ -33,7 +33,8 @@ Outer_N:
           for (int nu = 0; nu < kTileSizeN; ++nu) {
             #pragma HLS UNROLL
             const auto a_val = a_buffer[nu];
-            const auto prev = acc[nu][p];
+            const auto prev =
+                (m > 0) ? acc[nu][p] : KernelPack_t(OperatorReduce::identity());
             KernelPack_t updated;
             for (int w = 0; w < kKernelWidth; ++w) {
               #pragma HLS UNROLL
