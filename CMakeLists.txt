@@ -19,7 +19,7 @@ set(MM_SIZE_N 256 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_M 256 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_P 256 CACHE STRING "Size of matrix dimension.")
 set(MM_TILE_SIZE_N 16 CACHE STRING "Tile size in N.")
-set(MM_TILE_SIZE_P 64 CACHE STRING "Tile size in P.")
+set(MM_TILE_SIZE_P 128 CACHE STRING "Tile size in P.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
@@ -80,6 +80,7 @@ if(SDAccel_FOUND)
     -s
     -o MatrixMatrix.xclbin
     -I${CMAKE_SOURCE_DIR}/include
+    -I${CMAKE_SOURCE_DIR}/hlslib/include
     -I${CMAKE_BINARY_DIR}
     ${MM_KERNEL_SRC}
     --kernel MatrixMatrix
