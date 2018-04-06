@@ -181,21 +181,24 @@ UnrollCompute:
   }
 #else
   for (int mw = 0; mw < kMemoryWidth; ++mw) {
-    aSplit[mw].set_name("aSplit[" + std::to_string(mw) + "]");
+    aSplit[mw].set_name(("aSplit[" + std::to_string(mw) + "]").c_str());
   }
   int arr[kTileSizeN];
   for (int tn = 0; tn < kTileSizeN; ++tn) {
     arr[tn] = tn; // Need to allow passing by value
-    aPipes[tn].set_name("aPipes[" + std::to_string(tn) + "]");
-    bPipes[tn].set_name("bPipes[" + std::to_string(tn) + "]");
-    cPipes[tn].set_name("cPipes[" + std::to_string(tn) + "]");
+    aPipes[tn].set_name(("aPipes[" + std::to_string(tn) + "]").c_str());
+    bPipes[tn].set_name(("bPipes[" + std::to_string(tn) + "]").c_str());
+    cPipes[tn].set_name(("cPipes[" + std::to_string(tn) + "]").c_str());
     HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, arr[tn], aPipes[tn], bPipes[tn],
                              cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
                              cPipes[tn + 1]);
   }
-  aPipes[kTileSizeN].set_name("aPipes[" + std::to_string(kTileSizeN) + "]");
-  bPipes[kTileSizeN].set_name("bPipes[" + std::to_string(kTileSizeN) + "]");
-  cPipes[kTileSizeN].set_name("cPipes[" + std::to_string(kTileSizeN) + "]");
+  aPipes[kTileSizeN].set_name(
+      ("aPipes[" + std::to_string(kTileSizeN) + "]").c_str());
+  bPipes[kTileSizeN].set_name(
+      ("bPipes[" + std::to_string(kTileSizeN) + "]").c_str());
+  cPipes[kTileSizeN].set_name(
+      ("cPipes[" + std::to_string(kTileSizeN) + "]").c_str());
 #endif
 
   HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[kTileSizeN], cMem);
@@ -203,4 +206,3 @@ UnrollCompute:
 
   HLSLIB_DATAFLOW_FINALIZE();
 }
-
