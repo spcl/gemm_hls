@@ -15,8 +15,8 @@ import time
 PROJECT_CONFIG = {
   "kernelName": "MatrixMatrix",
   "kernelFile": "MatrixMatrix",
-  "makeSynthesis": "synthesize_matrix_matrix",
-  "makeKernel": "kernel_matrix_matrix",
+  "makeSynthesis": "synthesis",
+  "makeKernel": "build_kernel",
   "executeKernel": ["./RunMatrixMatrix"],
   "buildDir": "scan",
   "benchmarkDir": "benchmark",
