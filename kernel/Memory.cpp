@@ -112,7 +112,7 @@ WriteCMemory_Block_N:
 
 // Split A into individual, deep FIFOs 
 void ReadASplit(MemoryPack_t const a[],
-                hlslib::Stream<Data_t> aSplit[kMemoryWidth]) {
+                hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth]) {
 ReadASplit_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   ReadASplit_Block_P:
@@ -130,9 +130,8 @@ ReadASplit_Block_N:
           ReadASplit_KernelWidth:
             for (int kw = 0; kw < kKernelWidth; ++kw) {
               #pragma HLS UNROLL
-              hlslib::WriteBlocking(aSplit[kpm * kKernelWidth + kw],
-                                    static_cast<Data_t>(read[kpm][kw]),
-                                    kTransposeDepth);
+              aSplit[kpm * kKernelWidth + kw].Push(
+                  static_cast<Data_t>(read[kpm][kw]));
             }
           }
         }
@@ -142,7 +141,7 @@ ReadASplit_Block_N:
 }
 
 // Rotate between the different vertical buffers of A
-void ReadARotate(hlslib::Stream<Data_t> aSplit[kMemoryWidth],
+void ReadARotate(hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth],
                  hlslib::Stream<Data_t> &aPipe) {
 ReadARotate_Block_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
@@ -156,8 +155,8 @@ ReadARotate_Block_N:
           for (int tn = 0; tn < kTileSizeN; ++tn) {
             #pragma HLS LOOP_FLATTEN
             #pragma HLS PIPELINE
-            const auto read = hlslib::ReadBlocking(aSplit[mw]);
-            hlslib::WriteBlocking(aPipe, read, 1);
+            const auto read = aSplit[mw].Pop();
+            aPipe.Push(read);
           }
         }
       }

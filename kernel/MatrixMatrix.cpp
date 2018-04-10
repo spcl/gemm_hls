@@ -122,7 +122,10 @@ Blocks_N:
             hlslib::WriteBlocking(cOut, cLocal[i_storeC], 1);
             #pragma HLS DEPENDENCE variable=cLocal inter false
           } else {
-            hlslib::WriteBlocking(cOut, hlslib::ReadBlocking(cIn), 1);
+            // HLS cannot deduce that this never happens for id == 0
+            if (id > 0) {
+              cOut.Push(cIn.Pop());
+            }
           }
           if (i_storeC == i_storeC_end - 1) {
             i_storeC = 0;
@@ -152,12 +155,7 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS DATAFLOW
 
   hlslib::Stream<MemoryPack_t> aMem("aMem");
-#ifndef MM_SYNTHESIS
-  hlslib::Stream<Data_t> aSplit[kMemoryWidth];
-#else
-  hls::stream<Data_t> aSplit[kMemoryWidth];
-  #pragma HLS STREAM variable=aSplit depth=kTransposeDepth
-#endif
+  hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth];
   hlslib::Stream<Data_t> aPipes[kTileSizeN + 1];
   hlslib::Stream<MemoryPack_t> bMem("bMem");
   hlslib::Stream<KernelPack_t> bPipes[kTileSizeN + 1];

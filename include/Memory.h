@@ -8,9 +8,9 @@
 #include "hlslib/Stream.h"
 
 void ReadASplit(MemoryPack_t const a[],
-                hlslib::Stream<Data_t> aSplit[kMemoryWidth]);
+                hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth]);
 
-void ReadARotate(hlslib::Stream<Data_t> aSplit[kMemoryWidth],
+void ReadARotate(hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth],
                  hlslib::Stream<Data_t> &aPipe);
 
 void ReadBMemory(MemoryPack_t const b[], hlslib::Stream<MemoryPack_t> &bPipe);
