@@ -63,8 +63,8 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Programming device..." << std::flush;
-    auto kernel = context.MakeKernel("MatrixMatrix.xclbin", "MatrixMatrix",
-                                     aDevice, bDevice, cDevice);
+    auto program = context.MakeProgram("MatrixMatrix.xclbin");
+    auto kernel = program.MakeKernel("MatrixMatrix", aDevice, bDevice, cDevice);
     std::cout << " Done.\n";
 
     std::cout << "Executing kernel..." << std::flush;
