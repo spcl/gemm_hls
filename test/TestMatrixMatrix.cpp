@@ -5,36 +5,10 @@
 #include "Utility.h"
 #include "MatrixMatrix.h"
 #include <algorithm>
-#include <fstream>
 #include <iostream>
 #include <random>
-#include <sstream>
 #include <type_traits>
 #include <vector>
-#ifdef MM_HAS_BLAS
-#include "cblas.h"
-#endif
-
-// Fallback
-template <typename T, class OperatorMap, class OperatorReduce>
-void CallBLAS(T const *a, T const *b, T *c) {
-  Naive<OperatorMap, OperatorReduce>(a, b, c, kSizeN, kSizeM, kSizeP);
-}
-
-#ifdef MM_HAS_BLAS
-template <>
-void CallBLAS<float, hlslib::op::Multiply<float>, hlslib::op::Add<float>>(
-    float const *a, float const *b, float *c) {
-  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
-              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
-}
-template <>
-void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
-    double const *a, double const *b, double *c) {
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
-              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
-}
-#endif
 
 int main() {
 
@@ -56,32 +30,7 @@ int main() {
   const auto bKernel = Pack(b);
   auto cKernel = Pack(cReference);
 
-  std::stringstream ss;
-  ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeM << "_p" << kSizeP
-     << "_s" << kSeed << ".dat";
-  const auto goldenFileName = ss.str();
-  std::ifstream goldenFile(goldenFileName,
-                           std::ios_base::in | std::ios_base::binary);
-  if (goldenFile.good()) {
-    std::cout << "Using cached golden result." << std::endl;
-    goldenFile.read(reinterpret_cast<char *>(&cReference[0]),
-                    cReference.size() * sizeof(Data_t));
-  } else {
-    std::cout << "No cached result found. Running naive implementation..."
-              << std::flush;
-    CallBLAS<Data_t, OperatorMap, OperatorReduce>(a.data(), b.data(),
-                                                  cReference.data());
-    std::cout << " Done.\n";
-    std::ofstream goldenFileOut(goldenFileName,
-                                std::ios_base::out | std::ios_base::binary);
-    if (!goldenFileOut.good()) {
-      std::cerr << "Failed to open output file \"" << goldenFileName
-                << "\". Cannot cache result." << std::endl;
-    } else {
-      goldenFileOut.write(reinterpret_cast<char *>(&cReference[0]),
-                          cReference.size() * sizeof(Data_t));
-    }
-  }
+  ReferenceImplementation(a.data(), b.data(), cReference.data());
 
   std::cout << "Running hardware emulation..." << std::flush;
   MatrixMatrix(aKernel.data(), bKernel.data(), cKernel.data());

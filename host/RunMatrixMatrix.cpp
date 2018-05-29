@@ -14,18 +14,25 @@
 int main(int argc, char **argv) {
   
   // Use fixed seed to enable comparison to saved golden values
-  std::default_random_engine rng(5);
+  std::default_random_engine rng(kSeed);
   typename std::conditional<
       std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
       std::uniform_real_distribution<double>>::type dist(1, 10);
 
-  bool verify = false;
-  if (argc > 1 && std::string(argv[1]) == "on") {
-    verify = true;
+  bool verify = true;
+  if (argc > 1) {
+    const std::string verifyArg(argv[1]);
+    if (verifyArg == "off") {
+      verify = false;
+    } else if (verifyArg != "on") {
+      std::cerr << "Argument should be [on/off]" << std::endl;
+      return 1;
+    }
   }
   
   std::vector<Data_t> a, b, cRef;
   std::vector<MemoryPack_t> aMem, bMem, cMem;
+  std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
     a = std::vector<Data_t>(kSizeN * kSizeM);
     std::for_each(a.begin(), a.end(),
@@ -39,6 +46,7 @@ int main(int argc, char **argv) {
     bMem = Pack(b);
     cMem = Pack(cRef);
   }
+  std::cout << "Done.\n";
 
   try {
 
@@ -93,10 +101,7 @@ int main(int argc, char **argv) {
 
   // Run reference implementation
   if (verify) {
-    std::cout << "Running reference implementation..." << std::flush;
-    Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cRef.begin(),
-                                       kSizeN, kSizeM, kSizeP);
-    std::cout << " Done.\n";
+    ReferenceImplementation(a.data(), b.data(), cRef.data());
 
     // Convert to single element vector
     const auto cTest = Unpack(cMem); 
