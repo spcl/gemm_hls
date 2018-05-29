@@ -8,6 +8,8 @@
 #include "hlslib/DataPack.h"
 #include <type_traits>
 
+constexpr int kSeed = 5; // For initializing matrices for testing
+
 constexpr int kMemoryWidth = kMemoryWidthBytes / sizeof(Data_t);
 static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,
               "Memory width not divisable by size of data type.");

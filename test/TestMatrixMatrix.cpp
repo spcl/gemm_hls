@@ -5,8 +5,10 @@
 #include "Utility.h"
 #include "MatrixMatrix.h"
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <random>
+#include <sstream>
 #include <type_traits>
 #include <vector>
 
@@ -16,8 +18,7 @@ int main() {
   std::vector<Data_t> b(kSizeM * kSizeP);
   std::vector<Data_t> cReference(kSizeN * kSizeP, 0);
 
-  std::random_device rd;
-  std::default_random_engine rng(rd());
+  std::default_random_engine rng(kSeed);
   typename std::conditional<
       std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
       std::uniform_real_distribution<double>>::type dist(1, 10);
@@ -31,12 +32,40 @@ int main() {
   const auto bKernel = Pack(b);
   auto cKernel = Pack(cReference);
 
-  Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cReference.begin(),
-                                     kSizeN, kSizeM, kSizeP);
+  std::stringstream ss;
+  ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeM << "_p" << kSizeP
+     << "_s" << kSeed << ".dat";
+  const auto goldenFileName = ss.str();
+  std::ifstream goldenFile(goldenFileName,
+                           std::ios_base::in | std::ios_base::binary);
+  if (goldenFile.good()) {
+    std::cout << "Using cached golden result." << std::endl;
+    goldenFile.read(reinterpret_cast<char *>(&cReference[0]),
+                    cReference.size() * sizeof(Data_t));
+  } else {
+    std::cout << "No cached result found. Running naive implementation..."
+              << std::flush;
+    Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cReference.begin(),
+                                       kSizeN, kSizeM, kSizeP);
+    std::cout << " Done.\n";
+    std::ofstream goldenFileOut(goldenFileName,
+                                std::ios_base::out | std::ios_base::binary);
+    if (!goldenFileOut.good()) {
+      std::cerr << "Failed to open output file \"" << goldenFileName
+                << "\". Cannot cache result." << std::endl;
+    } else {
+      goldenFileOut.write(reinterpret_cast<char *>(&cReference[0]),
+                          cReference.size() * sizeof(Data_t));
+    }
+  }
+
+  std::cout << "Running hardware emulation..." << std::flush;
   MatrixMatrix(aKernel.data(), bKernel.data(), cKernel.data());
+  std::cout << " Done.\n";
 
   const auto cTest = Unpack(cKernel);
 
+  std::cout << "Verifying results..." << std::endl;
   for (int i = 0; i < kSizeN; ++i) {
     for (int j = 0; j < kSizeP; ++j) {
       const auto testVal = cTest[i * kSizeP + j];
@@ -49,7 +78,6 @@ int main() {
       }
     }
   }
-
   std::cout << "Matrix-matrix multiplication successfully verified.\n";
 
   return 0;
