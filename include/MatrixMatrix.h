@@ -6,6 +6,7 @@
 
 #include "Config.h"
 #include "hlslib/DataPack.h"
+#include <type_traits>
 
 constexpr int kMemoryWidth = kMemoryWidthBytes / sizeof(Data_t);
 static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,

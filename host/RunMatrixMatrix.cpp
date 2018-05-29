@@ -13,8 +13,8 @@
 
 int main(int argc, char **argv) {
   
-  std::random_device rd;
-  std::default_random_engine rng(rd());
+  // Use fixed seed to enable comparison to saved golden values
+  std::default_random_engine rng(5);
   typename std::conditional<
       std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
       std::uniform_real_distribution<double>>::type dist(1, 10);
@@ -107,12 +107,9 @@ int main(int argc, char **argv) {
         const auto refVal = cRef[i * kSizeP + j];
         const auto diff = std::abs(testVal - refVal);
         if (diff > static_cast<Data_t>(1e-3)) {
-          // std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal
-          //           << " vs. " << refVal << "\n";
-          // return 1;
-        } else {
-          std::cout << "Correct at (" << i << ", " << j << "): " << testVal
+          std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal
                     << " vs. " << refVal << "\n";
+          return 1;
         }
       }
     }

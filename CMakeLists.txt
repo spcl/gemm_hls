@@ -10,8 +10,6 @@ set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
     "DSA string for xocc.")
 set(MM_TARGET_CLOCK 250 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
-set(MM_USE_SIMPLE OFF CACHE STRING "Use simple version of the GEMM kernel.")
-set(MM_SINGLE_SLR ON CACHE STRING "Only place and route on a single SLR of the KU115")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -45,20 +43,10 @@ endif()
 # Hardware configuration header for HLS
 configure_file(include/Config.h.in Config.h)
 
-# Restrict kernel to single SLR
-configure_file(scripts/O_opt_design_pre.tcl data/sdx/xocc/O_opt_design_pre.tcl) 
-configure_file(scripts/optMap.xml data/sdx/xocc/optMap.xml) 
-
-# Allow using simple kernel
-if(NOT MM_USE_SIMPLE)
-  set(MM_KERNEL_SRC
-      ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
-      ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
-else()
-  set(MM_KERNEL_SRC
-      ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrixSimple.cpp
-      ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
-endif()
+# C++ source code 
+set(MM_KERNEL_SRC
+    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
+    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
@@ -87,6 +75,7 @@ add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f SynthesizeMatrixMat
 set(MM_XOCC_COMMAND
   -t hw
   -s
+  -O3
   -o MatrixMatrix.xclbin
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
@@ -103,11 +92,6 @@ set(MM_XOCC_COMMAND
 if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
-endif()
-if(MM_SINGLE_SLR)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -O4)
-else()
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -O3)
 endif()
 add_custom_target(build_kernel
   COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 

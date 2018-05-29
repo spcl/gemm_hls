@@ -4,17 +4,17 @@
 
 #include "Memory.h"
 
-inline int GetAIndex(int bn, int tn, int m) {
+int GetAIndex(int bn, int tn, int m) {
   #pragma HLS INLINE
   return bn * kTileSizeN * kSizeMMemory + tn * kSizeMMemory + m;
 }
 
-inline int GetBIndex(int bp, int m, int tp) {
+int GetBIndex(int bp, int m, int tp) {
   #pragma HLS INLINE
   return m * kSizePMemory + bp * kTileSizePMemory + tp;
 }
 
-inline int GetCIndex(int bn, int bp, int tn, int tp) {
+int GetCIndex(int bn, int bp, int tn, int tp) {
   #pragma HLS INLINE
   return bn * kSizePMemory * kTileSizeN + tn * kSizePMemory +
          bp * kTileSizePMemory + tp;
@@ -31,7 +31,7 @@ ReadBMemory_Block_N:
         for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          hlslib::WriteBlocking(bPipe, b[GetBIndex(bp, m, tp)], 1);
+          bPipe.Push(b[GetBIndex(bp, m, tp)]);
         }
       }
     }
@@ -55,10 +55,10 @@ ReadB_Block_N:
             #pragma HLS LOOP_FLATTEN
             #pragma HLS PIPELINE
             if (kpm == 0) {
-              mem = hlslib::ReadBlocking(bMem);
+              mem = bMem.Pop();
             }
             const KernelPack_t kernel = mem[kpm];
-            hlslib::WriteBlocking(bPipe, kernel, 1);
+            bPipe.Push(kernel);
           }
         }
       }
@@ -81,9 +81,9 @@ WriteCKernel_Block_N:
           for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
             #pragma HLS LOOP_FLATTEN
             #pragma HLS PIPELINE
-            mem[kpm] = hlslib::ReadBlocking(cPipe);
+            mem[kpm] = cPipe.Pop();
             if (kpm == kKernelPerMemory - 1) {
-              hlslib::WriteBlocking(cMem, mem, 1);
+              cMem.Push(mem);
             }
           }
         }
@@ -103,7 +103,7 @@ WriteCMemory_Block_N:
         for (int tp = 0; tp < kTileSizePMemory; ++tp) {
           #pragma HLS LOOP_FLATTEN
           #pragma HLS PIPELINE
-          c[GetCIndex(bn, bp, tn, tp)] = hlslib::ReadBlocking(cMem);
+          c[GetCIndex(bn, bp, tn, tp)] = cMem.Pop();
         }
       }
     }

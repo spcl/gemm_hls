@@ -1,5 +1,8 @@
 #include "MatrixMatrix.h"
 
+// Prints the expected performance of the current configuration in hardware.
+// If a different frequency is achieved, it can be passed as the first argument
+// to the executable.
 int main(int argc, char **argv) {
   float frequency = kFrequency;
   if (argc > 1) {

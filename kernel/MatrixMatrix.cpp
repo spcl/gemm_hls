@@ -1,4 +1,3 @@
-/// @author    Johannes de Fine Licht (johannes.definelicht@inf.ethz.ch)
 /// @date      August 2017 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
@@ -21,7 +20,8 @@ void MatrixMatrixStage(int id, hlslib::Stream<Data_t> &aIn,
                        hlslib::Stream<Data_t> &aOut,
                        hlslib::Stream<KernelPack_t> &bOut,
                        hlslib::Stream<KernelPack_t> &cOut) {
-
+  
+  // Manual indices for flattened loop
   int i_loadA_tn = 0;
   const int i_loadA_tn_end = kTileSizeN - id;
   int i_streamB_tp = 0;
@@ -45,7 +45,7 @@ Blocks_N:
 // #endif
       KernelPack_t cLocal[kTileSizePKernel];
 
-      Data_t aNext, aVal;
+      Data_t aNext, aVal; // Shift registers for forwarding A
 
       // Manually flattened loop
       const int loopBound =
@@ -66,10 +66,10 @@ Blocks_N:
           const bool loadA =
               (i_streamB_tp < i_loadA_tn_end) && (i_outer < i_outer_end - 1);
           if (loadA) {
-            const auto aRead = hlslib::ReadBlocking(aIn);
+            const auto aRead = aIn.Pop();
             // Don't forward on the last iteration
             if (i_loadA_tn < kTileSizeN - id - 1) {
-              hlslib::WriteBlocking(aOut, aRead, 1);
+              aOut.Push(aRead);
             } else {
               aNext = aRead;
             }
@@ -80,17 +80,17 @@ Blocks_N:
             }
           }
           if (i < i_saturated_end) {
-            continue;
+            continue; // Buffer first column of A before streaming
           }
-          const auto readB = hlslib::ReadBlocking(bIn); 
+          const auto readB = bIn.Pop(); 
           if (id < kTileSizeN - 1) {
-            hlslib::WriteBlocking(bOut, readB, 1); // Forward B
+            bOut.Push(readB); // Forward B to next PE 
           }
           KernelPack_t cAcc;
           if (i_outer > 0) {
             cAcc = cLocal[i_streamB_tp];
             #pragma HLS DEPENDENCE variable=cLocal inter false
-            // cAcc = hlslib::ReadOptimistic(cLocal);
+            // cAcc = cLocal.Pop();
           } else {
             cAcc = KernelPack_t(OperatorReduce::identity());
           }
@@ -98,12 +98,14 @@ Blocks_N:
         UnrollVector:
           for (int w = 0; w < kKernelWidth; ++w) {
             #pragma HLS UNROLL
-            const auto map = OperatorMap::Apply(readB[w], aVal);
-            result[w] = OperatorReduce::Apply(map, cAcc[w]);
+            const auto mapped = OperatorMap::Apply(readB[w], aVal);
+            result[w] = OperatorReduce::Apply(mapped, cAcc[w]);
           }
-          // hlslib::WriteOptimistic(cLocal, result, kTileSizePKernel);
+          // cLocal.WriteOptimistic(result, kTileSizePKernel);
           cLocal[i_streamB_tp] = result;
           #pragma HLS DEPENDENCE variable=cLocal inter false
+
+          // Manual index calculation
           if (i_streamB_tp == i_streamB_tp_end - 1) {
             i_streamB_tp = 0;
             if (i_outer == i_outer_end - 1) {
@@ -115,14 +117,15 @@ Blocks_N:
             ++i_streamB_tp;
           }
 
-        } else {
+        } else { // Store C in last iterations
 
           if (i_storeC < kTileSizePKernel) {
-            // hlslib::WriteBlocking(cOut, hlslib::ReadOptimistic(cLocal), 1);
-            hlslib::WriteBlocking(cOut, cLocal[i_storeC], 1);
+            // cOut.Push(cLocal.ReadOptimistic());
+            cOut.Push(cLocal[i_storeC]);
             #pragma HLS DEPENDENCE variable=cLocal inter false
           } else {
-            // HLS cannot deduce that this never happens for id == 0
+            // Vivado HLS cannot deduce that this never happens for id == 0, so
+            // put an explicit condition here
             if (id > 0) {
               cOut.Push(cIn.Pop());
             }
@@ -154,42 +157,47 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   
   #pragma HLS DATAFLOW
 
+  //----------------------------------------------------------------------------
+  // Module interconnect 
+  //----------------------------------------------------------------------------
+
+  // Memory/kernel width conversion pipes
   hlslib::Stream<MemoryPack_t> aMem("aMem");
-  hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth];
-  hlslib::Stream<Data_t> aPipes[kTileSizeN + 1];
   hlslib::Stream<MemoryPack_t> bMem("bMem");
+  hlslib::Stream<MemoryPack_t> cMem("cMem");
+  // Transposition pipes for reading A in bursts
+  hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth];
+  // Systolic array pipes for A, B and C
+  hlslib::Stream<Data_t> aPipes[kTileSizeN + 1];
   hlslib::Stream<KernelPack_t> bPipes[kTileSizeN + 1];
   hlslib::Stream<KernelPack_t> cPipes[kTileSizeN + 1];
-  hlslib::Stream<MemoryPack_t> cMem("cMem");
 
   HLSLIB_DATAFLOW_INIT();
 
+  //----------------------------------------------------------------------------
+  // Memory modules 
+  //----------------------------------------------------------------------------
+  
   HLSLIB_DATAFLOW_FUNCTION(ReadASplit, a, aSplit);
   HLSLIB_DATAFLOW_FUNCTION(ReadARotate, aSplit, aPipes[0]);
   HLSLIB_DATAFLOW_FUNCTION(ReadBMemory, b, bMem);
   HLSLIB_DATAFLOW_FUNCTION(ReadBKernel, bMem, bPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[kTileSizeN], cMem);
+  HLSLIB_DATAFLOW_FUNCTION(WriteCMemory, cMem, c);
 
-#ifdef MM_SYNTHESIS
-UnrollCompute:
-  for (int tn = 0; tn < kTileSizeN; ++tn) {
-    #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, tn, aPipes[tn], bPipes[tn],
-                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn + 1]);
-  }
-#else
+  //----------------------------------------------------------------------------
+  // Name pipes for debugging simulation
+  //----------------------------------------------------------------------------
+
+#ifndef MM_SYNTHESIS
   for (int mw = 0; mw < kMemoryWidth; ++mw) {
     aSplit[mw].set_name(("aSplit[" + std::to_string(mw) + "]").c_str());
   }
   int arr[kTileSizeN];
   for (int tn = 0; tn < kTileSizeN; ++tn) {
-    arr[tn] = tn; // Need to allow passing by value
     aPipes[tn].set_name(("aPipes[" + std::to_string(tn) + "]").c_str());
     bPipes[tn].set_name(("bPipes[" + std::to_string(tn) + "]").c_str());
     cPipes[tn].set_name(("cPipes[" + std::to_string(tn) + "]").c_str());
-    HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, arr[tn], aPipes[tn], bPipes[tn],
-                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
-                             cPipes[tn + 1]);
   }
   aPipes[kTileSizeN].set_name(
       ("aPipes[" + std::to_string(kTileSizeN) + "]").c_str());
@@ -199,8 +207,17 @@ UnrollCompute:
       ("cPipes[" + std::to_string(kTileSizeN) + "]").c_str());
 #endif
 
-  HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[kTileSizeN], cMem);
-  HLSLIB_DATAFLOW_FUNCTION(WriteCMemory, cMem, c);
+  //----------------------------------------------------------------------------
+  // Compute modules in systolic array 
+  //----------------------------------------------------------------------------
+
+UnrollCompute:
+  for (int tn = 0; tn < kTileSizeN; ++tn) {
+    #pragma HLS UNROLL
+    HLSLIB_DATAFLOW_FUNCTION(MatrixMatrixStage, tn, aPipes[tn], bPipes[tn],
+                             cPipes[tn], aPipes[tn + 1], bPipes[tn + 1],
+                             cPipes[tn + 1]);
+  }
 
   HLSLIB_DATAFLOW_FINALIZE();
 }
