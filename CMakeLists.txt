@@ -29,6 +29,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
 find_package(SDAccel REQUIRED)
 find_package(Threads REQUIRED)
 
+# Check if BLAS is available
+find_package(BLAS)
+if(BLAS_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMM_HAS_BLAS")
+else()
+  set(BLAS_LIBRARIES)
+endif()
+
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
@@ -56,7 +64,7 @@ add_executable(Stats src/Stats.cpp)
 
 # Software test
 add_executable(TestMatrixMatrix test/TestMatrixMatrix.cpp)
-target_link_libraries(TestMatrixMatrix ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} mmkernel)
+target_link_libraries(TestMatrixMatrix ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} mmkernel)
 add_test(TestMatrixMatrix TestMatrixMatrix)
 enable_testing()
 
@@ -91,5 +99,5 @@ if(MM_TARGET_CLOCK GREATER 0)
 endif()
 add_custom_target(build_kernel
   COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 
-add_executable(RunMatrixMatrix.exe host/RunMatrixMatrix.cpp)
-target_link_libraries(RunMatrixMatrix.exe ${SDAccel_LIBRARIES} mmkernel) 
+add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
+target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 

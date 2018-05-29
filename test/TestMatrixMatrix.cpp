@@ -11,6 +11,30 @@
 #include <sstream>
 #include <type_traits>
 #include <vector>
+#ifdef MM_HAS_BLAS
+#include "cblas.h"
+#endif
+
+// Fallback
+template <typename T, class OperatorMap, class OperatorReduce>
+void CallBLAS(T const *a, T const *b, T *c) {
+  Naive<OperatorMap, OperatorReduce>(a, b, c, kSizeN, kSizeM, kSizeP);
+}
+
+#ifdef MM_HAS_BLAS
+template <>
+void CallBLAS<float, hlslib::op::Multiply<float>, hlslib::op::Add<float>>(
+    float const *a, float const *b, float *c) {
+  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
+              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
+}
+template <>
+void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
+    double const *a, double const *b, double *c) {
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
+              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
+}
+#endif
 
 int main() {
 
@@ -45,8 +69,8 @@ int main() {
   } else {
     std::cout << "No cached result found. Running naive implementation..."
               << std::flush;
-    Naive<OperatorMap, OperatorReduce>(a.cbegin(), b.cbegin(), cReference.begin(),
-                                       kSizeN, kSizeM, kSizeP);
+    CallBLAS<Data_t, OperatorMap, OperatorReduce>(a.data(), b.data(),
+                                                  cReference.data());
     std::cout << " Done.\n";
     std::ofstream goldenFileOut(goldenFileName,
                                 std::ios_base::out | std::ios_base::binary);
