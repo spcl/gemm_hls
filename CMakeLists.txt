@@ -50,7 +50,7 @@ set(MM_KERNEL_SRC
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
-# Other exeutables
+# Executables 
 add_executable(Stats src/Stats.cpp)
 
 # Software test
@@ -63,11 +63,6 @@ enable_testing()
 set(MM_PROJECT_NAME "MatrixMatrix")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
 set(MM_ENTRY_FUNCTION "MatrixMatrix")
-if(MM_TARGET_CLOCK GREATER 0)
-  set(MM_TARGET_TIMING "${MM_TARGET_CLOCK}")
-else()
-  set(MM_TARGET_TIMING "5")
-endif()
 configure_file(scripts/Synthesis.tcl.in SynthesizeMatrixMatrix.tcl)
 add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f SynthesizeMatrixMatrix.tcl) 
 
