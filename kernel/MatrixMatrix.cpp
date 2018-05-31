@@ -69,7 +69,9 @@ Blocks_N:
             const auto aRead = aIn.Pop();
             // Don't forward on the last iteration
             if (i_loadA_tn < kTileSizeN - id - 1) {
-              aOut.Push(aRead);
+              if (id < kTileSizeN - 1) { // Otherwise Vivado HLS cannot infer 
+                aOut.Push(aRead);        // that this is never written
+              }
             } else {
               aNext = aRead;
             }
@@ -167,6 +169,7 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   hlslib::Stream<MemoryPack_t> cMem("cMem");
   // Transposition pipes for reading A in bursts
   hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth];
+  #pragma HLS STREAM variable=aSplit depth=kTransposeDepth
   // Systolic array pipes for A, B and C
   hlslib::Stream<Data_t> aPipes[kTileSizeN + 1];
   hlslib::Stream<KernelPack_t> bPipes[kTileSizeN + 1];
