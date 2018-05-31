@@ -118,7 +118,9 @@ int main(int argc, char **argv) {
         }
       }
     }
+    std::cout << "Successfully verified." << std::endl;
   }
+
 
   return 0;
 }
