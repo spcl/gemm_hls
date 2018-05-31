@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     bMem = Pack(b);
     cMem = Pack(cRef);
   }
-  std::cout << "Done.\n";
+  std::cout << " Done.\n";
 
   try {
 
