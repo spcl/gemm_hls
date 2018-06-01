@@ -94,7 +94,6 @@ Blocks_N:
           if (i_outer > 0) {
             cAcc = cLocal[i_streamB_tp];
             #pragma HLS DEPENDENCE variable=cLocal inter false
-            // cAcc = cLocal.Pop();
           } else {
             cAcc = KernelPack_t(OperatorReduce::identity());
           }
@@ -105,7 +104,6 @@ Blocks_N:
             const auto mapped = OperatorMap::Apply(readB[w], aVal);
             result[w] = OperatorReduce::Apply(mapped, cAcc[w]);
           }
-          // cLocal.WriteOptimistic(result, kTileSizePKernel);
           cLocal[i_streamB_tp] = result;
           #pragma HLS DEPENDENCE variable=cLocal inter false
 
@@ -128,7 +126,6 @@ Blocks_N:
           //====================================================================
 
           if (i_storeC < kTileSizePKernel) {
-            // cOut.Push(cLocal.ReadOptimistic());
             cOut.Push(cLocal[i_storeC]);
             #pragma HLS DEPENDENCE variable=cLocal inter false
           } else {
