@@ -97,7 +97,7 @@ inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
     goldenFile.read(reinterpret_cast<char *>(&c[0]),
                     kSizeN * kSizeP * sizeof(Data_t));
   } else {
-    std::cout << "No cached result found. Running naive implementation..."
+    std::cout << "No cached result found. Running host implementation..."
               << std::flush;
     CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c);
     std::cout << " Done.\n";
