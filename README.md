@@ -1,6 +1,8 @@
 Scalable matrix matrix multiplication on FPGA
 =============================================
 
+\[More information at [https://arxiv.org/abs/1805.08288]\]
+
 This repository includes a pure Vivado HLS implementation of matrix-matrix
 multiplication (A\*B=C) for Xilinx FPGAs, using Xilinx SDx to instantiate memory
 and PCIe controllers and interface with the host. The code was developed at the
@@ -18,7 +20,10 @@ through all elements. Both rows and columns are tiled to allow arbitrarily large
 matrices. 
 
 For a detailed description of the optimization techniques used here, we refer to
-[this article](https://arxiv.org/abs/1805.08288).
+[this article](https://arxiv.org/abs/1805.08288). We have also given [tutorials
+on optimizing HLS programs](https://spcl.inf.ethz.ch/Teaching/2018-hls/) for HPC
+at [PPoPP'18](https://ppopp18.sigplan.org/) and [at
+ETH](https://twitter.com/spcl_eth/status/996474416925167619).
 
 The compute kernel is in `kernel/MatrixMatrix.cpp`, and the modules accessing
 memory are in `kernel/Memory.cpp`.
