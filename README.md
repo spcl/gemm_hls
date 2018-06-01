@@ -73,11 +73,11 @@ operators. To use other operators, for example addition and minimum to implement
 the [distance
 product](https://en.wikipedia.org/wiki/Min-plus_matrix_multiplication), specify
 them using the `MM_MAP_OP` and `MM_REDUCE_OP` CMake parameters, respectively. To
-see which operators are pre-implemented, see
-`hlslib/include/hlslib/Operators.h`.
+see which operators are pre-implemented, and examples of how to implement new
+operators,  see `hlslib/include/hlslib/Operators.h`.
 
-Performance
------------
+Parallel performance
+--------------------
 
 The amount of parallelism in the code is determined by the `MM_TILE_SIZE_N` and
 `MM_KERNEL_WIDTH` configuration variables. The former determines how many values
