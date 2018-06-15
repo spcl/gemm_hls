@@ -27,10 +27,9 @@ int main() {
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
 
   // const auto aKernel = Pack(a);
-  // const auto bKernel = Pack(b);
+  const auto bKernel = Pack(b);
   // auto cKernel = Pack(cReference);
   const std::vector<Data_t> aKernel(a);
-  const std::vector<Data_t> bKernel(b);
   std::vector<Data_t> cKernel(cReference);
 
   ReferenceImplementation(a.data(), b.data(), cReference.data());

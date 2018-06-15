@@ -3,7 +3,7 @@
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #include "MatrixMatrix.h"
-#include "Memory.h"
+// #include "Memory.h"
 #include "hlslib/Stream.h"
 #include "hlslib/Simulation.h"
 
@@ -16,10 +16,10 @@ int IndexA(int n0, int n1, int n2, int m0, int m1) {
          (m0 * kOuterTileSize + m1);
 }
 
-int IndexB(int m0, int m1, int p0, int p1, int p2) {
+int IndexB(int m0, int m1, int p0, int p1, int p2m) {
   #pragma HLS INLINE
-  return (m0 * kOuterTileSize + m1) * kSizeP +
-         (p0 * kOuterTileSize + p1 * kInnerTileSize + p2);
+  return (m0 * kOuterTileSize + m1) * kSizePMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMemory + p2m);
 }
 
 int IndexC(int n0, int n1, int n2, int p0, int p1, int p2) {
@@ -33,6 +33,11 @@ int IndexABuffer(int n1, int n2, int m1) {
   return m1 * kOuterTileSize + (n1 * kInnerTileSize + n2);
 }
 
+int IndexBBuffer(int m1, int p1, int p2m, int p2k) {
+  #pragma HLS INLINE
+  return m1 * kOuterTileSize + p1 * kInnerTileSize + p2m * kMemoryWidth + p2k;
+}
+
 int IndexBBuffer(int m1, int p1, int p2) {
   #pragma HLS INLINE
   return m1 * kOuterTileSize + p1 * kInnerTileSize + p2;
@@ -44,7 +49,7 @@ int IndexCBuffer(int n1, int n2, int p1, int p2) {
          n2 * kInnerTileSize + p2;
 }
 
-void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
+void ComputeKernel(Data_t const a[], MemoryPack_t const b[], Data_t c[]) {
 
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
@@ -81,11 +86,15 @@ OuterTile_N:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         BufferB_P1:
           for (int p1 = 0; p1 < kInnerTiles; ++p1) {
-          BufferB_P2:
-            for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              bBuffer[IndexBBuffer(m1, p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
+          BufferB_P2Mem:
+            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+              const auto pack = b[IndexB(m0, m1, p0, p1, p2m)];
+            BufferB_P2:
+              for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {
+                #pragma HLS PIPELINE II=1
+                #pragma HLS LOOP_FLATTEN
+                bBuffer[IndexBBuffer(m1, p1, p2m, p2k)] = pack[p2k]; 
+              }
             }
           }
         }
@@ -161,7 +170,7 @@ OuterTile_N:
 
 }
 
-void MatrixMatrix(Data_t const a[], Data_t const b[],
+void MatrixMatrix(Data_t const a[], MemoryPack_t const b[],
                   Data_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0

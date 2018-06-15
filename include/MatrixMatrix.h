@@ -13,11 +13,7 @@ constexpr int kSeed = 5; // For initializing matrices for testing
 constexpr int kMemoryWidth = kMemoryWidthBytes / sizeof(Data_t);
 static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,
               "Memory width not divisable by size of data type.");
-constexpr int kKernelPerMemory = kMemoryWidth / kKernelWidth;
-static_assert(kMemoryWidth % kKernelWidth == 0,
-              "Memory width must be divisable by kernel width.");
-using KernelPack_t = hlslib::DataPack<Data_t, kKernelWidth>;
-using MemoryPack_t = hlslib::DataPack<KernelPack_t, kKernelPerMemory>;
+using MemoryPack_t = hlslib::DataPack<Data_t, kMemoryWidth>;
 
 // constexpr int kSizeKernel = kSize / kKernelWidth;
 // static_assert(kSize % kKernelWidth == 0,
@@ -51,13 +47,13 @@ constexpr int kInnerTiles = kOuterTileSize / kInnerTileSize;
 static_assert(kInnerTileSize % kInnerTileSize == 0,
               "Outer tile size must be divisable by the inner tile size.");
 
-constexpr int kInnerTileSizeKernel = kInnerTileSize / kKernelWidth;
-static_assert(kInnerTileSize % kKernelWidth == 0,
-              "Inner tile size must be divisable by kernel width");
-
 constexpr int kInnerTileSizeMemory = kInnerTileSize / kMemoryWidth;
 static_assert(kInnerTileSize % kMemoryWidth == 0,
-              "Inner tile size must be divisable by kernel width");
+              "Inner tile size must be divisable by memory width");
+
+constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
+static_assert(kOuterTileSize % kMemoryWidth == 0,
+              "Outer tile size must be divisable by memory width");
 
 template <typename T,
           class = typename std::enable_if<std::is_integral<T>::value, T>::type>
@@ -70,6 +66,6 @@ constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kInnerTileSize, 0);
 
 extern "C" {
 
-void MatrixMatrix(Data_t const *aMem, Data_t const *bMem, Data_t *cMem);
+void MatrixMatrix(Data_t const *aMem, MemoryPack_t const *bMem, Data_t *cMem);
 
 }

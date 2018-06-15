@@ -40,11 +40,7 @@ void Naive(IteratorRead aBegin, IteratorRead bBegin, IteratorWrite cBegin,
 inline std::vector<MemoryPack_t> Pack(std::vector<Data_t> const &in) {
   std::vector<MemoryPack_t> result(in.size() / kMemoryWidth);
   for (int i = 0, iMax = in.size() / kMemoryWidth; i < iMax; ++i) {
-    KernelPack_t pack[kKernelPerMemory];
-    for (int j = 0; j < kKernelPerMemory; ++j) {
-      pack[j] = KernelPack_t(&in[i * kMemoryWidth + j * kKernelWidth]);
-    }
-    result[i] = MemoryPack_t(pack);
+    result[i].Pack(&in[i * kMemoryWidth]);;
   }
   return result;
 }
@@ -52,13 +48,7 @@ inline std::vector<MemoryPack_t> Pack(std::vector<Data_t> const &in) {
 inline std::vector<Data_t> Unpack(std::vector<MemoryPack_t> const &in) {
   std::vector<Data_t> result(in.size() * kMemoryWidth);
   for (int i = 0, iMax = in.size(); i < iMax; ++i) {
-    const MemoryPack_t mem = in[i];
-    for (int j = 0; j < kKernelPerMemory; ++j) {
-      const KernelPack_t pack = mem[j];
-      for (int k = 0; k < kKernelWidth; ++k) {
-        result[i * kMemoryWidth + j * kKernelWidth + k] = pack[k]; 
-      }
-    }
+    in[i].Unpack(&result[i * kMemoryWidth]);
   }
   return result;
 }
