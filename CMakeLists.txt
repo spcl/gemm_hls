@@ -13,12 +13,13 @@ set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
-set(MM_KERNEL_WIDTH 4 CACHE STRING "Kernel data path width in number of operands.")
+set(MM_KERNEL_WIDTH 1 CACHE STRING "Kernel data path width in number of operands.")
+set(MM_MEMORY_BUS_WIDTH 32 CACHE STRING "Width of memory bus in bytes.")
 set(MM_SIZE_N 256 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_M 256 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_P 256 CACHE STRING "Size of matrix dimension.")
-set(MM_TILE_SIZE_N 16 CACHE STRING "Tile size in N.")
-set(MM_TILE_SIZE_P 128 CACHE STRING "Tile size in P.")
+set(MM_OUTER_TILE_SIZE 128 CACHE STRING "Tile size of outer memory tile.")
+set(MM_INNER_TILE_SIZE 8 CACHE STRING "Tile size of inner compute tile.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
@@ -54,8 +55,8 @@ configure_file(include/Config.h.in Config.h)
 
 # C++ source code 
 set(MM_KERNEL_SRC
-    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
-    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp)
+    # ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
@@ -99,5 +100,5 @@ if(MM_TARGET_CLOCK GREATER 0)
 endif()
 add_custom_target(build_kernel
   COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 
-add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
-target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 
+# add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
+# target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 

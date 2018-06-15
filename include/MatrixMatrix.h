@@ -35,25 +35,29 @@ constexpr int kSizePMemory = kSizeP / kMemoryWidth;
 static_assert(kSizeP % kMemoryWidth == 0,
               "P must be divisable by memory width.");
 
-constexpr int kBlocksN = kSizeN / kTileSizeN;
-static_assert(kSizeN % kTileSizeN == 0,
-              "N must be divisable by tile size in N.");
+constexpr int kOuterTilesN = kSizeN / kOuterTileSize;
+static_assert(kSizeN % kOuterTileSize == 0,
+              "N must be divisable by the outer tile size.");
 
-constexpr int kBlocksP = kSizeP / kTileSizeP;
-static_assert(kSizeP % kTileSizeP == 0,
-              "P must be divisable by tile size in P.");
+constexpr int kOuterTilesM = kSizeM / kOuterTileSize;
+static_assert(kSizeM % kOuterTileSize == 0,
+              "M must be divisable by the outer tile size.");
 
-constexpr int kTileSizePKernel = kTileSizeP / kKernelWidth;
-static_assert(kTileSizeP % kKernelWidth == 0,
-              "Tile size in P must be divisable by kernel width");
+constexpr int kOuterTilesP = kSizeP / kOuterTileSize;
+static_assert(kSizeP % kOuterTileSize == 0,
+              "P must be divisable by the outer tile size.");
 
-constexpr int kTileSizePMemory = kTileSizeP / kMemoryWidth;
-static_assert(kTileSizeP % kMemoryWidth == 0,
-              "Tile size in P must be divisable by memory width");
+constexpr int kInnerTiles = kOuterTileSize / kInnerTileSize;
+static_assert(kInnerTileSize % kInnerTileSize == 0,
+              "Outer tile size must be divisable by the inner tile size.");
 
-static_assert(kTileSizePKernel >= kTileSizeN, "Horizontal tile size with "
-                                              "vectorization must be higher "
-                                              "than vertical tile size.");
+constexpr int kInnerTileSizeKernel = kInnerTileSize / kKernelWidth;
+static_assert(kInnerTileSize % kKernelWidth == 0,
+              "Inner tile size must be divisable by kernel width");
+
+constexpr int kInnerTileSizeMemory = kInnerTileSize / kMemoryWidth;
+static_assert(kInnerTileSize % kMemoryWidth == 0,
+              "Inner tile size must be divisable by kernel width");
 
 template <typename T,
           class = typename std::enable_if<std::is_integral<T>::value, T>::type>
@@ -62,10 +66,10 @@ constexpr T PowerOfTwo(T number, unsigned char power) {
 }
 
 // Force HLS to implement these with BRAM by setting the minimum depth to 128
-constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kTileSizeN, 0);
+constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kInnerTileSize, 0);
 
 extern "C" {
 
-void MatrixMatrix(MemoryPack_t const *aMem, MemoryPack_t const *bMem,
-                  MemoryPack_t *cMem);
+void MatrixMatrix(Data_t const *aMem, Data_t const *bMem, Data_t *cMem);
+
 }
