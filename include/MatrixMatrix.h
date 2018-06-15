@@ -55,6 +55,10 @@ constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
 static_assert(kOuterTileSize % kMemoryWidth == 0,
               "Outer tile size must be divisable by memory width");
 
+static_assert(kInnerTileSizeMemory > 1,
+              "Vectorized inner tile size must be larger than 1, "
+              "otherwise HLS will not pipeline");
+
 template <typename T,
           class = typename std::enable_if<std::is_integral<T>::value, T>::type>
 constexpr T PowerOfTwo(T number, unsigned char power) {

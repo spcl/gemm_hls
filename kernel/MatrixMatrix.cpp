@@ -49,8 +49,32 @@ int IndexCBuffer(int n1, int n2, int p1, int p2m, int p2k) {
          n2 * kInnerTileSize + p2m * kMemoryWidth + p2k;
 }
 
-void ComputeKernel(Data_t const a[], MemoryPack_t const b[], MemoryPack_t c[]) {
+void ReadB(MemoryPack_t const b[], Stream<MemoryPack_t> &pipe) {
+ReadB_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  ReadB_OuterTile_P:
+    for (int p0 = 0; p0 < kOuterTilesP; ++p0) {
+    ReadB_OuterTile_M:
+      for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+      ReadB_BufferB_M1:
+        for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
+        ReadB_BufferB_P1:
+          for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+          ReadB_BufferB_P2:
+            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+              #pragma HLS LOOP_FLATTEN
+              #pragma HLS PIPELINE II=1
+              pipe.Push(b[IndexB(m0, m1, p0, p1, p2m)]);
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
+void ComputeKernel(Data_t const a[], Stream<MemoryPack_t> &bPipe,
+                   MemoryPack_t c[]) {
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   OuterTile_P:
@@ -86,13 +110,16 @@ OuterTile_N:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         BufferB_P1:
           for (int p1 = 0; p1 < kInnerTiles; ++p1) {
-          BufferB_P2Mem:
+          BufferB_P2M:
             for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
-              const auto pack = b[IndexB(m0, m1, p0, p1, p2m)];
-            BufferB_P2:
+              MemoryPack_t pack;
+            BufferB_P2K:
               for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {
                 #pragma HLS PIPELINE II=1
                 #pragma HLS LOOP_FLATTEN
+                if (p2k == 0) {
+                  pack = bPipe.Pop();
+                }
                 bBuffer[IndexBBuffer(m1, p1, p2m, p2k)] = pack[p2k]; 
               }
             }
@@ -195,7 +222,10 @@ void MatrixMatrix(Data_t const a[], MemoryPack_t const b[],
   
   #pragma HLS DATAFLOW
 
+  Stream<MemoryPack_t> bPipe;
+
   HLSLIB_DATAFLOW_INIT();
-  HLSLIB_DATAFLOW_FUNCTION(ComputeKernel, a, b, c);
+  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bPipe);
+  HLSLIB_DATAFLOW_FUNCTION(ComputeKernel, a, bPipe, c);
   HLSLIB_DATAFLOW_FINALIZE();
 }
