@@ -28,9 +28,9 @@ int IndexC(int n0, int n1, int n2, int p0, int p1, int p2) {
          (p0 * kOuterTileSize + p1 * kInnerTileSize + p2);
 }
 
-int IndexABuffer(int n1, int n2) {
+int IndexABuffer(int n1, int n2, int m1) {
   #pragma HLS INLINE
-  return n1 * kInnerTileSize + n2;
+  return (n1 * kInnerTileSize + n2) * kOuterTileSize + m1;
 }
 
 int IndexBBuffer(int p1, int p2) {
@@ -50,25 +50,30 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
     for (int p0 = 0; p0 < kOuterTilesP; ++p0) {
 
       constexpr int kInnerTileSizeSquared = kInnerTileSize * kInnerTileSize;
+      // Size equivalent to kOuterTileSize * kOuterTileSize
       Data_t cBuffer[kInnerTiles * kInnerTiles * kInnerTileSizeSquared];
       #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kInnerTileSizeSquared
 
       for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
         // Begin outer tile ---------------------------------------------------
 
+        Data_t aBuffer[kOuterTileSize * kOuterTileSize];
+        #pragma HLS ARRAY_PARTITION variable=aBuffer cyclic factor=kInnerTileSize
+        for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+          for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+            for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              aBuffer[IndexABuffer(n1, n2, m1)] = a[IndexA(n0, n1, n2, m0, m1)];
+            }
+          }
+        }
+
         // We do not tile M further, but loop over the entire outer tile here
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
 
-          Data_t aBuffer[kOuterTileSize];
-          for (int n1 = 0; n1 < kInnerTiles; ++n1) {
-            for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              aBuffer[IndexABuffer(n1, n2)] = a[IndexA(n0, n1, n2, m0, m1)];
-            }
-          }
-
           Data_t bBuffer[kOuterTileSize];
+          #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSize
           for (int p1 = 0; p1 < kInnerTiles; ++p1) {
             for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
               #pragma HLS PIPELINE II=1
@@ -87,7 +92,7 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
               for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
                 #pragma HLS UNROLL
 
-                const auto aVal = aBuffer[IndexABuffer(n1, n2)];
+                const auto aVal = aBuffer[IndexABuffer(n1, n2, m1)];
 
                 for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
                   #pragma HLS UNROLL
