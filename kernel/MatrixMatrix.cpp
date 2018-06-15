@@ -46,22 +46,28 @@ int IndexCBuffer(int n1, int n2, int p1, int p2) {
 
 void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
 
+OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  OuterTile_P:
     for (int p0 = 0; p0 < kOuterTilesP; ++p0) {
 
       constexpr int kInnerTileSizeSquared = kInnerTileSize * kInnerTileSize;
       // Size equivalent to kOuterTileSize * kOuterTileSize
       Data_t cBuffer[kInnerTiles * kInnerTiles * kInnerTileSizeSquared];
       #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kInnerTileSizeSquared
-
+  
+    OuterTile_M:
       for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
         // Begin outer tile ---------------------------------------------------
 
         Data_t aBuffer[kOuterTileSize * kOuterTileSize];
         #pragma HLS ARRAY_PARTITION variable=aBuffer cyclic factor=kInnerTileSize
-        for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
-          for (int n1 = 0; n1 < kInnerTiles; ++n1) {
-            for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+      BufferA_N1:
+        for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+        BufferA_N2:
+          for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+          BufferA_M1:
+            for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
               aBuffer[IndexABuffer(n1, n2, m1)] = a[IndexA(n0, n1, n2, m0, m1)];
@@ -71,8 +77,11 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
 
         Data_t bBuffer[kOuterTileSize * kOuterTileSize];
         #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSize
+      BufferB_M1:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
+        BufferB_P1:
           for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+          BufferB_P2:
             for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
@@ -82,20 +91,25 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
         }
 
         // We do not tile M further, but loop over the entire outer tile here
+      Pipeline_M:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         
+        Pipeline_N:
           for (int n1 = 0; n1 < kInnerTiles; ++n1) {
 
+          Pipeline_P:
             for (int p1 = 0; p1 < kInnerTiles; ++p1) {
               // Begin inner tile ---------------------------------------------
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
             
+            Unroll_N:
               for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
                 #pragma HLS UNROLL
 
                 const auto aVal = aBuffer[IndexABuffer(n1, n2, m1)];
 
+              Unroll_P:
                 for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
                   #pragma HLS UNROLL
                   // Begin compute tile ---------------------------------------
@@ -124,9 +138,13 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
       }
 
       // Write back this tile of C ---------------------------------------------
+    WriteC_N1:
       for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+      WriteC_P1:
         for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+        WriteC_N2:
           for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+          WriteC_P2:
             for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
