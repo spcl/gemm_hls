@@ -55,25 +55,29 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
 
       for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
         // Begin outer tile ---------------------------------------------------
-        
-        for (int n1 = 0; n1 < kInnerTiles; ++n1) {
 
-          // We do not tile M further, but loop over the entire outer tile here
-          for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
+        // We do not tile M further, but loop over the entire outer tile here
+        for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
 
-            Data_t aBuffer[kInnerTileSize];
+          Data_t aBuffer[kOuterTileSize];
+          for (int n1 = 0; n1 < kInnerTiles; ++n1) {
             for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
-              aBuffer[n2] = a[IndexA(n0, n1, n2, m0, m1)];
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              aBuffer[IndexABuffer(n1, n2)] = a[IndexA(n0, n1, n2, m0, m1)];
             }
+          }
 
-            Data_t bBuffer[kOuterTileSize];
-            for (int p1 = 0; p1 < kInnerTiles; ++p1) {
-              for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
-                #pragma HLS PIPELINE II=1
-                #pragma HLS LOOP_FLATTEN
-                bBuffer[IndexBBuffer(p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
-              }
+          Data_t bBuffer[kOuterTileSize];
+          for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+            for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              bBuffer[IndexBBuffer(p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
             }
+          }
+        
+          for (int n1 = 0; n1 < kInnerTiles; ++n1) {
 
             for (int p1 = 0; p1 < kInnerTiles; ++p1) {
               // Begin inner tile ---------------------------------------------
@@ -83,7 +87,7 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
               for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
                 #pragma HLS UNROLL
 
-                const auto aVal = aBuffer[n2];
+                const auto aVal = aBuffer[IndexABuffer(n1, n2)];
 
                 for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
                   #pragma HLS UNROLL
