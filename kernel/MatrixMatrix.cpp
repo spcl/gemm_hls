@@ -28,6 +28,16 @@ int IndexC(int n0, int n1, int n2, int p0, int p1, int p2) {
          (p0 * kOuterTileSize + p1 * kInnerTileSize + p2);
 }
 
+int IndexABuffer(int n1, int n2) {
+  #pragma HLS INLINE
+  return n1 * kInnerTileSize + n2;
+}
+
+int IndexBBuffer(int p1, int p2) {
+  #pragma HLS INLINE
+  return p1 * kInnerTileSize + p2;
+}
+
 int IndexCBuffer(int n1, int n2, int p1, int p2) {
   #pragma HLS INLINE
   return (n1 * kInnerTiles + p1) * kInnerTileSize * kInnerTileSize +
@@ -51,20 +61,24 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
           // We do not tile M further, but loop over the entire outer tile here
           for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
 
+            Data_t aBuffer[kInnerTileSize];
+            for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+              aBuffer[n2] = a[IndexA(n0, n1, n2, m0, m1)];
+            }
+
+            Data_t bBuffer[kOuterTileSize];
+            for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+              for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
+                #pragma HLS PIPELINE II=1
+                #pragma HLS LOOP_FLATTEN
+                bBuffer[IndexBBuffer(p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
+              }
+            }
+
             for (int p1 = 0; p1 < kInnerTiles; ++p1) {
               // Begin inner tile ---------------------------------------------
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
-
-              Data_t aBuffer[kInnerTileSize];
-              for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
-                aBuffer[n2] = a[IndexA(n0, n1, n2, m0, m1)];
-              }
-
-              Data_t bBuffer[kInnerTileSize];
-              for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
-                bBuffer[p2] = b[IndexB(m0, m1, p0, p1, p2)]; 
-              }
             
               for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
                 #pragma HLS UNROLL
@@ -75,7 +89,7 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
                   #pragma HLS UNROLL
                   // Begin compute tile ---------------------------------------
 
-                  const auto bVal = bBuffer[p2];
+                  const auto bVal = bBuffer[IndexBBuffer(p1, p2)];
 
                   const auto mult = aVal * bVal;
 
