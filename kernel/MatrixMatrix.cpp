@@ -22,10 +22,10 @@ int IndexB(int m0, int m1, int p0, int p1, int p2m) {
          (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMemory + p2m);
 }
 
-int IndexC(int n0, int n1, int n2, int p0, int p1, int p2) {
+int IndexC(int n0, int n1, int n2, int p0, int p1, int p2m) {
   #pragma HLS INLINE
-  return (n0 * kOuterTileSize + n1 * kInnerTileSize + n2) * kSizeP +
-         (p0 * kOuterTileSize + p1 * kInnerTileSize + p2);
+  return (n0 * kOuterTileSize + n1 * kInnerTileSize + n2) * kSizePMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMemory + p2m);
 }
 
 int IndexABuffer(int n1, int n2, int m1) {
@@ -43,13 +43,13 @@ int IndexBBuffer(int m1, int p1, int p2) {
   return m1 * kOuterTileSize + p1 * kInnerTileSize + p2;
 }
 
-int IndexCBuffer(int n1, int n2, int p1, int p2) {
+int IndexCBuffer(int n1, int n2, int p1, int p2m, int p2k) {
   #pragma HLS INLINE
   return (n1 * kInnerTiles + p1) * kInnerTileSize * kInnerTileSize +
-         n2 * kInnerTileSize + p2;
+         n2 * kInnerTileSize + p2m * kMemoryWidth + p2k;
 }
 
-void ComputeKernel(Data_t const a[], MemoryPack_t const b[], Data_t c[]) {
+void ComputeKernel(Data_t const a[], MemoryPack_t const b[], MemoryPack_t c[]) {
 
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
@@ -118,22 +118,28 @@ OuterTile_N:
 
                 const auto aVal = aBuffer[IndexABuffer(n1, n2, m1)];
 
-              Unroll_P:
-                for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
+              Unroll_PM:
+                for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
                   #pragma HLS UNROLL
-                  // Begin compute tile ---------------------------------------
 
-                  const auto bVal = bBuffer[IndexBBuffer(m1, p1, p2)];
+                Unroll_PK:
+                  for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {
+                    #pragma HLS UNROLL
+                    // Begin compute tile --------------------------------------
 
-                  const auto mult = aVal * bVal;
+                    const auto bVal = bBuffer[IndexBBuffer(m1, p1, p2m, p2k)];
 
-                  const auto prev = (m0 == 0 && m1 == 0)
-                                        ? 0
-                                        : cBuffer[IndexCBuffer(n1, n2, p1, p2)];
-                  cBuffer[IndexCBuffer(n1, n2, p1, p2)] = prev + mult;
-                  #pragma HLS DEPENDENCE variable=cBuffer false
+                    const auto mult = aVal * bVal;
 
-                  // End compute tile -----------------------------------------
+                    const auto prev =
+                        (m0 == 0 && m1 == 0)
+                            ? 0
+                            : cBuffer[IndexCBuffer(n1, n2, p1, p2m, p2k)];
+                    cBuffer[IndexCBuffer(n1, n2, p1, p2m, p2k)] = prev + mult;
+                    #pragma HLS DEPENDENCE variable=cBuffer false
+
+                    // End compute tile ----------------------------------------
+                  }
                 }
               }
             }
@@ -153,12 +159,18 @@ OuterTile_N:
         for (int p1 = 0; p1 < kInnerTiles; ++p1) {
         WriteC_N2:
           for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
-          WriteC_P2:
-            for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              c[IndexC(n0, n1, n2, p0, p1, p2)] =
-                  cBuffer[IndexCBuffer(n1, n2, p1, p2)];
+          WriteC_P2M:
+            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+              MemoryPack_t pack;
+            WriteC_P2K:
+              for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {
+                #pragma HLS PIPELINE II=1
+                #pragma HLS LOOP_FLATTEN
+                pack[p2k] = cBuffer[IndexCBuffer(n1, n2, p1, p2m, p2k)];
+                if (p2k == kMemoryWidth - 1) {
+                  c[IndexC(n0, n1, n2, p0, p1, p2m)] = pack;
+                }
+              }
             }
           }
         }
@@ -171,7 +183,7 @@ OuterTile_N:
 }
 
 void MatrixMatrix(Data_t const a[], MemoryPack_t const b[],
-                  Data_t c[]) {
+                  MemoryPack_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1

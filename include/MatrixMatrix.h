@@ -66,6 +66,6 @@ constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kInnerTileSize, 0);
 
 extern "C" {
 
-void MatrixMatrix(Data_t const *aMem, MemoryPack_t const *bMem, Data_t *cMem);
-
+void MatrixMatrix(Data_t const *aMem, MemoryPack_t const *bMem,
+                  MemoryPack_t *cMem);
 }
