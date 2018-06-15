@@ -33,9 +33,9 @@ int IndexABuffer(int n1, int n2, int m1) {
   return (n1 * kInnerTileSize + n2) * kOuterTileSize + m1;
 }
 
-int IndexBBuffer(int p1, int p2) {
+int IndexBBuffer(int m1, int p1, int p2) {
   #pragma HLS INLINE
-  return p1 * kInnerTileSize + p2;
+  return m1 * kOuterTileSize + p1 * kInnerTileSize + p2;
 }
 
 int IndexCBuffer(int n1, int n2, int p1, int p2) {
@@ -69,18 +69,20 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
           }
         }
 
-        // We do not tile M further, but loop over the entire outer tile here
+        Data_t bBuffer[kOuterTileSize * kOuterTileSize];
+        #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSize
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
-
-          Data_t bBuffer[kOuterTileSize];
-          #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSize
           for (int p1 = 0; p1 < kInnerTiles; ++p1) {
             for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
-              bBuffer[IndexBBuffer(p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
+              bBuffer[IndexBBuffer(m1, p1, p2)] = b[IndexB(m0, m1, p0, p1, p2)]; 
             }
           }
+        }
+
+        // We do not tile M further, but loop over the entire outer tile here
+        for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         
           for (int n1 = 0; n1 < kInnerTiles; ++n1) {
 
@@ -98,7 +100,7 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
                   #pragma HLS UNROLL
                   // Begin compute tile ---------------------------------------
 
-                  const auto bVal = bBuffer[IndexBBuffer(p1, p2)];
+                  const auto bVal = bBuffer[IndexBBuffer(m1, p1, p2)];
 
                   const auto mult = aVal * bVal;
 
