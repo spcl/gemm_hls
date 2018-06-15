@@ -55,22 +55,27 @@ void ComputeKernel(Data_t const a[], Data_t const b[], Data_t c[]) {
               // Begin inner tile ---------------------------------------------
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
+
+              Data_t aBuffer[kInnerTileSize];
+              for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+                aBuffer[n2] = a[IndexA(n0, n1, n2, m0, m1)];
+              }
+
+              Data_t bBuffer[kInnerTileSize];
+              for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
+                bBuffer[p2] = b[IndexB(m0, m1, p0, p1, p2)]; 
+              }
             
               for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
                 #pragma HLS UNROLL
+
+                const auto aVal = aBuffer[n2];
+
                 for (int p2 = 0; p2 < kInnerTileSize; ++p2) {
                   #pragma HLS UNROLL
                   // Begin compute tile ---------------------------------------
 
-                  const auto aVal =
-                      a[(n0 * kOuterTileSize + n1 * kInnerTileSize + n2) *
-                            kSizeM +
-                        (m0 * kOuterTileSize + m1)];
-
-                  const auto bVal =
-                      b[(m0 * kOuterTileSize + m1) *
-                            kSizeP +
-                        (p0 * kOuterTileSize + p1 * kInnerTileSize + p2)];
+                  const auto bVal = bBuffer[p2];
 
                   const auto mult = aVal * bVal;
 
