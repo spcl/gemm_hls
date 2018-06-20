@@ -12,41 +12,56 @@ using hlslib::DataPack;
 
 int IndexA(int n0, int n1, int n2, int m0, int m1) {
   #pragma HLS INLINE
-  return (n0 * kOuterTileSize + n1 * kInnerTileSize + n2) * kSizeM +
+  int index =  (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeK +
+         (m0 * kOuterTileSize + m1);
+  assert(index < kSizeN * kSizeK);
+  return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeK +
          (m0 * kOuterTileSize + m1);
 }
 
 int IndexB(int m0, int m1, int p0, int p1, int p2m) {
   #pragma HLS INLINE
-  return (m0 * kOuterTileSize + m1) * kSizePMemory +
-         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMemory + p2m);
+  int index =  (m0 * kOuterTileSize + m1) * kSizeMMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMMemory + p2m);
+  assert(index < kSizeK * kSizeM);
+  return (m0 * kOuterTileSize + m1) * kSizeMMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMMemory + p2m);
 }
 
 int IndexC(int n0, int n1, int n2, int p0, int p1, int p2m) {
   #pragma HLS INLINE
-  return (n0 * kOuterTileSize + n1 * kInnerTileSize + n2) * kSizePMemory +
-         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMemory + p2m);
+  int index =  (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeMMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMMemory + p2m);
+  assert(index < kSizeN * kSizeM);
+  return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeMMemory +
+         (p0 * kOuterTileSizeMemory + p1 * kInnerTileSizeMMemory + p2m);
 }
 
 int IndexABuffer(int n1, int n2, int m1) {
   #pragma HLS INLINE
-  return m1 * kOuterTileSize + (n1 * kInnerTileSize + n2);
+  int index =  m1 * kOuterTileSize + (n1 * kInnerTileSizeN + n2);
+  assert(index < kOuterTileSize * kOuterTileSize);
+  return m1 * kOuterTileSize + (n1 * kInnerTileSizeN + n2);
 }
 
 int IndexBBuffer(int m1, int p1, int p2m, int p2k) {
   #pragma HLS INLINE
-  return m1 * kOuterTileSize + p1 * kInnerTileSize + p2m * kMemoryWidth + p2k;
+  int index =  m1 * kOuterTileSize + p1 * kInnerTileSizeM + p2m * kMemoryWidth + p2k;
+  assert(index < kOuterTileSize * kOuterTileSize);
+  return m1 * kOuterTileSize + p1 * kInnerTileSizeM + p2m * kMemoryWidth + p2k;
 }
 
 int IndexBBuffer(int m1, int p1, int p2) {
   #pragma HLS INLINE
-  return m1 * kOuterTileSize + p1 * kInnerTileSize + p2;
+  int index =  m1 * kOuterTileSize + p1 * kInnerTileSizeM + p2;
+  assert(index < kOuterTileSize * kOuterTileSize);
+  return m1 * kOuterTileSize + p1 * kInnerTileSizeM + p2;
 }
 
 int IndexCBuffer(int n1, int n2, int p1, int p2m, int p2k) {
   #pragma HLS INLINE
-  return (n1 * kInnerTiles + p1) * kInnerTileSize * kInnerTileSize +
-         n2 * kInnerTileSize + p2m * kMemoryWidth + p2k;
+  return (n1 * kInnerTileSizeN + n2) * kOuterTileSize +
+         (p1 * kInnerTileSizeM + p2m * kMemoryWidth + p2k);
 }
 
 void ReadB(MemoryPack_t const b[], Stream<MemoryPack_t> &pipe) {
@@ -59,9 +74,9 @@ ReadB_OuterTile_N:
       ReadB_BufferB_M1:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         ReadB_BufferB_P1:
-          for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+          for (int p1 = 0; p1 < kInnerTilesM; ++p1) {
           ReadB_BufferB_P2:
-            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+            for (int p2m = 0; p2m < kInnerTileSizeMMemory; ++p2m) {
               #pragma HLS LOOP_FLATTEN
               #pragma HLS PIPELINE II=1
               pipe.Push(b[IndexB(m0, m1, p0, p1, p2m)]);
@@ -80,21 +95,20 @@ OuterTile_N:
   OuterTile_P:
     for (int p0 = 0; p0 < kOuterTilesP; ++p0) {
 
-      constexpr int kInnerTileSizeSquared = kInnerTileSize * kInnerTileSize;
       // Size equivalent to kOuterTileSize * kOuterTileSize
-      Data_t cBuffer[kInnerTiles * kInnerTiles * kInnerTileSizeSquared];
-      #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kInnerTileSizeSquared
+      Data_t cBuffer[kInnerTilesN * kInnerTilesM * kInnerTileSizeN * kInnerTileSizeM];
+      #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kInnerTileSizeN*kInnerTileSizeM
   
     OuterTile_M:
       for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
         // Begin outer tile ---------------------------------------------------
 
         Data_t aBuffer[kOuterTileSize * kOuterTileSize];
-        #pragma HLS ARRAY_PARTITION variable=aBuffer cyclic factor=kInnerTileSize
+        #pragma HLS ARRAY_PARTITION variable=aBuffer cyclic factor=kInnerTileSizeN
       BufferA_N1:
-        for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
         BufferA_N2:
-          for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+          for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
           BufferA_M1:
             for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
               #pragma HLS PIPELINE II=1
@@ -105,13 +119,13 @@ OuterTile_N:
         }
 
         Data_t bBuffer[kOuterTileSize * kOuterTileSize];
-        #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSize
+        #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSizeM
       BufferB_M1:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         BufferB_P1:
-          for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+          for (int p1 = 0; p1 < kInnerTilesM; ++p1) {
           BufferB_P2M:
-            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+            for (int p2m = 0; p2m < kInnerTileSizeMMemory; ++p2m) {
               MemoryPack_t pack;
             BufferB_P2K:
               for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {
@@ -131,22 +145,22 @@ OuterTile_N:
         for (int m1 = 0; m1 < kOuterTileSize; ++m1) {
         
         Pipeline_N:
-          for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
 
           Pipeline_P:
-            for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+            for (int p1 = 0; p1 < kInnerTilesM; ++p1) {
               // Begin inner tile ---------------------------------------------
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
             
             Unroll_N:
-              for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+              for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
                 #pragma HLS UNROLL
 
                 const auto aVal = aBuffer[IndexABuffer(n1, n2, m1)];
 
               Unroll_PM:
-                for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+                for (int p2m = 0; p2m < kInnerTileSizeMMemory; ++p2m) {
                   #pragma HLS UNROLL
 
                 Unroll_PK:
@@ -181,13 +195,13 @@ OuterTile_N:
 
       // Write back this tile of C ---------------------------------------------
     WriteC_N1:
-      for (int n1 = 0; n1 < kInnerTiles; ++n1) {
+      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
       WriteC_P1:
-        for (int p1 = 0; p1 < kInnerTiles; ++p1) {
+        for (int p1 = 0; p1 < kInnerTilesM; ++p1) {
         WriteC_N2:
-          for (int n2 = 0; n2 < kInnerTileSize; ++n2) {
+          for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
           WriteC_P2M:
-            for (int p2m = 0; p2m < kInnerTileSizeMemory; ++p2m) {
+            for (int p2m = 0; p2m < kInnerTileSizeMMemory; ++p2m) {
               MemoryPack_t pack;
             WriteC_P2K:
               for (int p2k = 0; p2k < kMemoryWidth; ++p2k) {

@@ -12,9 +12,9 @@
 
 int main() {
 
-  std::vector<Data_t> a(kSizeN * kSizeM);
-  std::vector<Data_t> b(kSizeM * kSizeP);
-  std::vector<Data_t> cReference(kSizeN * kSizeP, 0);
+  std::vector<Data_t> a(kSizeN * kSizeK);
+  std::vector<Data_t> b(kSizeK * kSizeK);
+  std::vector<Data_t> cReference(kSizeN * kSizeK, 0);
 
   std::default_random_engine rng(kSeed);
   typename std::conditional<
@@ -41,9 +41,9 @@ int main() {
 
   std::cout << "Verifying results..." << std::endl;
   for (int i = 0; i < kSizeN; ++i) {
-    for (int j = 0; j < kSizeP; ++j) {
-      const auto testVal = cTest[i * kSizeP + j];
-      const auto refVal = cReference[i * kSizeP + j];
+    for (int j = 0; j < kSizeK; ++j) {
+      const auto testVal = cTest[i * kSizeK + j];
+      const auto refVal = cReference[i * kSizeK + j];
       const auto diff = std::abs(testVal - refVal);
       if (diff > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j

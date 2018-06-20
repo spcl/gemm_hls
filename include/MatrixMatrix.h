@@ -23,39 +23,43 @@ using MemoryPack_t = hlslib::DataPack<Data_t, kMemoryWidth>;
 // static_assert(kSize % kMemoryWidth == 0,
 //               "Matrix dimensions must be divisable by memory width.");
 
-constexpr int kSizeMMemory = kSizeM / kMemoryWidth;
-static_assert(kSizeM % kMemoryWidth == 0,
+constexpr int kSizeKMemory = kSizeK / kMemoryWidth;
+static_assert(kSizeK % kMemoryWidth == 0,
               "M must be divisable by memory width.");
 
-constexpr int kSizePMemory = kSizeP / kMemoryWidth;
-static_assert(kSizeP % kMemoryWidth == 0,
+constexpr int kSizeMMemory = kSizeM / kMemoryWidth;
+static_assert(kSizeM % kMemoryWidth == 0,
               "P must be divisable by memory width.");
 
 constexpr int kOuterTilesN = kSizeN / kOuterTileSize;
 static_assert(kSizeN % kOuterTileSize == 0,
               "N must be divisable by the outer tile size.");
 
-constexpr int kOuterTilesM = kSizeM / kOuterTileSize;
-static_assert(kSizeM % kOuterTileSize == 0,
+constexpr int kOuterTilesM = kSizeK / kOuterTileSize;
+static_assert(kSizeK % kOuterTileSize == 0,
               "M must be divisable by the outer tile size.");
 
-constexpr int kOuterTilesP = kSizeP / kOuterTileSize;
-static_assert(kSizeP % kOuterTileSize == 0,
+constexpr int kOuterTilesP = kSizeM / kOuterTileSize;
+static_assert(kSizeM % kOuterTileSize == 0,
               "P must be divisable by the outer tile size.");
 
-constexpr int kInnerTiles = kOuterTileSize / kInnerTileSize;
-static_assert(kInnerTileSize % kInnerTileSize == 0,
+constexpr int kInnerTilesN = kOuterTileSize / kInnerTileSizeN;
+static_assert(kOuterTileSize % kInnerTileSizeN == 0,
               "Outer tile size must be divisable by the inner tile size.");
 
-constexpr int kInnerTileSizeMemory = kInnerTileSize / kMemoryWidth;
-static_assert(kInnerTileSize % kMemoryWidth == 0,
+constexpr int kInnerTilesM = kOuterTileSize / kInnerTileSizeM;
+static_assert(kOuterTileSize % kInnerTileSizeM == 0,
+              "Outer tile size must be divisable by the inner tile size.");
+
+constexpr int kInnerTileSizeMMemory = kInnerTileSizeM / kMemoryWidth;
+static_assert(kInnerTileSizeM % kMemoryWidth == 0,
               "Inner tile size must be divisable by memory width");
 
 constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
 static_assert(kOuterTileSize % kMemoryWidth == 0,
               "Outer tile size must be divisable by memory width");
 
-static_assert(kInnerTileSizeMemory > 1,
+static_assert(kInnerTileSizeMMemory > 1,
               "Vectorized inner tile size must be larger than 1, "
               "otherwise HLS will not pipeline");
 
@@ -64,9 +68,6 @@ template <typename T,
 constexpr T PowerOfTwo(T number, unsigned char power) {
   return (number > 0) ? PowerOfTwo(number >> 1, power + 1) : (1 << (power - 1));
 }
-
-// Force HLS to implement these with BRAM by setting the minimum depth to 128
-constexpr int kTransposeDepth = PowerOfTwo<int>(4 * kInnerTileSize, 0);
 
 extern "C" {
 

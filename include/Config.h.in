@@ -10,13 +10,13 @@
 #include "hls_half.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
-constexpr int kKernelWidth = ${MM_KERNEL_WIDTH};
 constexpr int kMemoryWidthBytes = ${MM_MEMORY_BUS_WIDTH};
 constexpr int kSizeN = ${MM_SIZE_N};
+constexpr int kSizeK = ${MM_SIZE_K};
 constexpr int kSizeM = ${MM_SIZE_M};
-constexpr int kSizeP = ${MM_SIZE_P};
 constexpr int kOuterTileSize = ${MM_OUTER_TILE_SIZE};
-constexpr int kInnerTileSize = ${MM_INNER_TILE_SIZE};
+constexpr int kInnerTileSizeN = ${MM_INNER_TILE_SIZE_N};
+constexpr int kInnerTileSizeM = ${MM_INNER_TILE_SIZE_M};
 constexpr float kFrequency = ${MM_TARGET_CLOCK};
 constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}"; 
 

@@ -56,28 +56,28 @@ inline std::vector<Data_t> Unpack(std::vector<MemoryPack_t> const &in) {
 // Fallback
 template <typename T, class OperatorMap, class OperatorReduce>
 void CallBLAS(T const *a, T const *b, T *c) {
-  Naive<OperatorMap, OperatorReduce>(a, b, c, kSizeN, kSizeM, kSizeP);
+  Naive<OperatorMap, OperatorReduce>(a, b, c, kSizeN, kSizeK, kSizeM);
 }
 
 #ifdef MM_HAS_BLAS
 template <>
 void CallBLAS<float, hlslib::op::Multiply<float>, hlslib::op::Add<float>>(
     float const *a, float const *b, float *c) {
-  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
-              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
+  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeM, kSizeK,
+              1.0, a, kSizeK, b, kSizeM, 0.0, c, kSizeM);
 }
 template <>
 void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
     double const *a, double const *b, double *c) {
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeP, kSizeM,
-              1.0, a, kSizeM, b, kSizeP, 0.0, c, kSizeP);
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeM, kSizeK,
+              1.0, a, kSizeK, b, kSizeM, 0.0, c, kSizeM);
 }
 #endif
 
 inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
                                     Data_t *c) {
   std::stringstream ss;
-  ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeM << "_p" << kSizeP
+  ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeK << "_p" << kSizeM
      << "_s" << kSeed << ".dat";
   const auto goldenFileName = ss.str();
   std::ifstream goldenFile(goldenFileName,
@@ -85,7 +85,7 @@ inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
   if (goldenFile.good()) {
     std::cout << "Using cached golden result." << std::endl;
     goldenFile.read(reinterpret_cast<char *>(&c[0]),
-                    kSizeN * kSizeP * sizeof(Data_t));
+                    kSizeN * kSizeM * sizeof(Data_t));
   } else {
     std::cout << "No cached result found. Running host implementation..."
               << std::flush;
@@ -98,7 +98,7 @@ inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
                 << "\". Cannot cache result." << std::endl;
     } else {
       goldenFileOut.write(reinterpret_cast<char *>(&c[0]),
-                          kSizeN * kSizeP * sizeof(Data_t));
+                          kSizeN * kSizeM * sizeof(Data_t));
     }
   }
 }

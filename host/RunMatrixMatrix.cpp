@@ -34,13 +34,13 @@ int main(int argc, char **argv) {
   std::vector<MemoryPack_t> aMem, bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
-    a = std::vector<Data_t>(kSizeN * kSizeM);
+    a = std::vector<Data_t>(kSizeN * kSizeK);
     std::for_each(a.begin(), a.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    b = std::vector<Data_t>(kSizeM * kSizeP);
+    b = std::vector<Data_t>(kSizeK * kSizeM);
     std::for_each(b.begin(), b.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    cRef = std::vector<Data_t>(kSizeN * kSizeP, 0);
+    cRef = std::vector<Data_t>(kSizeN * kSizeM, 0);
 
     aMem = Pack(a);
     bMem = Pack(b);
@@ -56,11 +56,11 @@ int main(int argc, char **argv) {
 
     std::cout << "Initializing device memory..." << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeMMemory);
+        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeKMemory);
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, kSizeM * kSizePMemory);
+        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeMMemory);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizePMemory);
+        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeMMemory);
     std::cout << " Done.\n";
 
     if (verify) {
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     std::cout << " Done.\n";
 
     const auto perf = 1e-9 *
-                      (2 * static_cast<float>(kSizeN) * kSizeM * kSizeP) /
+                      (2 * static_cast<float>(kSizeN) * kSizeK * kSizeM) /
                       elapsed.first;
 
     std::cout << "Kernel executed in " << elapsed.first
@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
     const auto cTest = Unpack(cMem); 
 
     for (int i = 0; i < kSizeN; ++i) {
-      for (int j = 0; j < kSizeP; ++j) {
-        const auto testVal = cTest[i * kSizeP + j];
-        const auto refVal = cRef[i * kSizeP + j];
+      for (int j = 0; j < kSizeM; ++j) {
+        const auto testVal = cTest[i * kSizeM + j];
+        const auto refVal = cRef[i * kSizeM + j];
         const auto diff = std::abs(testVal - refVal);
         if (diff > static_cast<Data_t>(1e-3)) {
           std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal
