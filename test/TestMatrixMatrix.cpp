@@ -26,10 +26,9 @@ int main() {
   std::for_each(b.begin(), b.end(),
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
 
-  // const auto aKernel = Pack(a);
+  const auto aKernel = Pack(a);
   const auto bKernel = Pack(b);
   auto cKernel = Pack(cReference);
-  const std::vector<Data_t> aKernel(a);
 
   ReferenceImplementation(a.data(), b.data(), cReference.data());
 

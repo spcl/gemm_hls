@@ -1,89 +1,85 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      August 2017 
+/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #include "Memory.h"
 
-int GetAIndex(int bn, int tn, int m) {
+using hlslib::Stream;
+
+int IndexA(int n0, int n1, int n2, int k0, int k1t, int k1m) {
   #pragma HLS INLINE
-  return bn * kTileSizeN * kSizeMMemory + tn * kSizeMMemory + m;
+  return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeKMemory +
+         (k0 * kOuterTileSizeMemory + k1t * (kTransposeWidth / kMemoryWidth) +
+          k1m);
 }
 
-int GetBIndex(int bp, int m, int tp) {
+int IndexB(int k0, int k1, int m0, int m1m) {
   #pragma HLS INLINE
-  return m * kSizePMemory + bp * kTileSizePMemory + tp;
+  return (k0 * kOuterTileSize + k1) * kSizeMMemory +
+         (m0 * kOuterTileSizeMemory + m1m);
 }
 
-int GetCIndex(int bn, int bp, int tn, int tp) {
+int IndexC(int n0, int n1, int m0, int m1m) {
   #pragma HLS INLINE
-  return bn * kSizePMemory * kTileSizeN + tn * kSizePMemory +
-         bp * kTileSizePMemory + tp;
+  return (n0 * kOuterTileSize + n1) * kSizeMMemory +
+         (m0 * kOuterTileSizeMemory + m1m);
 }
 
-void ReadBMemory(MemoryPack_t const b[], hlslib::Stream<MemoryPack_t> &bPipe) {
-ReadBMemory_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  ReadBMemory_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    ReadBMemory_M:
-      for (int m = 0; m < kSizeM; ++m) {
-      ReadBMemory_P:
-        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
-          #pragma HLS LOOP_FLATTEN
-          #pragma HLS PIPELINE
-          bPipe.Push(b[GetBIndex(bp, m, tp)]);
-        }
-      }
-    }
-  }
-
-}
-
-void ReadBKernel(hlslib::Stream<MemoryPack_t> &bMem,
-                 hlslib::Stream<KernelPack_t> &bPipe) {
-ReadB_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  ReadB_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    ReadB_M:
-      for (int m = 0; m < kSizeM; ++m) {
-      ReadB_P_Memory:
-        for (int tpm = 0; tpm < kTileSizePMemory; ++tpm) {
-          MemoryPack_t mem;
-        ReadB_P_KernelPerMemory:
-          for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) { 
-            #pragma HLS LOOP_FLATTEN
-            #pragma HLS PIPELINE
-            if (kpm == 0) {
-              mem = bMem.Pop();
-            }
-            const KernelPack_t kernel = mem[kpm];
-            bPipe.Push(kernel);
-          }
-        }
-      }
-    }
+void _ReadAInner(MemoryPack_t const a[], Stream<Data_t> aSplit[kMemoryWidth],
+                 int n0, int n1, int n2, int k0, int k1t, int k1m) {
+#pragma HLS INLINE
+  auto pack = a[IndexA(n0, n1, n2, k0, k1t, k1m)];
+  for (int w = 0; w < kMemoryWidth; ++w) {
+    #pragma HLS UNROLL
+    aSplit[w].Push(pack[w]); 
   }
 }
 
-void WriteCKernel(hlslib::Stream<KernelPack_t> &cPipe,
-                  hlslib::Stream<MemoryPack_t> &cMem) {
-WriteCKernel_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  WriteCKernel_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    WriteCKernel_N:
-      for (int tn = 0; tn < kTileSizeN; ++tn) {
-      WriteCKernel_P_Memory:
-        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
-          MemoryPack_t mem;
-        WriteCKernel_P_Kernel:
-          for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
-            #pragma HLS LOOP_FLATTEN
-            #pragma HLS PIPELINE
-            mem[kpm] = cPipe.Pop();
-            if (kpm == kKernelPerMemory - 1) {
-              cMem.Push(mem);
+template <int innerReads>
+void _ReadAInnerLoop(
+    MemoryPack_t const a[], Stream<Data_t> aSplit[kComputeTilesN],
+    int n0, int n1, int n2, int k0, int k1t) {
+  #pragma HLS INLINE
+  // innerReads == kTransposeWidth / kMemoryWidth
+  for (int k1m = 0; k1m < kTransposeWidth / kMemoryWidth; ++k1m) { 
+    #pragma HLS PIPELINE II=1
+    #pragma HLS LOOP_FLATTEN
+    _ReadAInner(a, aSplit, n0, n1, n2, k0, k1t, k1m);
+  }
+}
+
+// Need a special case for kMemoryWidth == kTransposeWidth, as Vivado HLS
+// otherwise doesn't pipeline the loops (because the inner trip count is 1).
+template <>
+void _ReadAInnerLoop<0>(
+    MemoryPack_t const a[], Stream<Data_t> aSplit[kComputeTilesN],
+    int n0, int n1, int n2, int k0, int k1t) {
+  #pragma HLS INLINE
+  #pragma HLS PIPELINE II=1
+  #pragma HLS LOOP_FLATTEN
+  _ReadAInner(a, aSplit, n0, n1, n2, k0, k1t, 0);
+}
+
+void ReadA(MemoryPack_t const a[], Stream<Data_t> aSplit[kMemoryWidth]) {
+  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK *
+  //                (kOuterTileSize / kTransposeWidth) * kInnerTilesN *
+  //                kInnerTileSizeN * (kTransposeWidth / kMemoryWidth) *
+  //                MemoryPack_t::kWidth) == kTotalReadsFromA,
+  //               "Sanity check failed for ReadA");
+ReadA_N0:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  ReadA_M0:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    ReadA_K0:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      ReadA_K1:
+        for (int k1t = 0; k1t < kOuterTileSize / kTransposeWidth; ++k1t) {
+        ReadA_N1:
+          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+          ReadA_N2:
+            for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
+              _ReadAInnerLoop<kTransposeWidth / kMemoryWidth>(a, aSplit, n0, n1,
+                                                              n2, k0, k1t);
             }
           }
         }
@@ -92,46 +88,176 @@ WriteCKernel_Block_N:
   }
 }
 
-void WriteCMemory(hlslib::Stream<MemoryPack_t> &cMem, MemoryPack_t c[]) {
-WriteCMemory_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  WriteCMemory_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    WriteCMemory_N:
-      for (int tn = 0; tn < kTileSizeN; ++tn) {
-      WriteCMemory_P:
-        for (int tp = 0; tp < kTileSizePMemory; ++tp) {
-          #pragma HLS LOOP_FLATTEN
-          #pragma HLS PIPELINE
-          c[GetCIndex(bn, bp, tn, tp)] = cMem.Pop();
+// We pop from the column buffers in column-major order, funneling the
+// transposed data to the kernel
+void TransposeA(Stream<Data_t> aSplit[kTransposeWidth],
+                Stream<Data_t> &toKernel) {
+  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
+  //                kOuterTileSize) == kTotalReadsFromA,
+  //               "Sanity check failed for TransposeA");
+TransposeA_N0:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  TransposeA_M0:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    TransposeA_K0:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      TransposeA_K1:
+        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
+        TransposeA_N1:
+          for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            // Pop from each stream kOuterTileSize times in a row
+            toKernel.Push(aSplit[k1 % kTransposeWidth].Pop());
+          }
         }
       }
     }
   }
 }
 
-// Split A into individual, deep FIFOs 
-void ReadASplit(MemoryPack_t const a[],
-                hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth]) {
-ReadASplit_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  ReadASplit_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    ReadASplit_M:
-      for (int m = 0; m < kSizeMMemory; ++m) {
-      ReadASplit_N:
-        for (int tn = 0; tn < kTileSizeN; ++tn) {
-          #pragma HLS LOOP_FLATTEN
-          #pragma HLS PIPELINE
-          const auto read = a[GetAIndex(bn, tn, m)];
-        ReadASplit_KernelPerMemory:
-          for (int kpm = 0; kpm < kKernelPerMemory; ++kpm) {
-            #pragma HLS UNROLL
-          ReadASplit_KernelWidth:
-            for (int kw = 0; kw < kKernelWidth; ++kw) {
-              #pragma HLS UNROLL
-              aSplit[kpm * kKernelWidth + kw].Push(
-                  static_cast<Data_t>(read[kpm][kw]));
+void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide) {
+ConvertWidthA_Outer:
+  for (int i = 0; i < kTotalReadsFromA / ComputePackN_t::kWidth; ++i) {
+    ComputePackN_t pack;
+  ConvertWidthA_Compute:
+    for (int w = 0; w < ComputePackN_t::kWidth; ++w) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      pack[w] = narrow.Pop();
+      if (w == ComputePackN_t::kWidth - 1) {
+        wide.Push(pack);
+      }
+    }
+  }
+}
+
+void DistributeA(Stream<ComputePackN_t> &fromMemory,
+                 Stream<ComputePackN_t> toFeeders[kComputeTilesN]) {
+  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
+  //                (kOuterTileSize / kComputeTileSizeN) *
+  //                ComputePackN_t::kWidth) == kTotalReadsFromA,
+  //               "Sanity check failed for DistributeA");
+DistributeA_N0:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  DistributeA_M0:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    DistributeA_K0:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      DistributeA_K1:
+        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
+        DistributeA_N1:
+          for (int n1 = 0; n1 < kOuterTileSize / kComputeTileSizeN; ++n1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            toFeeders[n1 % kComputeTilesN].Push(fromMemory.Pop());
+          }
+        }
+      }
+    }
+  }
+}
+
+void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe) {
+  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
+  //                kOuterTileSizeMemory * MemoryPack_t::kWidth) ==
+  //               kTotalReadsFromB, "Sanity check failed for ReadB");
+ReadB_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  ReadB_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    ReadB_OuterTile_K:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      ReadB_BufferB_K1:
+        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
+        ReadB_BufferB_M1:
+          for (int m1m = 0; m1m < kOuterTileSizeMemory; ++m1m) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            pipe.Push(memory[IndexB(k0, k1, m0, m1m)]); 
+          }
+        }
+      }
+    }
+  }
+}
+
+void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow) {
+  // These assertions will be relaxed once Xilinx IP memory converters have been
+  // inserted
+  static_assert(kMemoryWidth % kComputeTileSizeM == 0,
+                "Memory width must be divisable by compute tile size.");
+  // static_assert(((kTotalReadsFromB / kComputeTileSizeM) *
+  //                (kMemoryWidth / kComputeTileSizeM) * kComputeTileSizeM *
+  //                ComputePackM_t::kWidth) == kTotalReadsFromB,
+  //               "Sanity check failed for ConvertWidthB");
+ConvertWidthB_Outer:
+  for (int i = 0; i < kTotalReadsFromB / kComputeTileSizeM; ++i) {
+  ConvertWidthB_Memory:
+    MemoryPack_t memoryPack;
+    for (int j = 0; j < kMemoryWidth / kComputeTileSizeM; ++j) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      if (j == 0) {
+        memoryPack = wide.Pop();
+      }
+      ComputePackM_t computePack;
+    ConvertWidthB_Compute:
+      for (int w = 0; w < kComputeTileSizeM; ++w) {
+        #pragma HLS UNROLL
+        computePack[w] = memoryPack[j * kComputeTileSizeM + w];
+      }
+      narrow.Push(computePack);
+    }
+  }
+}
+
+void DistributeB(Stream<ComputePackM_t> &pipe,
+                 Stream<ComputePackM_t> toFeeders[kComputeTilesM]) {
+  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
+  //                (kOuterTileSize / kComputeTileSizeM) *
+  //                ComputePackM_t::kWidth) == kTotalReadsFromB,
+  //               "Sanity check failed for DistributeB");
+DistributeB_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  DistributeB_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    DistributeB_OuterTile_K:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      DistributeB_BufferB_K1:
+        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
+        DistributeB_BufferB_M1:
+          for (int m1 = 0; m1 < kOuterTileSize / kComputeTileSizeM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            toFeeders[m1 % kComputeTilesM].Push(pipe.Pop());; 
+          }
+        }
+      }
+    }
+  }
+}
+
+void FanInC(Stream<OutputPack_t> fromDrainers[kComputeTilesM],
+            Stream<OutputPack_t> &toMemory) {
+  static_assert((kOuterTilesN * kOuterTilesM * kInnerTilesN * kInnerTilesM *
+                 kComputeTilesN * kComputeTilesM * OutputPack_t::kWidth) ==
+                kSizeN * kSizeM, "Sanity check failed for FanInC");
+FanInC_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  FanInC_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    FanInC_N1:
+      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+      FanInC_M1:
+        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+        FanInC_N2:
+          for (int n2 = 0; n2 < kComputeTilesN; ++n2) {
+          FanInC_M2:
+            for (int m2 = 0; m2 < kComputeTilesM; ++m2) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              toMemory.Push(fromDrainers[m2].Pop());
             }
           }
         }
@@ -140,24 +266,51 @@ ReadASplit_Block_N:
   }
 }
 
-// Rotate between the different vertical buffers of A
-void ReadARotate(hlslib::Stream<Data_t, kTransposeDepth> aSplit[kMemoryWidth],
-                 hlslib::Stream<Data_t> &aPipe) {
-ReadARotate_Block_N:
-  for (int bn = 0; bn < kBlocksN; ++bn) {
-  ReadARotate_Block_P:
-    for (int bp = 0; bp < kBlocksP; ++bp) {
-    ReadARotate_M_Memory:
-      for (int m = 0; m < kSizeMMemory; ++m) {
-      ReadARotate_MemoryWidth:
-        for (int mw = 0; mw < kMemoryWidth; ++mw) { 
-        ReadARotate_N:
-          for (int tn = 0; tn < kTileSizeN; ++tn) {
-            #pragma HLS LOOP_FLATTEN
-            #pragma HLS PIPELINE
-            const auto read = aSplit[mw].Pop();
-            aPipe.Push(read);
-          }
+void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide) {
+  // TODO: fix when output is wider than memory
+  static_assert(kMemoryWidth % OutputPack_t::kWidth == 0,
+                "Memory width must be divisable by compute tile width.");
+  // static_assert(((kTotalReadsFromB / kComputeTileSizeM) *
+  //                (kMemoryWidth / kComputeTileSizeM) * kComputeTileSizeM *
+  //                ComputePackM_t::kWidth) == kTotalReadsFromB,
+  //               "Sanity check failed for ConvertWidthC");
+ConvertWidthC_Outer:
+  for (int i = 0; i < (kSizeN * kSizeM) / OutputPack_t::kWidth; ++i) {
+  ConvertWidthB_Memory:
+    MemoryPack_t memoryPack;
+    for (int j = 0; j < kMemoryWidth / OutputPack_t::kWidth; ++j) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      if (j == 0) {
+        memoryPack = wide.Pop();
+      }
+      OutputPack_t computePack;
+    ConvertWidthB_Compute:
+      for (int w = 0; w < OutputPack_t::kWidth; ++w) {
+        #pragma HLS UNROLL
+        computePack[w] = memoryPack[j * OutputPack_t::kWidth + w];
+      }
+      narrow.Push(computePack);
+    }
+  }
+}
+
+void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]) {
+  static_assert(
+      (kOuterTilesN * kOuterTilesM * kOuterTileSize * kOuterTileSizeMemory *
+       MemoryPack_t::kWidth) == kSizeN * kSizeM,
+      "Sanity check failed for WriteC");
+WriteC_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  WriteC_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    WriteC_N1:
+      for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+      WriteC_M1:
+        for (int m1m = 0; m1m < kOuterTileSizeMemory; ++m1m) {
+          #pragma HLS PIPELINE II=1
+          #pragma HLS LOOP_FLATTEN
+          memory[IndexC(n0, n1, m0, m1m)] = pipe.Pop();
         }
       }
     }

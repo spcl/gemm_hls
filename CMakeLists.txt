@@ -18,8 +18,11 @@ set(MM_SIZE_N 16384 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_K 16384 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_M 16384 CACHE STRING "Size of matrix dimension.")
 set(MM_OUTER_TILE_SIZE 512 CACHE STRING "Tile size of outer memory tile.")
-set(MM_INNER_TILE_SIZE_N 8 CACHE STRING "Tile size of inner compute tile.")
-set(MM_INNER_TILE_SIZE_M 32 CACHE STRING "Tile size of inner compute tile.")
+set(MM_INNER_TILE_SIZE_N 8 CACHE STRING "Tile size of inner memory tile.")
+set(MM_INNER_TILE_SIZE_M 32 CACHE STRING "Tile size of inner memory tile.")
+set(MM_COMPUTE_TILE_SIZE_N 4 CACHE STRING "Tile size of inner compute tile.")
+set(MM_COMPUTE_TILE_SIZE_M 16 CACHE STRING "Tile size of inner compute tile.")
+set(MM_TRANSPOSE_WIDTH 64 CACHE STRING "Burst width when transposing reads from A.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
@@ -55,8 +58,8 @@ configure_file(include/Config.h.in Config.h)
 
 # C++ source code 
 set(MM_KERNEL_SRC
-    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp)
-    # ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
+    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 

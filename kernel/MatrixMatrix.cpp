@@ -1,70 +1,42 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      August 2017 
+/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #include "MatrixMatrix.h"
-// #include "Memory.h"
+#include "Memory.h"
 #include "hlslib/Stream.h"
 #include "hlslib/Simulation.h"
 
 using hlslib::Stream;
 using hlslib::DataPack;
 
-int IndexA(int n0, int n1, int n2, int k0, int k1) {
-  #pragma HLS INLINE
-  return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeK +
-         (k0 * kOuterTileSize + k1);
-}
-
-int IndexB(int k0, int k1, int m0, int m1, int m2m) {
-  #pragma HLS INLINE
-  return (k0 * kOuterTileSize + k1) * kSizeMMemory +
-         (m0 * kOuterTileSizeMemory + m1 * kInnerTileSizeMMemory + m2m);
-}
-
-int IndexC(int n0, int n1, int n2, int m0, int m1, int m2m) {
-  #pragma HLS INLINE
-  return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeMMemory +
-         (m0 * kOuterTileSizeMemory + m1 * kInnerTileSizeMMemory + m2m);
-}
-
-int IndexABuffer(int n1, int n2, int k1) {
-  #pragma HLS INLINE
-  return k1 * kOuterTileSize + (n1 * kInnerTileSizeN + n2);
-}
-
-int IndexBBuffer(int k1, int m1, int m2m, int m2k) {
-  #pragma HLS INLINE
-  return k1 * kOuterTileSize + m1 * kInnerTileSizeM + m2m * kMemoryWidth + m2k;
-}
-
-int IndexBBuffer(int k1, int m1, int p2) {
-  #pragma HLS INLINE
-  return k1 * kOuterTileSize + m1 * kInnerTileSizeM + p2;
-}
-
-int IndexCBuffer(int n1, int n2, int m1, int m2m, int m2k) {
-  #pragma HLS INLINE
-  return (n1 * kInnerTileSizeN + n2) * kOuterTileSize +
-         (m1 * kInnerTileSizeM + m2m * kMemoryWidth + m2k);
-}
-
-void ReadB(MemoryPack_t const b[], Stream<MemoryPack_t> &pipe) {
-ReadB_OuterTile_N:
+/// Feeds a single compute row
+void FeedA(Stream<ComputePackN_t> &fromMemory,
+           Stream<ComputePackN_t> &toKernel) {
+FeedA_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  ReadB_OuterTile_M:
+  FeedA_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    ReadB_OuterTile_K:
+    FeedA_OuterTile_K:
       for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
-      ReadB_BufferB_K1:
+        ComputePackN_t buffer[kInnerTilesN * kOuterTileSize];
+      FeedA_Pipeline_K:
         for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        ReadB_BufferB_M1:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          ReadB_BufferB_M2:
-            for (int m2m = 0; m2m < kInnerTileSizeMMemory; ++m2m) {
-              #pragma HLS LOOP_FLATTEN
+        FeedA_Pipeline_N:
+          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+          FeedA_Pipeline_M:
+            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
               #pragma HLS PIPELINE II=1
-              pipe.Push(b[IndexB(k0, k1, m0, m1, m2m)]);
+              #pragma HLS LOOP_FLATTEN
+              ComputePackN_t pack;
+              const auto index = k1 * kOuterTileSize + n1;
+              if (k0 == 0 && m1 == 0) {
+                pack = fromMemory.Pop();
+                buffer[index] = pack;
+              } else {
+                pack = buffer[index];
+              }
+              toKernel.Push(pack);
             }
           }
         }
@@ -73,132 +45,151 @@ ReadB_OuterTile_N:
   }
 }
 
-void ComputeKernel(Data_t const a[], Stream<MemoryPack_t> &bPipe,
-                   MemoryPack_t c[]) {
+/// Feeds a single compute column
+void FeedB(Stream<ComputePackM_t> &fromMemory,
+           Stream<ComputePackM_t> &toKernel) {
+FeedB_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  FeedB_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    FeedB_OuterTile_K:
+      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+        ComputePackM_t buffer[kInnerTilesM * kOuterTileSize];
+      FeedB_Pipeline_K:
+        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
+        FeedB_Pipeline_N:
+          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+          FeedB_Pipeline_M:
+            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              ComputePackM_t pack;
+              const auto index = k1 * kOuterTileSize + m1;
+              if (k0 == 0 && n1 == 0) {
+                pack = fromMemory.Pop();
+                buffer[index] = pack;
+              } else {
+                pack = buffer[index];
+              }
+              toKernel.Push(pack);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+int IndexCBuffer(int n1, int n2, int m1, int m2) {
+  #pragma HLS INLINE
+  return (n1 * kInnerTileSizeN + n2) * kOuterTileSize +
+         (m1 * kInnerTileSizeM + m2);
+}
+
+void ProcessingElement(Stream<ComputePackN_t> &aIn, Stream<ComputePackN_t> &aOut,
+                   Stream<ComputePackM_t> &bIn, Stream<ComputePackM_t> &bOut,
+                   Stream<OutputPack_t> &cIn, Stream<OutputPack_t> &cOut,
+                   const int locationN, const int locationM) {
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
 
-      // Size equivalent to kOuterTileSize * kOuterTileSize
-      Data_t cBuffer[kInnerTilesN * kInnerTilesM * kInnerTileSizeN * kInnerTileSizeM];
-      #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kInnerTileSizeN*kInnerTileSizeM
-  
+      Data_t cBuffer[kInnerTilesN * kComputeTileSizeN * kInnerTilesM *
+                     kComputeTileSizeM];
+      #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kComputeTileSizeN*kComputeTileSizeM
+
     OuterTile_K:
       for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
         // Begin outer tile ---------------------------------------------------
 
-        Data_t aBuffer[kOuterTileSize * kOuterTileSize];
-        #pragma HLS ARRAY_PARTITION variable=aBuffer cyclic factor=kInnerTileSizeN
-      BufferA_N1:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        BufferA_N2:
-          for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
-          BufferA_K1:
-            for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              aBuffer[IndexABuffer(n1, n2, k1)] = a[IndexA(n0, n1, n2, k0, k1)];
-            }
-          }
-        }
-
-        Data_t bBuffer[kOuterTileSize * kOuterTileSize];
-        #pragma HLS ARRAY_PARTITION variable=bBuffer cyclic factor=kInnerTileSizeM
-      BufferB_K1:
-        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        BufferB_M1:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          BufferB_M2M:
-            for (int m2m = 0; m2m < kInnerTileSizeMMemory; ++m2m) {
-              MemoryPack_t pack;
-            BufferB_M2K:
-              for (int m2k = 0; m2k < kMemoryWidth; ++m2k) {
-                #pragma HLS PIPELINE II=1
-                #pragma HLS LOOP_FLATTEN
-                if (m2k == 0) {
-                  pack = bPipe.Pop();
-                }
-                bBuffer[IndexBBuffer(k1, m1, m2m, m2k)] = pack[m2k]; 
-              }
-            }
-          }
-        }
-
         // We do not tile M further, but loop over the entire outer tile here
       Pipeline_K:
         for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        
         Pipeline_N:
           for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-
           Pipeline_M:
             for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-              // Begin inner tile ---------------------------------------------
+
+              // Begin compute tile --------------------------------------------
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
+
+              const auto aVal = aIn.Pop();
+              if (locationN < kComputeTilesN - 1) {
+                aOut.Push(aVal);
+              }
+              const auto bVal = bIn.Pop();
+              if (locationM < kComputeTilesM - 1) {
+                bOut.Push(bVal);
+              }
             
             Unroll_N:
-              for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
+              for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
                 #pragma HLS UNROLL
 
-                const auto aVal = aBuffer[IndexABuffer(n1, n2, k1)];
-
-              Unroll_MM:
-                for (int m2m = 0; m2m < kInnerTileSizeMMemory; ++m2m) {
+              Unroll_M:
+                for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
                   #pragma HLS UNROLL
 
-                Unroll_MK:
-                  for (int m2k = 0; m2k < kMemoryWidth; ++m2k) {
-                    #pragma HLS UNROLL
-                    // Begin compute tile --------------------------------------
+                  const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
 
-                    const auto bVal = bBuffer[IndexBBuffer(k1, m1, m2m, m2k)];
-
-                    const auto mult = aVal * bVal;
-
-                    const auto prev =
-                        (k0 == 0 && k1 == 0)
-                            ? 0
-                            : cBuffer[IndexCBuffer(n1, n2, m1, m2m, m2k)];
-                    cBuffer[IndexCBuffer(n1, n2, m1, m2m, m2k)] = prev + mult;
-                    #pragma HLS DEPENDENCE variable=cBuffer false
-
-                    // End compute tile ----------------------------------------
-                  }
+                  const auto prev = (k0 == 0 && k1 == 0)
+                                        ? 0
+                                        : cBuffer[IndexCBuffer(n1, n2, m1, m2)];
+                  cBuffer[IndexCBuffer(n1, n2, m1, m2)] =
+                      OperatorReduce::Apply(prev, mapped);
+                  #pragma HLS DEPENDENCE variable=cBuffer false
                 }
               }
-            }
 
-            // End inner tile ---------------------------------------------------
+              // End compute tile ----------------------------------------------
+            }
           }
         }
-
-
         // End outer tile -----------------------------------------------------
       }
 
-      // Write back this tile of C ---------------------------------------------
+      // Forward other tiles of C ----------------------------------------------
+      // We send values upwards, so first tile forwards N-1 times, and the
+      // last time forwards 0 times.
+    ForwardC_Others:
+      for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+      ForwardC_N1:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        ForwardC_M1:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            cOut.Push(cIn.Pop());
+          }
+        }
+      }
+      // -----------------------------------------------------------------------
+
+      // Write back own tile of C ----------------------------------------------
     WriteC_N1:
       for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
       WriteC_M1:
         for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+
+          #pragma HLS PIPELINE II=1
+          #pragma HLS LOOP_FLATTEN
+
+          OutputPack_t pack;
+
         WriteC_N2:
-          for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
-          WriteC_M2M:
-            for (int m2m = 0; m2m < kInnerTileSizeMMemory; ++m2m) {
-              MemoryPack_t pack;
-            WriteC_M2K:
-              for (int m2k = 0; m2k < kMemoryWidth; ++m2k) {
-                #pragma HLS PIPELINE II=1
-                #pragma HLS LOOP_FLATTEN
-                pack[m2k] = cBuffer[IndexCBuffer(n1, n2, m1, m2m, m2k)];
-                if (m2k == kMemoryWidth - 1) {
-                  c[IndexC(n0, n1, n2, m0, m1, m2m)] = pack;
-                }
-              }
+          for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+            #pragma HLS UNROLL
+          WriteC_M2:
+            for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
+              #pragma HLS UNROLL
+              pack[n2 * kComputeTileSizeM + m2] =
+                  cBuffer[IndexCBuffer(n1, n2, m1, m2)];
             }
           }
+          
+          cOut.Push(pack);
         }
       }
       // -----------------------------------------------------------------------
@@ -208,7 +199,7 @@ OuterTile_N:
 
 }
 
-void MatrixMatrix(Data_t const a[], MemoryPack_t const b[],
+void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
                   MemoryPack_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmek0
@@ -221,10 +212,57 @@ void MatrixMatrix(Data_t const a[], MemoryPack_t const b[],
   
   #pragma HLS DATAFLOW
 
-  Stream<MemoryPack_t> bPipe;
+  Stream<Data_t> aSplit[kMemoryWidth];
+  Stream<Data_t> aConvert("aConvert");
+  Stream<ComputePackN_t> aDistribute("aDistribute");
+  Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 1)];
+
+  Stream<MemoryPack_t> bMemory("bMemory");
+  Stream<ComputePackM_t> bDistribute("bDistribute");
+  Stream<ComputePackM_t> bPipes[(kComputeTilesN + 1) * kComputeTilesM];
+  Stream<OutputPack_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
+  Stream<OutputPack_t> cConvert("cConvert");
+  Stream<MemoryPack_t> cMemory("cMemory");
 
   HLSLIB_DATAFLOW_INIT();
-  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bPipe);
-  HLSLIB_DATAFLOW_FUNCTION(ComputeKernel, a, bPipe, c);
+
+  HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aSplit);
+  HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aDistribute);
+  HLSLIB_DATAFLOW_FUNCTION(DistributeA, aDistribute, aPipes);
+
+  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bMemory);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bDistribute);
+  HLSLIB_DATAFLOW_FUNCTION(DistributeB, bDistribute, bPipes);
+
+  for (int n = 0; n < kComputeTilesN; ++n) {
+    #pragma HLS UNROLL
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, aPipes[n * kComputeTilesM],
+                             aPipes[(n + 1) * kComputeTilesM]);
+  }
+
+  for (int m = 0; m < kComputeTilesM; ++m) {
+    #pragma HLS UNROLL
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, bPipes[m], bPipes[m + 1]);
+  }
+
+  for (int n = 0; n < kComputeTilesN; ++n) {
+    #pragma HLS UNROLL
+    for (int m = 0; m < kComputeTilesM; ++m) {
+      #pragma HLS UNROLL
+      HLSLIB_DATAFLOW_FUNCTION(
+          ProcessingElement, aPipes[n * (kComputeTilesM + 1) + m + 1],
+          aPipes[n * (kComputeTilesM + 1) + m + 2],
+          bPipes[(n + 1) * kComputeTilesM + m],
+          bPipes[(n + 2) * kComputeTilesM + m], cPipes[n * kComputeTilesM + m],
+          cPipes[(n + 1) * kComputeTilesM + m], n, m);
+    }
+  }
+
+  HLSLIB_DATAFLOW_FUNCTION(FanInC, &cPipes[kComputeTilesN * kComputeTilesM],
+                           cConvert);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cConvert, cMemory);
+  HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c);
+
   HLSLIB_DATAFLOW_FINALIZE();
 }

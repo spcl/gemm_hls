@@ -1,5 +1,5 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2017 
+/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #pragma once
@@ -14,6 +14,14 @@ constexpr int kMemoryWidth = kMemoryWidthBytes / sizeof(Data_t);
 static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,
               "Memory width not divisable by size of data type.");
 using MemoryPack_t = hlslib::DataPack<Data_t, kMemoryWidth>;
+using ComputePackN_t = hlslib::DataPack<Data_t, kComputeTileSizeN>;
+using ComputePackM_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
+using OutputPack_t =
+    hlslib::DataPack<Data_t, kComputeTileSizeN * kComputeTileSizeM>;
+
+constexpr int kTransposeWidth = kTransposeWidthBytes / kMemoryWidthBytes;
+static_assert(kTransposeWidthBytes % kMemoryWidthBytes == 0,
+              "Transpose width must be divisable by memory port width.");
 
 constexpr int kSizeKMemory = kSizeK / kMemoryWidth;
 static_assert(kSizeK % kMemoryWidth == 0,
@@ -22,6 +30,10 @@ static_assert(kSizeK % kMemoryWidth == 0,
 constexpr int kSizeMMemory = kSizeM / kMemoryWidth;
 static_assert(kSizeM % kMemoryWidth == 0,
               "M must be divisable by memory width.");
+
+constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
+static_assert(kOuterTileSize % kMemoryWidth == 0,
+              "Outer memory tile size must be divisable by memory port width.");
 
 constexpr int kOuterTilesN = kSizeN / kOuterTileSize;
 static_assert(kSizeN % kOuterTileSize == 0,
@@ -43,17 +55,13 @@ constexpr int kInnerTilesM = kOuterTileSize / kInnerTileSizeM;
 static_assert(kOuterTileSize % kInnerTileSizeM == 0,
               "Outer tile size must be divisable by the inner tile size.");
 
-constexpr int kInnerTileSizeMMemory = kInnerTileSizeM / kMemoryWidth;
-static_assert(kInnerTileSizeM % kMemoryWidth == 0,
-              "Inner tile size must be divisable by memory width");
+constexpr int kComputeTilesN = kInnerTileSizeN / kComputeTileSizeN;
+static_assert(kInnerTileSizeN % kComputeTileSizeN == 0,
+              "Inner tile size must be divisable by compute tile size.");
 
-constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
-static_assert(kOuterTileSize % kMemoryWidth == 0,
-              "Outer tile size must be divisable by memory width");
-
-static_assert(kInnerTileSizeMMemory > 1,
-              "Vectorized inner tile size must be larger than 1, "
-              "otherwise HLS will not pipeline");
+constexpr int kComputeTilesM = kInnerTileSizeM / kComputeTileSizeM;
+static_assert(kInnerTileSizeM % kComputeTileSizeM == 0,
+              "Inner tile size must be divisable by compute tile size.");
 
 template <typename T,
           class = typename std::enable_if<std::is_integral<T>::value, T>::type>
@@ -63,6 +71,6 @@ constexpr T PowerOfTwo(T number, unsigned char power) {
 
 extern "C" {
 
-void MatrixMatrix(Data_t const *aMem, MemoryPack_t const *bMem,
+void MatrixMatrix(MemoryPack_t const *aMem, MemoryPack_t const *bMem,
                   MemoryPack_t *cMem);
 }

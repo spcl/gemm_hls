@@ -1,5 +1,5 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      July 2017 
+/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #pragma once
@@ -17,6 +17,9 @@ constexpr int kSizeM = ${MM_SIZE_M};
 constexpr int kOuterTileSize = ${MM_OUTER_TILE_SIZE};
 constexpr int kInnerTileSizeN = ${MM_INNER_TILE_SIZE_N};
 constexpr int kInnerTileSizeM = ${MM_INNER_TILE_SIZE_M};
+constexpr int kComputeTileSizeN = ${MM_COMPUTE_TILE_SIZE_N};
+constexpr int kComputeTileSizeM = ${MM_COMPUTE_TILE_SIZE_M};
+constexpr int kTransposeWidthBytes = ${MM_TRANSPOSE_WIDTH};
 constexpr float kFrequency = ${MM_TARGET_CLOCK};
 constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}"; 
 
