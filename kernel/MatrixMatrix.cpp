@@ -13,6 +13,11 @@ using hlslib::DataPack;
 /// Feeds a single compute row
 void FeedA(Stream<ComputePackN_t> &fromMemory,
            Stream<ComputePackN_t> &toKernel) {
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kOuterTilesK * kOuterTileSize * kInnerTilesN * kInnerTilesM) ==
+                    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
+                     (kComputeTilesN * kComputeTilesM)),
+                "Sanity check failed for FeedA");
 FeedA_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FeedA_OuterTile_M:
@@ -86,10 +91,22 @@ int IndexCBuffer(int n1, int n2, int m1, int m2) {
          (m1 * kInnerTileSizeM + m2);
 }
 
-void ProcessingElement(Stream<ComputePackN_t> &aIn, Stream<ComputePackN_t> &aOut,
-                   Stream<ComputePackM_t> &bIn, Stream<ComputePackM_t> &bOut,
-                   Stream<OutputPack_t> &cIn, Stream<OutputPack_t> &cOut,
-                   const int locationN, const int locationM) {
+void ProcessingElement(Stream<ComputePackN_t> &aIn,
+                       Stream<ComputePackN_t> &aOut,
+                       Stream<ComputePackM_t> &bIn,
+                       Stream<ComputePackM_t> &bOut,
+                       Stream<OutputPack_t> &cIn,
+                       Stream<OutputPack_t> &cOut,
+                       const int locationN,
+                       const int locationM) {
+
+  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                        kOuterTilesK * kOuterTileSize * kInnerTilesN *
+                        kInnerTilesM * kComputeTileSizeN * kComputeTileSizeM ==
+                    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
+                     (kComputeTilesN * kComputeTilesM)),
+                "Sanity check for ProcessingElement failed");
+
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   OuterTile_M:
@@ -152,7 +169,7 @@ OuterTile_N:
 
       // Forward other tiles of C ----------------------------------------------
       // We send values upwards, so first tile forwards N-1 times, and the
-      // last time forwards 0 times.
+      // last tile forwards 0 times.
     ForwardC_Others:
       for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
       ForwardC_N1:
@@ -202,8 +219,8 @@ OuterTile_N:
 void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
                   MemoryPack_t c[]) {
 
-  #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmek0
-  #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmek1
+  #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
+  #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
   #pragma HLS INTERFACE m_axi port=c offset=slave bundle=gmem2
   #pragma HLS INTERFACE s_axilite port=a bundle=control
   #pragma HLS INTERFACE s_axilite port=b bundle=control
