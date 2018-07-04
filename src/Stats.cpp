@@ -19,11 +19,15 @@ int main(int argc, char **argv) {
   std::cout << "Peak runtime:         " << nOps / (1e9 * peakPerf)
             << " seconds.\n";
 
-  std::cout << (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kOuterTilesK *
-       (kOuterTileSize / kTransposeWidth) * kInnerTilesN * kInnerTileSizeN *
-       kTransposeWidth * MemoryPack_t::kWidth)
-            << std::endl;
+  // std::cout << (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kOuterTilesK *
+  //      (kOuterTileSize / kTransposeWidth) * kInnerTilesN * kInnerTileSizeN *
+  //      kTransposeWidth * MemoryPack_t::kWidth)
+  //           << std::endl;
+  //
+  // std::cout << kTotalReadsFromA << std::endl;
 
-  std::cout << kTotalReadsFromA << std::endl;
+  std::cout << static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                    kOuterTileSize * kInnerTileSizeN << std::endl;
+  std::cout << kTotalReadsFromA / kComputeTilesN << std::endl;
   return 0;
 }

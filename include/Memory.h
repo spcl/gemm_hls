@@ -8,21 +8,20 @@
 #include "hlslib/Stream.h"
 
 static constexpr unsigned long kTotalReadsFromA =
-    (static_cast<unsigned long>(kSizeN) * kSizeK) *
-    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize);
+    (static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize;
 static constexpr unsigned long kTotalReadsFromB =
-    (static_cast<unsigned long>(kSizeK) * kSizeM) *
-    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize);
+    (static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize;
 
 using hlslib::Stream;
 
 // Read wide bursts from memory, then distribute it into separate column
 // buffers, which will be read out in column-major order and sent to the kernel
-void ReadA(MemoryPack_t const a[], Stream<Data_t> aSplit[kMemoryWidth]);
+void ReadA(MemoryPack_t const a[],
+           Stream<Data_t, kOuterTileSize> aSplit[kMemoryWidth]);
 
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
-void TransposeA(Stream<Data_t> aSplit[kTransposeWidth],
+void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
                 Stream<Data_t> &toKernel);
 
 void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide);

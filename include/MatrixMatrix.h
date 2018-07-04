@@ -19,7 +19,9 @@ using ComputePackM_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
 using OutputPack_t =
     hlslib::DataPack<Data_t, kComputeTileSizeN * kComputeTileSizeM>;
 
-constexpr int kTransposeWidth = kTransposeWidthBytes / kMemoryWidthBytes;
+constexpr int kTransposeWidth = kTransposeWidthBytes / sizeof(Data_t);
+static_assert(kTransposeWidthBytes % sizeof(Data_t) == 0,
+              "Transpose width must be divisable by data size.");
 static_assert(kTransposeWidthBytes % kMemoryWidthBytes == 0,
               "Transpose width must be divisable by memory port width.");
 

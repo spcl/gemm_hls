@@ -13,13 +13,19 @@ using hlslib::DataPack;
 /// Feeds a single compute row
 void FeedA(Stream<ComputePackN_t> &fromMemory,
            Stream<ComputePackN_t> &toKernel) {
+  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                        kOuterTilesK * kOuterTileSize * kInnerTilesN *
+                        ComputePackN_t::kWidth ==
+                    kTotalReadsFromA / kComputeTilesN,
+                "Sanity check failed");
+  // std::cout << fromMemory.name() << " to " << toKernel.name() << std::endl;
 FeedA_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FeedA_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
     FeedA_OuterTile_K:
       for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
-        ComputePackN_t buffer[kInnerTilesN * kOuterTileSize];
+        ComputePackN_t buffer[kOuterTileSize * kInnerTilesN];
       FeedA_Pipeline_K:
         for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
         FeedA_Pipeline_N:
@@ -29,8 +35,9 @@ FeedA_OuterTile_N:
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
               ComputePackN_t pack;
-              const auto index = k1 * kOuterTileSize + n1;
-              if (k0 == 0 && m1 == 0) {
+              const auto index = k1 * kInnerTilesN + n1;
+              assert(index < kOuterTileSize * kInnerTilesN);
+              if (m1 == 0) {
                 pack = fromMemory.Pop();
                 buffer[index] = pack;
               } else {
@@ -54,7 +61,7 @@ FeedB_OuterTile_N:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
     FeedB_OuterTile_K:
       for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
-        ComputePackM_t buffer[kInnerTilesM * kOuterTileSize];
+        ComputePackM_t buffer[kOuterTileSize * kInnerTilesM];
       FeedB_Pipeline_K:
         for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
         FeedB_Pipeline_N:
@@ -64,7 +71,8 @@ FeedB_OuterTile_N:
               #pragma HLS PIPELINE II=1
               #pragma HLS LOOP_FLATTEN
               ComputePackM_t pack;
-              const auto index = k1 * kOuterTileSize + m1;
+              const auto index = k1 * kInnerTilesM + m1;
+              assert(index < kInnerTilesM * kOuterTileSize);
               if (k0 == 0 && n1 == 0) {
                 pack = fromMemory.Pop();
                 buffer[index] = pack;
@@ -82,8 +90,12 @@ FeedB_OuterTile_N:
 
 int IndexCBuffer(int n1, int n2, int m1, int m2) {
   #pragma HLS INLINE
-  return (n1 * kInnerTileSizeN + n2) * kOuterTileSize +
-         (m1 * kInnerTileSizeM + m2);
+  auto index =
+      (n1 * kComputeTileSizeN + n2) * kComputeTileSizeM * kComputeTilesM +
+      (m1 * kComputeTileSizeM + m2);
+  assert(index <
+         kInnerTilesN * kComputeTileSizeN * kInnerTilesM * kComputeTileSizeM);
+  return index;
 }
 
 void ProcessingElement(Stream<ComputePackN_t> &aIn,
@@ -128,11 +140,11 @@ OuterTile_N:
               #pragma HLS LOOP_FLATTEN
 
               const auto aVal = aIn.Pop();
-              if (locationN < kComputeTilesN - 1) {
+              if (locationM < kComputeTilesM - 1) {
                 aOut.Push(aVal);
               }
               const auto bVal = bIn.Pop();
-              if (locationM < kComputeTilesM - 1) {
+              if (locationN < kComputeTilesN - 1) {
                 bOut.Push(bVal);
               }
             
@@ -165,15 +177,17 @@ OuterTile_N:
       // Forward other tiles of C ----------------------------------------------
       // We send values upwards, so first tile forwards N-1 times, and the
       // last tile forwards 0 times.
-    ForwardC_Others:
-      for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
-      ForwardC_N1:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        ForwardC_M1:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            cOut.Push(cIn.Pop());
+      if (locationN < kComputeTilesN - 1) {
+      ForwardC_Others:
+        for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+        ForwardC_N1:
+          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+          ForwardC_M1:
+            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              cOut.Push(cIn.Pop());
+            }
           }
         }
       }
@@ -224,17 +238,46 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   
   #pragma HLS DATAFLOW
 
-  Stream<Data_t> aSplit[kMemoryWidth];
+  // TODO: does this need to be kOuterTileSize?
+  Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth];
+  #pragma HLS STREAM variable=aSplit depth=kOuterTileSize
   Stream<Data_t> aConvert("aConvert");
   Stream<ComputePackN_t> aDistribute("aDistribute");
-  Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 1)];
+  Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 2)];
 
   Stream<MemoryPack_t> bMemory("bMemory");
   Stream<ComputePackM_t> bDistribute("bDistribute");
-  Stream<ComputePackM_t> bPipes[(kComputeTilesN + 1) * kComputeTilesM];
+  Stream<ComputePackM_t> bPipes[(kComputeTilesN + 2) * kComputeTilesM];
   Stream<OutputPack_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
   Stream<OutputPack_t> cConvert("cConvert");
   Stream<MemoryPack_t> cMemory("cMemory");
+
+#ifndef HLSLIB_SYNTHESIS
+  for (int i = 0; i < kTransposeWidth; ++i) {
+    aSplit[i].set_name(("aSplit[" + std::to_string(i) + "]").c_str());
+  }
+  for (int n = 0; n < kComputeTilesN; ++n) {
+    for (int m = 0; m < kComputeTilesM + 2; ++m) {
+      aPipes[n * (kComputeTilesM + 2) + m].set_name(
+          ("aPipes[" + std::to_string(n) + "][" + std::to_string(m) + "]")
+              .c_str());
+    }
+  }
+  for (int n = 0; n < kComputeTilesN + 2; ++n) {
+    for (int m = 0; m < kComputeTilesM; ++m) {
+      bPipes[n * kComputeTilesM + m].set_name(
+          ("bPipes[" + std::to_string(n) + "][" + std::to_string(m) + "]")
+              .c_str());
+    }
+  }
+  for (int n = 0; n < kComputeTilesN + 1; ++n) {
+    for (int m = 0; m < kComputeTilesM; ++m) {
+      cPipes[n * kComputeTilesM + m].set_name(
+          ("cPipes[" + std::to_string(n) + "][" + std::to_string(m) + "]")
+              .c_str());
+    }
+  }
+#endif
 
   HLSLIB_DATAFLOW_INIT();
 
@@ -249,30 +292,30 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
 
   for (int n = 0; n < kComputeTilesN; ++n) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedA, aPipes[n * kComputeTilesM],
-                             aPipes[(n + 1) * kComputeTilesM]);
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, aPipes[n * (kComputeTilesM + 2)],
+                             aPipes[n * (kComputeTilesM + 2) + 1]);
   }
 
   for (int m = 0; m < kComputeTilesM; ++m) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, bPipes[m], bPipes[m + 1]);
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, bPipes[m], bPipes[kComputeTilesM + m]);
   }
 
   for (int n = 0; n < kComputeTilesN; ++n) {
     #pragma HLS UNROLL
     for (int m = 0; m < kComputeTilesM; ++m) {
       #pragma HLS UNROLL
-      HLSLIB_DATAFLOW_FUNCTION(
-          ProcessingElement, aPipes[n * (kComputeTilesM + 1) + m + 1],
-          aPipes[n * (kComputeTilesM + 1) + m + 2],
-          bPipes[(n + 1) * kComputeTilesM + m],
-          bPipes[(n + 2) * kComputeTilesM + m], cPipes[n * kComputeTilesM + m],
-          cPipes[(n + 1) * kComputeTilesM + m], n, m);
+      HLSLIB_DATAFLOW_FUNCTION(ProcessingElement,
+                               aPipes[n * (kComputeTilesM + 2) + m + 1],
+                               aPipes[n * (kComputeTilesM + 2) + m + 2],
+                               bPipes[(n + 1) * kComputeTilesM + m],
+                               bPipes[(n + 2) * kComputeTilesM + m],
+                               cPipes[(n + 1) * kComputeTilesM + m],
+                               cPipes[n * kComputeTilesM + m], n, m);
     }
   }
 
-  HLSLIB_DATAFLOW_FUNCTION(FanInC, &cPipes[kComputeTilesN * kComputeTilesM],
-                           cConvert);
+  HLSLIB_DATAFLOW_FUNCTION(FanInC, cPipes, cConvert);
   HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cConvert, cMemory);
   HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c);
 
