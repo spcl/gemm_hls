@@ -8,11 +8,11 @@
 #include "hlslib/Stream.h"
 
 static constexpr unsigned long kTotalReadsFromA =
-    (kSizeN * kSizeK * (static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM)) /
-    kOuterTileSize;
+    (static_cast<unsigned long>(kSizeN) * kSizeK) *
+    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize);
 static constexpr unsigned long kTotalReadsFromB =
-    (kSizeK * kSizeM * (static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM)) /
-    kOuterTileSize;
+    (static_cast<unsigned long>(kSizeK) * kSizeM) *
+    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) / kOuterTileSize);
 
 using hlslib::Stream;
 

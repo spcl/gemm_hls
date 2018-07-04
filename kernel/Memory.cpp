@@ -9,8 +9,7 @@ using hlslib::Stream;
 int IndexA(int n0, int n1, int n2, int k0, int k1t, int k1m) {
   #pragma HLS INLINE
   return (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeKMemory +
-         (k0 * kOuterTileSizeMemory + k1t * (kTransposeWidth / kMemoryWidth) +
-          k1m);
+         (k0 * kOuterTileSizeMemory + k1t * kTransposeWidth + k1m);
 }
 
 int IndexB(int k0, int k1, int m0, int m1m) {
@@ -41,7 +40,7 @@ void _ReadAInnerLoop(
     int n0, int n1, int n2, int k0, int k1t) {
   #pragma HLS INLINE
   // innerReads == kTransposeWidth / kMemoryWidth
-  for (int k1m = 0; k1m < kTransposeWidth / kMemoryWidth; ++k1m) { 
+  for (int k1m = 0; k1m < kTransposeWidth; ++k1m) { 
     #pragma HLS PIPELINE II=1
     #pragma HLS LOOP_FLATTEN
     _ReadAInner(a, aSplit, n0, n1, n2, k0, k1t, k1m);
@@ -61,11 +60,11 @@ void _ReadAInnerLoop<0>(
 }
 
 void ReadA(MemoryPack_t const a[], Stream<Data_t> aSplit[kMemoryWidth]) {
-  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK *
-  //                (kOuterTileSize / kTransposeWidth) * kInnerTilesN *
-  //                kInnerTileSizeN * (kTransposeWidth / kMemoryWidth) *
-  //                MemoryPack_t::kWidth) == kTotalReadsFromA,
-  //               "Sanity check failed for ReadA");
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kOuterTilesK * (kOuterTileSizeMemory / kTransposeWidth) *
+                 kInnerTilesN * kInnerTileSizeN * kTransposeWidth *
+                 MemoryPack_t::kWidth) == kTotalReadsFromA,
+                "Sanity check failed for ReadA");
 ReadA_N0:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   ReadA_M0:
@@ -73,13 +72,12 @@ ReadA_N0:
     ReadA_K0:
       for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
       ReadA_K1:
-        for (int k1t = 0; k1t < kOuterTileSize / kTransposeWidth; ++k1t) {
+        for (int k1t = 0; k1t < kOuterTileSizeMemory / kTransposeWidth; ++k1t) {
         ReadA_N1:
           for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
           ReadA_N2:
             for (int n2 = 0; n2 < kInnerTileSizeN; ++n2) {
-              _ReadAInnerLoop<kTransposeWidth / kMemoryWidth>(a, aSplit, n0, n1,
-                                                              n2, k0, k1t);
+              _ReadAInnerLoop<kTransposeWidth>(a, aSplit, n0, n1, n2, k0, k1t);
             }
           }
         }
@@ -92,9 +90,9 @@ ReadA_N0:
 // transposed data to the kernel
 void TransposeA(Stream<Data_t> aSplit[kTransposeWidth],
                 Stream<Data_t> &toKernel) {
-  // static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
-  //                kOuterTileSize) == kTotalReadsFromA,
-  //               "Sanity check failed for TransposeA");
+  static_assert((kOuterTilesN * kOuterTilesM * kOuterTilesK * kOuterTileSize *
+                 kOuterTileSize) == kTotalReadsFromA,
+                "Sanity check failed for TransposeA");
 TransposeA_N0:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   TransposeA_M0:

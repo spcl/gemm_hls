@@ -1,4 +1,5 @@
 #include "MatrixMatrix.h"
+#include "Memory.h"
 
 // Prints the expected performance of the current configuration in hardware.
 // If a different frequency is achieved, it can be passed as the first argument
@@ -17,5 +18,12 @@ int main(int argc, char **argv) {
   std::cout << "Peak performance:     " << peakPerf << " GOp/s\n";
   std::cout << "Peak runtime:         " << nOps / (1e9 * peakPerf)
             << " seconds.\n";
+
+  std::cout << (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kOuterTilesK *
+       (kOuterTileSize / kTransposeWidth) * kInnerTilesN * kInnerTileSizeN *
+       kTransposeWidth * MemoryPack_t::kWidth)
+            << std::endl;
+
+  std::cout << kTotalReadsFromA << std::endl;
   return 0;
 }

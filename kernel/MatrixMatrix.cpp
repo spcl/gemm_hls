@@ -13,11 +13,6 @@ using hlslib::DataPack;
 /// Feeds a single compute row
 void FeedA(Stream<ComputePackN_t> &fromMemory,
            Stream<ComputePackN_t> &toKernel) {
-  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                 kOuterTilesK * kOuterTileSize * kInnerTilesN * kInnerTilesM) ==
-                    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
-                     (kComputeTilesN * kComputeTilesM)),
-                "Sanity check failed for FeedA");
 FeedA_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FeedA_OuterTile_M:
@@ -100,9 +95,9 @@ void ProcessingElement(Stream<ComputePackN_t> &aIn,
                        const int locationN,
                        const int locationM) {
 
-  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                        kOuterTilesK * kOuterTileSize * kInnerTilesN *
-                        kInnerTilesM * kComputeTileSizeN * kComputeTileSizeM ==
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kOuterTilesK * kOuterTileSize * kInnerTilesN * kInnerTilesM *
+                 kComputeTileSizeN * kComputeTileSizeM) ==
                     ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
                      (kComputeTilesN * kComputeTilesM)),
                 "Sanity check for ProcessingElement failed");
