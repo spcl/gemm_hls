@@ -41,10 +41,6 @@ constexpr int kOuterTilesN = kSizeN / kOuterTileSize;
 static_assert(kSizeN % kOuterTileSize == 0,
               "N must be divisable by the outer tile size.");
 
-constexpr int kOuterTilesK = kSizeK / kOuterTileSize;
-static_assert(kSizeK % kOuterTileSize == 0,
-              "K must be divisable by the outer tile size.");
-
 constexpr int kOuterTilesM = kSizeM / kOuterTileSize;
 static_assert(kSizeM % kOuterTileSize == 0,
               "M must be divisable by the outer tile size.");

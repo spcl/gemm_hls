@@ -6,6 +6,7 @@
 #include "Memory.h"
 #include "hlslib/Stream.h"
 #include "hlslib/Simulation.h"
+#include <cassert>
 
 using hlslib::Stream;
 using hlslib::DataPack;
@@ -13,40 +14,39 @@ using hlslib::DataPack;
 /// Feeds a single compute row
 void FeedA(Stream<ComputePackN_t> &fromMemory,
            Stream<ComputePackN_t> &toKernel) {
+
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                        kOuterTilesK * kOuterTileSize * kInnerTilesN *
-                        ComputePackN_t::kWidth ==
+                        kSizeK * kInnerTilesN * ComputePackN_t::kWidth ==
                     kTotalReadsFromA / kComputeTilesN,
                 "Sanity check failed");
-  // std::cout << fromMemory.name() << " to " << toKernel.name() << std::endl;
+
 FeedA_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FeedA_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FeedA_OuterTile_K:
-      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
-        ComputePackN_t buffer[kOuterTileSize * kInnerTilesN];
-      FeedA_Pipeline_K:
-        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        FeedA_Pipeline_N:
-          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          FeedA_Pipeline_M:
-            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              ComputePackN_t pack;
-              const auto index = k1 * kInnerTilesN + n1;
-              assert(index < kOuterTileSize * kInnerTilesN);
-              if (m1 == 0) {
-                pack = fromMemory.Pop();
-                buffer[index] = pack;
-              } else {
-                pack = buffer[index];
-              }
-              toKernel.Push(pack);
+    FeedA_K:
+      for (int k = 0; k < kSizeK; ++k) {
+
+        ComputePackN_t buffer[kInnerTilesN];
+
+      FeedA_Pipeline_N:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        FeedA_Pipeline_M:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+
+            ComputePackN_t pack;
+            if (m1 == 0) {
+              pack = fromMemory.Pop();
+              buffer[n1] = pack;
+            } else {
+              pack = buffer[n1];
             }
+            toKernel.Push(pack);
           }
         }
+
       }
     }
   }
@@ -55,34 +55,38 @@ FeedA_OuterTile_N:
 /// Feeds a single compute column
 void FeedB(Stream<ComputePackM_t> &fromMemory,
            Stream<ComputePackM_t> &toKernel) {
+
+  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                        kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==
+                    kTotalReadsFromB / kComputeTilesM,
+                "Sanity check failed");
+
 FeedB_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FeedB_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FeedB_OuterTile_K:
-      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
-        ComputePackM_t buffer[kOuterTileSize * kInnerTilesM];
-      FeedB_Pipeline_K:
-        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        FeedB_Pipeline_N:
-          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          FeedB_Pipeline_M:
-            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              ComputePackM_t pack;
-              const auto index = k1 * kInnerTilesM + m1;
-              assert(index < kInnerTilesM * kOuterTileSize);
-              if (k0 == 0 && n1 == 0) {
-                pack = fromMemory.Pop();
-                buffer[index] = pack;
-              } else {
-                pack = buffer[index];
-              }
-              toKernel.Push(pack);
+    FeedB_K:
+      for (int k = 0; k < kSizeK; ++k) {
+
+        ComputePackM_t buffer[kInnerTilesM];
+
+      FeedB_Pipeline_N:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        FeedB_Pipeline_M:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            ComputePackM_t pack;
+            if (n1 == 0) {
+              pack = fromMemory.Pop();
+              buffer[m1] = pack;
+            } else {
+              pack = buffer[m1];
             }
+            toKernel.Push(pack);
           }
         }
+
       }
     }
   }
@@ -107,70 +111,69 @@ void ProcessingElement(Stream<ComputePackN_t> &aIn,
                        const int locationN,
                        const int locationM) {
 
-  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                 kOuterTilesK * kOuterTileSize * kInnerTilesN * kInnerTilesM *
-                 kComputeTileSizeN * kComputeTileSizeM) ==
-                    ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
-                     (kComputeTilesN * kComputeTilesM)),
-                "Sanity check for ProcessingElement failed");
+  static_assert(
+      (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
+       kInnerTilesN * kInnerTilesM * kComputeTileSizeN * kComputeTileSizeM) ==
+          ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
+           (kComputeTilesN * kComputeTilesM)),
+      "Sanity check for ProcessingElement failed");
 
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
 
-      Data_t cBuffer[kInnerTilesN * kComputeTileSizeN * kInnerTilesM *
-                     kComputeTileSizeM];
-      #pragma HLS ARRAY_PARTITION variable=cBuffer cyclic factor=kComputeTileSizeN*kComputeTileSizeM
+      OutputPack_t cBuffer[kInnerTilesN * kInnerTilesM];
 
-    OuterTile_K:
-      for (int k0 = 0; k0 < kOuterTilesK; ++k0) {
+      // We do not tile K further, but loop over the entire outer tile here
+    Collapse_K:
+      for (int k = 0; k < kSizeK; ++k) {
         // Begin outer tile ---------------------------------------------------
 
-        // We do not tile M further, but loop over the entire outer tile here
-      Pipeline_K:
-        for (int k1 = 0; k1 < kOuterTileSize; ++k1) {
-        Pipeline_N:
-          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          Pipeline_M:
-            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+      Pipeline_N:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        Pipeline_M:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
 
-              // Begin compute tile --------------------------------------------
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
+            // Begin compute tile --------------------------------------------
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
 
-              const auto aVal = aIn.Pop();
-              if (locationM < kComputeTilesM - 1) {
-                aOut.Push(aVal);
-              }
-              const auto bVal = bIn.Pop();
-              if (locationN < kComputeTilesN - 1) {
-                bOut.Push(bVal);
-              }
-            
-            Unroll_N:
-              for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+            const auto aVal = aIn.Pop();
+            if (locationM < kComputeTilesM - 1) {
+              aOut.Push(aVal);
+            }
+            const auto bVal = bIn.Pop();
+            if (locationN < kComputeTilesN - 1) {
+              bOut.Push(bVal);
+            }
+
+            const auto cPrev = cBuffer[n1 * kInnerTilesM + m1];
+            OutputPack_t cStore;
+
+          Unroll_N:
+            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+              #pragma HLS UNROLL
+
+            Unroll_M:
+              for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
                 #pragma HLS UNROLL
 
-              Unroll_M:
-                for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
-                  #pragma HLS UNROLL
+                const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
+                const auto prev = cPrev[n2 * kComputeTileSizeM + m2];
 
-                  const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
-
-                  const auto prev = (k0 == 0 && k1 == 0)
-                                        ? 0
-                                        : cBuffer[IndexCBuffer(n1, n2, m1, m2)];
-                  cBuffer[IndexCBuffer(n1, n2, m1, m2)] =
-                      OperatorReduce::Apply(prev, mapped);
-                  #pragma HLS DEPENDENCE variable=cBuffer false
-                }
+                cStore[n2 * kComputeTileSizeM + m2] =
+                    OperatorReduce::Apply(prev, mapped);
+                #pragma HLS DEPENDENCE variable=cBuffer false
               }
-
-              // End compute tile ----------------------------------------------
             }
+
+            cBuffer[n1 * kInnerTilesM + m1] = cStore;
+
+            // End compute tile ----------------------------------------------
           }
         }
+
         // End outer tile -----------------------------------------------------
       }
 
@@ -198,24 +201,9 @@ OuterTile_N:
       for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
       WriteC_M1:
         for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
-
-          OutputPack_t pack;
-
-        WriteC_N2:
-          for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
-            #pragma HLS UNROLL
-          WriteC_M2:
-            for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
-              #pragma HLS UNROLL
-              pack[n2 * kComputeTileSizeM + m2] =
-                  cBuffer[IndexCBuffer(n1, n2, m1, m2)];
-            }
-          }
-          
-          cOut.Push(pack);
+          cOut.Push(cBuffer[n1 * kInnerTilesM + m1]);
         }
       }
       // -----------------------------------------------------------------------
