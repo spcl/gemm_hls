@@ -124,6 +124,7 @@ OuterTile_N:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
 
       ComputePackM_t cBuffer[kInnerTilesN * kInnerTilesM][kComputeTileSizeN];
+      #pragma HLS ARRAY_PARTITION variable=cBuffer complete dim=2
 
       // We do not tile K further, but loop over the entire outer tile here
     Collapse_K:

@@ -207,11 +207,14 @@ void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow) {
                 
 ConvertWidthB_Outer:
   for (int i = 0; i < kTotalReadsFromB / kMemoryWidth; ++i) {
-    const auto memoryPack = wide.Pop();
+    MemoryPack_t memoryPack;
   ConvertWidthB_Memory:
     for (int j = 0; j < kMemoryWidth / kComputeTileSizeM; ++j) {
       #pragma HLS PIPELINE II=1
       #pragma HLS LOOP_FLATTEN
+      if (j == 0) {
+        memoryPack = wide.Pop();
+      }
       ComputePackM_t computePack;
     ConvertWidthB_Compute:
       for (int w = 0; w < kComputeTileSizeM; ++w) {
@@ -301,8 +304,10 @@ ConvertWidthC_Outer:
         #pragma HLS UNROLL
         memoryPack[j * ComputePackM_t::kWidth + w] = computePack[w];
       }
+      if (j == kMemoryWidth / ComputePackM_t::kWidth - 1) {
+        wide.Push(memoryPack);
+      }
     }
-    wide.Push(memoryPack);
   }
 }
 
