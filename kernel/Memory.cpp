@@ -293,20 +293,20 @@ void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide) {
                 "Sanity check failed for ConvertWidthC");
 
 ConvertWidthC_Outer:
-  for (int i = 0; i < (kSizeN * kSizeM) / OutputPack_t::kWidth; ++i) {
+  for (int i = 0; i < (kSizeN * kSizeM) / MemoryPack_t::kWidth; ++i) {
   ConvertWidthB_Memory:
-    const auto memoryPack = wide.Pop();
+    MemoryPack_t memoryPack;
     for (int j = 0; j < kMemoryWidth / OutputPack_t::kWidth; ++j) {
       #pragma HLS PIPELINE II=1
       #pragma HLS LOOP_FLATTEN
-      OutputPack_t computePack;
+      const auto computePack = narrow.Pop();
     ConvertWidthB_Compute:
       for (int w = 0; w < OutputPack_t::kWidth; ++w) {
         #pragma HLS UNROLL
-        computePack[w] = memoryPack[j * OutputPack_t::kWidth + w];
+        memoryPack[j * OutputPack_t::kWidth + w] = computePack[w];
       }
-      narrow.Push(computePack);
     }
+    wide.Push(memoryPack);
   }
 }
 
