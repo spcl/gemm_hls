@@ -148,7 +148,8 @@ OuterTile_N:
               bOut.Push(bVal);
             }
 
-            const auto cPrev = cBuffer[n1 * kInnerTilesM + m1];
+            const auto cPrev = (k > 0) ? cBuffer[n1 * kInnerTilesM + m1]
+                                       : OutputPack_t(static_cast<Data_t>(0));
             OutputPack_t cStore;
 
           Unroll_N:
