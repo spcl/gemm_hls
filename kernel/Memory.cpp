@@ -251,29 +251,26 @@ DistributeB_OuterTile_N:
   }
 }
 
-void FanInC(Stream<OutputPack_t> fromDrainers[kComputeTilesM],
-            Stream<OutputPack_t> &toMemory) {
+void FanInC(Stream<ComputePackM_t> fromDrainers[kComputeTilesM],
+            Stream<ComputePackM_t> &toMemory) {
 
-  static_assert((kOuterTilesN * kOuterTilesM * kInnerTilesN * kInnerTilesM *
-                 kComputeTilesN * kComputeTilesM * OutputPack_t::kWidth) ==
-                kSizeN * kSizeM, "Sanity check failed for FanInC");
+  static_assert((kOuterTilesN * kOuterTilesM * kOuterTileSize * kInnerTilesM *
+                 kComputeTilesM * ComputePackM_t::kWidth) == kSizeN * kSizeM,
+                "Sanity check failed for FanInC");
 
 FanInC_OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   FanInC_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
     FanInC_N1:
-      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+      for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
       FanInC_M1:
         for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-        FanInC_N2:
-          for (int n2 = 0; n2 < kComputeTilesN; ++n2) {
-          FanInC_M2:
-            for (int m2 = 0; m2 < kComputeTilesM; ++m2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              toMemory.Push(fromDrainers[m2].Pop());
-            }
+        FanInC_M2:
+          for (int m2 = 0; m2 < kComputeTilesM; ++m2) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            toMemory.Push(fromDrainers[m2].Pop());
           }
         }
       }
@@ -281,29 +278,28 @@ FanInC_OuterTile_N:
   }
 }
 
-void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide) {
+void ConvertWidthC(Stream<ComputePackM_t> &narrow, Stream<MemoryPack_t> &wide) {
 
-  // TODO: fix when output is wider than memory
-  static_assert(kMemoryWidth % OutputPack_t::kWidth == 0,
+  static_assert(kMemoryWidth % ComputePackM_t::kWidth == 0,
                 "Memory width must be divisable by compute tile width.");
 
-  static_assert((((kSizeN * kSizeM) / OutputPack_t::kWidth) *
-                 (kMemoryWidth / OutputPack_t::kWidth) *
-                 OutputPack_t::kWidth) == kSizeN * kSizeM,
+  static_assert((((kSizeN * kSizeM) / MemoryPack_t::kWidth) *
+                 (kMemoryWidth / ComputePackM_t::kWidth) *
+                 ComputePackM_t::kWidth) == kSizeN * kSizeM,
                 "Sanity check failed for ConvertWidthC");
 
 ConvertWidthC_Outer:
   for (int i = 0; i < (kSizeN * kSizeM) / MemoryPack_t::kWidth; ++i) {
   ConvertWidthB_Memory:
     MemoryPack_t memoryPack;
-    for (int j = 0; j < kMemoryWidth / OutputPack_t::kWidth; ++j) {
+    for (int j = 0; j < kMemoryWidth / ComputePackM_t::kWidth; ++j) {
       #pragma HLS PIPELINE II=1
       #pragma HLS LOOP_FLATTEN
       const auto computePack = narrow.Pop();
     ConvertWidthB_Compute:
-      for (int w = 0; w < OutputPack_t::kWidth; ++w) {
+      for (int w = 0; w < ComputePackM_t::kWidth; ++w) {
         #pragma HLS UNROLL
-        memoryPack[j * OutputPack_t::kWidth + w] = computePack[w];
+        memoryPack[j * ComputePackM_t::kWidth + w] = computePack[w];
       }
     }
     wide.Push(memoryPack);

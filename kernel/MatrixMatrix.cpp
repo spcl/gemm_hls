@@ -106,8 +106,8 @@ void ProcessingElement(Stream<ComputePackN_t> &aIn,
                        Stream<ComputePackN_t> &aOut,
                        Stream<ComputePackM_t> &bIn,
                        Stream<ComputePackM_t> &bOut,
-                       Stream<OutputPack_t> &cIn,
-                       Stream<OutputPack_t> &cOut,
+                       Stream<ComputePackM_t> &cIn,
+                       Stream<ComputePackM_t> &cOut,
                        const int locationN,
                        const int locationM) {
 
@@ -123,7 +123,7 @@ OuterTile_N:
   OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
 
-      OutputPack_t cBuffer[kInnerTilesN * kInnerTilesM];
+      ComputePackM_t cBuffer[kInnerTilesN * kInnerTilesM][kComputeTileSizeN];
 
       // We do not tile K further, but loop over the entire outer tile here
     Collapse_K:
@@ -148,28 +148,28 @@ OuterTile_N:
               bOut.Push(bVal);
             }
 
-            const auto cPrev = (k > 0) ? cBuffer[n1 * kInnerTilesM + m1]
-                                       : OutputPack_t(static_cast<Data_t>(0));
-            OutputPack_t cStore;
-
           Unroll_N:
             for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
               #pragma HLS UNROLL
+
+              ComputePackM_t cStore;
+              const auto cPrev = (k > 0)
+                                     ? cBuffer[n1 * kInnerTilesM + m1][n2]
+                                     : ComputePackM_t(static_cast<Data_t>(0));
 
             Unroll_M:
               for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
                 #pragma HLS UNROLL
 
                 const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
-                const auto prev = cPrev[n2 * kComputeTileSizeM + m2];
+                const auto prev = cPrev[m2];
 
-                cStore[n2 * kComputeTileSizeM + m2] =
-                    OperatorReduce::Apply(prev, mapped);
+                cStore[m2] = OperatorReduce::Apply(prev, mapped);
                 #pragma HLS DEPENDENCE variable=cBuffer false
               }
-            }
 
-            cBuffer[n1 * kInnerTilesM + m1] = cStore;
+              cBuffer[n1 * kInnerTilesM + m1][n2] = cStore;
+            }
 
             // End compute tile ----------------------------------------------
           }
@@ -178,34 +178,38 @@ OuterTile_N:
         // End outer tile -----------------------------------------------------
       }
 
-      // Forward other tiles of C ----------------------------------------------
-      // We send values upwards, so first tile forwards N-1 times, and the
-      // last tile forwards 0 times.
-      if (locationN < kComputeTilesN - 1) {
-      ForwardC_Others:
-        for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
-        ForwardC_N1:
-          for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          ForwardC_M1:
-            for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              cOut.Push(cIn.Pop());
+      // Write back tile of C --------------------------------------------------
+    WriteC_N1:
+      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+
+      WriteC_N2:
+        for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+        WriteC_M1:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
+          }
+        }
+
+        // Forward other tiles of C ----------------------------------------------
+        // We send values upwards, so first tile forwards N-1 times, and the
+        // last tile forwards 0 times.
+        if (locationN < kComputeTilesN - 1) {
+        ForwardC_Others:
+          for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+          ForwardC_N2:
+            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+            ForwardC_M1:
+              for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+                #pragma HLS PIPELINE II=1
+                #pragma HLS LOOP_FLATTEN
+                cOut.Push(cIn.Pop());
+              }
             }
           }
         }
-      }
-      // -----------------------------------------------------------------------
 
-      // Write back own tile of C ----------------------------------------------
-    WriteC_N1:
-      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-      WriteC_M1:
-        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          #pragma HLS PIPELINE II=1
-          #pragma HLS LOOP_FLATTEN
-          cOut.Push(cBuffer[n1 * kInnerTilesM + m1]);
-        }
       }
       // -----------------------------------------------------------------------
 
@@ -237,8 +241,8 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   Stream<MemoryPack_t> bMemory("bMemory");
   Stream<ComputePackM_t> bDistribute("bDistribute");
   Stream<ComputePackM_t> bPipes[(kComputeTilesN + 2) * kComputeTilesM];
-  Stream<OutputPack_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
-  Stream<OutputPack_t> cConvert("cConvert");
+  Stream<ComputePackM_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
+  Stream<ComputePackM_t> cConvert("cConvert");
   Stream<MemoryPack_t> cMemory("cMemory");
 
 #ifndef HLSLIB_SYNTHESIS

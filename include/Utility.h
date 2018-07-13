@@ -75,30 +75,31 @@ void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
 #endif
 
 inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
-                                    Data_t *c) {
-  std::stringstream ss;
-  ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeK << "_p" << kSizeM
-     << "_s" << kSeed << ".dat";
-  const auto goldenFileName = ss.str();
-  std::ifstream goldenFile(goldenFileName,
-                           std::ios_base::in | std::ios_base::binary);
-  if (goldenFile.good()) {
-    std::cout << "Using cached golden result." << std::endl;
-    goldenFile.read(reinterpret_cast<char *>(&c[0]),
-                    kSizeN * kSizeM * sizeof(Data_t));
-  } else {
-    std::cout << "No cached result found. Running host implementation..."
-              << std::flush;
-    CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c);
-    std::cout << " Done.\n";
+                                    Data_t *c, bool useCache) {
+  std::string goldenFileName;
+  if (useCache) {
+    std::stringstream ss;
+    ss << kGoldenDir << "gemm_n" << kSizeN << "_m" << kSizeK << "_p" << kSizeM
+       << "_s" << kSeed << ".dat";
+    goldenFileName = ss.str();
+    std::ifstream goldenFile(goldenFileName,
+                             std::ios_base::in | std::ios_base::binary);
+    if (goldenFile.good()) {
+      std::cout << "Using cached golden result." << std::endl;
+      goldenFile.read(reinterpret_cast<char *>(&c[0]),
+                      kSizeN * kSizeM * sizeof(Data_t));
+      return;
+    } else {
+      std::cout << "No cached result found.\n" << std::flush;
+    }
+  }
+
+  std::cout << "Running host implementation..." << std::flush;
+  CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c);
+  std::cout << " Done.\n";
+
+  if (useCache) {
     std::ofstream goldenFileOut(goldenFileName,
                                 std::ios_base::out | std::ios_base::binary);
-    if (!goldenFileOut.good()) {
-      std::cerr << "Failed to open output file \"" << goldenFileName
-                << "\". Cannot cache result." << std::endl;
-    } else {
-      goldenFileOut.write(reinterpret_cast<char *>(&c[0]),
-                          kSizeN * kSizeM * sizeof(Data_t));
-    }
   }
 }

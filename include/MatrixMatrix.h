@@ -16,8 +16,7 @@ static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,
 using MemoryPack_t = hlslib::DataPack<Data_t, kMemoryWidth>;
 using ComputePackN_t = hlslib::DataPack<Data_t, kComputeTileSizeN>;
 using ComputePackM_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
-using OutputPack_t =
-    hlslib::DataPack<Data_t, kComputeTileSizeN * kComputeTileSizeM>;
+using OutputPack_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
 
 constexpr int kTransposeWidth = kTransposeWidthBytes / sizeof(Data_t);
 static_assert(kTransposeWidthBytes % sizeof(Data_t) == 0,
