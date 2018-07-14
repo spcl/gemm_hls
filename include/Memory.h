@@ -26,15 +26,9 @@ void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
 
 void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide);
 
-void DistributeA(Stream<ComputePackN_t> &fromMemory,
-                 Stream<ComputePackN_t> toFeeders[kComputeTilesN]);
-
 void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe);
 
 void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow);
-
-void DistributeB(Stream<ComputePackM_t> &pipe,
-                 Stream<ComputePackM_t> toFeeders[kComputeTilesM]);
 
 void FanInC(Stream<OutputPack_t> fromDrainers[kComputeTilesM],
             Stream<OutputPack_t> &toMemory);

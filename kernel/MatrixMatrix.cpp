@@ -12,8 +12,9 @@ using hlslib::Stream;
 using hlslib::DataPack;
 
 /// Feeds a single compute row
-void FeedA(Stream<ComputePackN_t> &fromMemory,
-           Stream<ComputePackN_t> &toKernel) {
+void FeedA(Stream<ComputePackN_t> &prev,
+           Stream<ComputePackN_t> &next, 
+           Stream<ComputePackN_t> &toKernel, int locationN) {
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                         kSizeK * kInnerTilesN * ComputePackN_t::kWidth ==
@@ -28,6 +29,20 @@ FeedA_OuterTile_N:
       for (int k = 0; k < kSizeK; ++k) {
 
         ComputePackN_t buffer[kInnerTilesN];
+      FeedA_Saturate_Outer:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        FeedA_Saturate_Inner:
+          for (int n2 = 0; n2 < kComputeTilesN - locationN; ++n2) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            const auto pack = prev.Pop();
+            if (n2 == 0) {
+              buffer[n1] = pack;
+            } else {
+              next.Push(pack); 
+            }
+          }
+        }
 
       FeedA_Pipeline_N:
         for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
@@ -35,15 +50,7 @@ FeedA_OuterTile_N:
           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
             #pragma HLS PIPELINE II=1
             #pragma HLS LOOP_FLATTEN
-
-            ComputePackN_t pack;
-            if (m1 == 0) {
-              pack = fromMemory.Pop();
-              buffer[n1] = pack;
-            } else {
-              pack = buffer[n1];
-            }
-            toKernel.Push(pack);
+            toKernel.Push(buffer[n1]);
           }
         }
 
@@ -53,8 +60,9 @@ FeedA_OuterTile_N:
 }
 
 /// Feeds a single compute column
-void FeedB(Stream<ComputePackM_t> &fromMemory,
-           Stream<ComputePackM_t> &toKernel) {
+void FeedB(Stream<ComputePackM_t> &prev,
+           Stream<ComputePackM_t> &next,
+           Stream<ComputePackM_t> &toKernel, int locationM) {
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                         kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==
@@ -69,6 +77,21 @@ FeedB_OuterTile_N:
       for (int k = 0; k < kSizeK; ++k) {
 
         ComputePackM_t buffer[kInnerTilesM];
+      FeedB_Saturate_Outer:
+        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+        FeedB_Saturate_Inner:
+          for (int m2 = 0; m2 < kComputeTilesM - locationM; ++m2) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            const auto pack = prev.Pop();
+            if (m2 == 0) {
+              buffer[m1] = pack;
+            } else {
+              next.Push(pack); 
+            }
+          }
+        }
+
 
       FeedB_Pipeline_N:
         for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
@@ -76,14 +99,7 @@ FeedB_OuterTile_N:
           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
             #pragma HLS PIPELINE II=1
             #pragma HLS LOOP_FLATTEN
-            ComputePackM_t pack;
-            if (n1 == 0) {
-              pack = fromMemory.Pop();
-              buffer[m1] = pack;
-            } else {
-              pack = buffer[m1];
-            }
-            toKernel.Push(pack);
+            toKernel.Push(buffer[m1]);
           }
         }
 
@@ -238,10 +254,12 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   Stream<Data_t> aConvert("aConvert");
   Stream<ComputePackN_t> aDistribute("aDistribute");
   Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 2)];
+  Stream<ComputePackN_t> aForward[kComputeTilesN];
 
   Stream<MemoryPack_t> bMemory("bMemory");
   Stream<ComputePackM_t> bDistribute("bDistribute");
   Stream<ComputePackM_t> bPipes[(kComputeTilesN + 2) * kComputeTilesM];
+  Stream<ComputePackM_t> bForward[kComputeTilesM];
   Stream<ComputePackM_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
   Stream<ComputePackM_t> cConvert("cConvert");
   Stream<MemoryPack_t> cMemory("cMemory");
@@ -249,6 +267,9 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
 #ifndef HLSLIB_SYNTHESIS
   for (int i = 0; i < kTransposeWidth; ++i) {
     aSplit[i].set_name(("aSplit[" + std::to_string(i) + "]").c_str());
+  }
+  for (int i = 0; i < kComputeTilesN; ++i) {
+    aForward[i].set_name(("aForward[" + std::to_string(i) + "]").c_str());
   }
   for (int n = 0; n < kComputeTilesN; ++n) {
     for (int m = 0; m < kComputeTilesM + 2; ++m) {
@@ -271,28 +292,30 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
               .c_str());
     }
   }
+  for (int i = 0; i < kComputeTilesM; ++i) {
+    bForward[i].set_name(("bForward[" + std::to_string(i) + "]").c_str());
+  }
 #endif
 
   HLSLIB_DATAFLOW_INIT();
 
   HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aSplit);
   HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert);
-  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aDistribute);
-  HLSLIB_DATAFLOW_FUNCTION(DistributeA, aDistribute, aPipes);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aForward[0]);
 
   HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bMemory);
-  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bDistribute);
-  HLSLIB_DATAFLOW_FUNCTION(DistributeB, bDistribute, bPipes);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bForward[0]);
 
   for (int n = 0; n < kComputeTilesN; ++n) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedA, aPipes[n * (kComputeTilesM + 2)],
-                             aPipes[n * (kComputeTilesM + 2) + 1]);
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, aForward[n], aForward[n + 1],
+                             aPipes[n * (kComputeTilesM + 2) + 1], n);
   }
 
   for (int m = 0; m < kComputeTilesM; ++m) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, bPipes[m], bPipes[kComputeTilesM + m]);
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, bForward[m], bForward[m + 1],
+                             bPipes[kComputeTilesM + m], m);
   }
 
   for (int n = 0; n < kComputeTilesN; ++n) {
