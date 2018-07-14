@@ -135,6 +135,34 @@ ConvertWidthA_Outer:
   }
 }
 
+void DistributeA(Stream<ComputePackN_t> &fromMemory,
+                 Stream<ComputePackN_t> toFeeders[kComputeTilesN]) {
+
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kSizeK * kInnerTilesN * kComputeTilesN *
+                 ComputePackN_t::kWidth) == kTotalReadsFromA,
+                "Sanity check failed for DistributeA");
+
+DistributeA_N0:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  DistributeA_M0:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    DistributeA_K:
+    for (int k = 0; k < kSizeK; ++k) {
+      DistributeA_N1:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        DistributeA_N2:
+          for (int n2 = 0; n2 < kComputeTilesN; ++n2) { 
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            toFeeders[n2 * (kComputeTilesM + 2)].Push(fromMemory.Pop());
+          }
+        }
+      }
+    }
+  }
+}
+
 void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe) {
 
   static_assert(
@@ -194,6 +222,34 @@ ConvertWidthB_Outer:
         computePack[w] = memoryPack[j * kComputeTileSizeM + w];
       }
       narrow.Push(computePack);
+    }
+  }
+}
+
+void DistributeB(Stream<ComputePackM_t> &pipe,
+                 Stream<ComputePackM_t> toFeeders[kComputeTilesM]) {
+
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kSizeK * kInnerTilesM * kComputeTilesM *
+                 ComputePackM_t::kWidth) == kTotalReadsFromB,
+                "Sanity check failed for DistributeB");
+
+DistributeB_OuterTile_N:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  DistributeB_OuterTile_M:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    DistributeB_K:
+      for (int k = 0; k < kSizeK; ++k) {
+      DistributeB_M1:
+        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+        DistributeB_M2:
+          for (int m2 = 0; m2 < kComputeTilesM; ++m2) { 
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            toFeeders[m2].Push(pipe.Pop()); 
+          }
+        }
+      }
     }
   }
 }
