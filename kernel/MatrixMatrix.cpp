@@ -275,12 +275,12 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS STREAM variable=aSplit depth=kOuterTileSize
   Stream<Data_t> aConvert("aConvert");
   Stream<ComputePackN_t> aDistribute("aDistribute");
-  Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 2)];
+  Stream<ComputePackN_t> aPipes[kComputeTilesN * (kComputeTilesM + 1)];
   Stream<ComputePackN_t> aFeed[kComputeTilesN + 1];
 
   Stream<MemoryPack_t> bMemory("bMemory");
   Stream<ComputePackM_t> bDistribute("bDistribute");
-  Stream<ComputePackM_t> bPipes[(kComputeTilesN + 2) * kComputeTilesM];
+  Stream<ComputePackM_t> bPipes[(kComputeTilesN + 1) * kComputeTilesM];
   Stream<ComputePackM_t> bFeed[kComputeTilesM + 1];
   Stream<ComputePackM_t> cPipes[(kComputeTilesN + 1) * kComputeTilesM];
   Stream<ComputePackM_t> cConvert("cConvert");
@@ -291,13 +291,13 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
     aSplit[i].set_name(("aSplit[" + std::to_string(i) + "]").c_str());
   }
   for (int n = 0; n < kComputeTilesN; ++n) {
-    for (int m = 0; m < kComputeTilesM + 2; ++m) {
+    for (int m = 0; m < kComputeTilesM + 1; ++m) {
       aPipes[n * (kComputeTilesM + 2) + m].set_name(
           ("aPipes[" + std::to_string(n) + "][" + std::to_string(m) + "]")
               .c_str());
     }
   }
-  for (int n = 0; n < kComputeTilesN + 2; ++n) {
+  for (int n = 0; n < kComputeTilesN + 1; ++n) {
     for (int m = 0; m < kComputeTilesM; ++m) {
       bPipes[n * kComputeTilesM + m].set_name(
           ("bPipes[" + std::to_string(n) + "][" + std::to_string(m) + "]")
@@ -324,14 +324,13 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
 
   for (int n = 0; n < kComputeTilesN; ++n) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedA, aFeed[n], aFeed[n + 1], 
-                             aPipes[n * (kComputeTilesM + 2) + 1], n);
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, aFeed[n], aFeed[n + 1],
+                             aPipes[n * (kComputeTilesM + 1)], n);
   }
 
   for (int m = 0; m < kComputeTilesM; ++m) {
     #pragma HLS UNROLL
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, bFeed[m], bFeed[m + 1],
-                             bPipes[kComputeTilesM + m], m);
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, bFeed[m], bFeed[m + 1], bPipes[m], m);
   }
 
   for (int n = 0; n < kComputeTilesN; ++n) {
@@ -339,10 +338,10 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
     for (int m = 0; m < kComputeTilesM; ++m) {
       #pragma HLS UNROLL
       HLSLIB_DATAFLOW_FUNCTION(ProcessingElement,
-                               aPipes[n * (kComputeTilesM + 2) + m + 1],
-                               aPipes[n * (kComputeTilesM + 2) + m + 2],
+                               aPipes[n * (kComputeTilesM + 1) + m],
+                               aPipes[n * (kComputeTilesM + 1) + m + 1],
+                               bPipes[n * kComputeTilesM + m],
                                bPipes[(n + 1) * kComputeTilesM + m],
-                               bPipes[(n + 2) * kComputeTilesM + m],
                                cPipes[(n + 1) * kComputeTilesM + m],
                                cPipes[n * kComputeTilesM + m], n, m);
     }
