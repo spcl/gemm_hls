@@ -31,16 +31,22 @@ FeedA_OuterTile_N:
         ComputePackN_t buffer[kInnerTilesN];
       FeedA_Saturate_Outer:
         for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        FeedA_Saturate_Inner:
-          for (int n2 = 0; n2 < kComputeTilesN - locationN; ++n2) {
+          if (locationN < kComputeTilesN - 1) {
+          FeedA_Saturate_Inner:
+            for (int n2 = 0; n2 < kComputeTilesN - locationN; ++n2) {
+              #pragma HLS PIPELINE II=1
+              #pragma HLS LOOP_FLATTEN
+              const auto pack = prev.Pop();
+              if (n2 == 0) {
+                buffer[n1] = pack;
+              } else {
+                next.Push(pack); 
+              }
+            }
+          } else {
             #pragma HLS PIPELINE II=1
             #pragma HLS LOOP_FLATTEN
-            const auto pack = prev.Pop();
-            if (n2 == 0) {
-              buffer[n1] = pack;
-            } else {
-              next.Push(pack); 
-            }
+            buffer[n1] = prev.Pop();
           }
         }
 
