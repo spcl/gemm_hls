@@ -3,7 +3,6 @@
 // default_nettype of none prevents implicit wire declaration.
 `default_nettype none
 `timescale 1 ns / 1 ps
-// Top level of the kernel. Do not modify module name, parameters or ports.
 
 module ${MM_KERNEL_NAME} #(
   parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = 12 ,
@@ -15,7 +14,7 @@ module ${MM_KERNEL_NAME} #(
   parameter integer C_M01_AXI_NUM_THREADS      = 1  ,
   parameter integer C_M01_AXI_ID_WIDTH         = 1  ,
   parameter integer C_M01_AXI_ADDR_WIDTH       = 64 ,
-  parameter integer C_M01_AXI_DATA_WIDTH       = 512
+  parameter integer C_M01_AXI_DATA_WIDTH       = 512,
   parameter integer C_M02_AXI_NUM_THREADS      = 1  ,
   parameter integer C_M02_AXI_ID_WIDTH         = 1  ,
   parameter integer C_M02_AXI_ADDR_WIDTH       = 64 ,
@@ -149,7 +148,7 @@ end
 // Begin kernel code
 ///////////////////////////////////////////////////////////////////////////////
 
-MatrixMultiplicationHLS mm_hls (
+${MM_ENTRY_FUNCTION} mm_hls (
     .s_axi_control_AWVALID(s_axi_control_awvalid),
     .s_axi_control_AWREADY(s_axi_control_awready),
     .s_axi_control_AWADDR(s_axi_control_awaddr),

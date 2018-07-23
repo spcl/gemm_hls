@@ -14,7 +14,8 @@ set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 
 # Internal
-set(MM_KERNEL_NAME MatrixMultiplication)
+set(MM_KERNEL_NAME MatrixMultiplicationKernel)
+set(MM_ENTRY_FUNCTION MatrixMultiplication)
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -80,7 +81,7 @@ enable_testing()
 # Synthesis
 set(MM_HLS_PROJECT_NAME "hls")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-set(MM_ENTRY_FUNCTION "MatrixMultiplicationTop")
+set(MM_ENTRY_FUNCTION "MatrixMultiplication")
 set(MM_SYNTHESIS_FLAGS "-std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
 configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
 add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
@@ -125,7 +126,7 @@ set(MM_XOCC_COMMAND
   ${MM_KERNEL_NAME}.xo 
   --kernel ${MM_ENTRY_FUNCTION} 
   --platform ${MM_DSA_NAME}
-  --xp prop:kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
+  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
   --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
   --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m01_axi.core.OCL_REGION_0.M01_AXI
   --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m02_axi.core.OCL_REGION_0.M01_AXI
