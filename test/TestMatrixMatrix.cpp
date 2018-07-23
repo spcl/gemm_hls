@@ -19,7 +19,7 @@ int main() {
   std::default_random_engine rng(kSeed);
   typename std::conditional<
       std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
-      std::uniform_real_distribution<double>>::type dist(10, 100);
+      std::uniform_real_distribution<double>>::type dist(1, 10);
 
   std::for_each(a.begin(), a.end(),
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
@@ -30,7 +30,7 @@ int main() {
   const auto bKernel = Pack(b);
   auto cKernel = Pack(cReference);
 
-  ReferenceImplementation(a.data(), b.data(), cReference.data(), false);
+  ReferenceImplementation(a.data(), b.data(), cReference.data());
 
   std::cout << "Running hardware emulation..." << std::flush;
   MatrixMatrix(aKernel.data(), bKernel.data(), cKernel.data());
@@ -47,7 +47,7 @@ int main() {
       if (diff > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j
                   << "): " << testVal << " vs. " << refVal << "\n";
-        // return 1;
+        return 1;
       }
     }
   }

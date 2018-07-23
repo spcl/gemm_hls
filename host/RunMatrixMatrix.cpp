@@ -1,23 +1,23 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2017 
-/// @copyright This software is copyrighted under the BSD 3-Clause License. 
+/// @date      June 2017
+/// @copyright This software is copyrighted under the BSD 3-Clause License.
 
-#include "Utility.h"
-#include "MatrixMatrix.h"
-#include "hlslib/SDAccel.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <random>
 #include <vector>
+#include "MatrixMatrix.h"
+#include "Utility.h"
+#include "hlslib/SDAccel.h"
 
 int main(int argc, char **argv) {
-  
   // Use fixed seed to enable comparison to saved golden values
   std::default_random_engine rng(kSeed);
-  typename std::conditional<
-      std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
-      std::uniform_real_distribution<double>>::type dist(1, 10);
+  typename std::conditional<std::is_integral<Data_t>::value,
+                            std::uniform_int_distribution<unsigned long>,
+                            std::uniform_real_distribution<double>>::type
+      dist(1, 10);
 
   bool verify = true;
   if (argc > 1) {
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  
+
   std::vector<Data_t> a, b, cRef;
   std::vector<MemoryPack_t> aMem, bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
@@ -49,7 +49,6 @@ int main(int argc, char **argv) {
   std::cout << " Done.\n";
 
   try {
-
     std::cout << "Initializing OpenCL context..." << std::flush;
     hlslib::ocl::Context context;
     std::cout << " Done.\n";
@@ -85,7 +84,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Kernel executed in " << elapsed.first
               << " seconds, corresponding to a performance of " << perf
-              << " GOp/s.\n";;
+              << " GOp/s.\n";
 
     if (verify) {
       std::cout << "Copying back result..." << std::flush;
@@ -104,7 +103,7 @@ int main(int argc, char **argv) {
     ReferenceImplementation(a.data(), b.data(), cRef.data());
 
     // Convert to single element vector
-    const auto cTest = Unpack(cMem); 
+    const auto cTest = Unpack(cMem);
 
     for (int i = 0; i < kSizeN; ++i) {
       for (int j = 0; j < kSizeM; ++j) {
@@ -120,7 +119,6 @@ int main(int argc, char **argv) {
     }
     std::cout << "Successfully verified." << std::endl;
   }
-
 
   return 0;
 }

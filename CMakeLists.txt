@@ -42,7 +42,7 @@ else()
 endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 # Allow specifying the floating point unit for adders and multipliers
 if(MM_ADD_RESOURCE)
@@ -91,7 +91,7 @@ set(MM_XOCC_COMMAND
   ${MM_KERNEL_SRC}
   --kernel MatrixMatrix
   --platform ${MM_DSA_NAME}
-  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${CMAKE_CXX_FLAGS} -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS"
+  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="-std=c++11 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS"
   # Matrices A and C use the same interface
   --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
   --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
@@ -103,5 +103,6 @@ if(MM_TARGET_CLOCK GREATER 0)
 endif()
 add_custom_target(build_kernel
   COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 
-# add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
-# target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 
+
+add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
+target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 
