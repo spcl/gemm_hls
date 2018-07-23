@@ -303,7 +303,7 @@ ${MM_ENTRY_FUNCTION} mm_hls (
     .m_axi_gmem2_BREADY(m02_axi_bready),
     .m_axi_gmem2_BRESP(),
     .m_axi_gmem2_BID(m02_axi_bid),
-    .m_axi_gmem2_BUSER(),
+    .m_axi_gmem2_BUSER()
 );
 
 endmodule

@@ -4,4 +4,7 @@ set tmpDir ${DONUT_TMP_DIR}
 set kernelVendor ${DONUT_VENDOR_NAME}
 set partName ${DONUT_PART_NAME}
 set hlsDir ${DONUT_SOURCES_DIRECTORY}
+set memoryWidth ${MM_MEMORY_BUS_WIDTH}
+set kernelWidthN ${MM_KERNEL_WIDTH_N}
+set kernelWidthM ${MM_KERNEL_WIDTH_M}
 set callPackageFunction ${DONUT_CALL_PACKAGE_FUNCTION}

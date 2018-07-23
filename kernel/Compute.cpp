@@ -9,7 +9,6 @@
 #include <cassert>
 
 using hlslib::Stream;
-using hlslib::DataPack;
 
 int IndexCBuffer(int n1, int n2, int m1, int m2) {
   #pragma HLS INLINE
