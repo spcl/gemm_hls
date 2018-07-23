@@ -1,0 +1,7 @@
+set kernelName ${DONUT_KERNEL_NAME} 
+set workspace ${DONUT_KERNEL_DIRECTORY}
+set tmpDir ${DONUT_TMP_DIR}
+set kernelVendor ${DONUT_VENDOR_NAME}
+set partName ${DONUT_PART_NAME}
+set hlsDir ${DONUT_SOURCES_DIRECTORY}
+set callPackageFunction ${DONUT_CALL_PACKAGE_FUNCTION}

@@ -3,7 +3,7 @@
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #include "Utility.h"
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #include <algorithm>
 #include <iostream>
 #include <random>
@@ -33,7 +33,7 @@ int main() {
   ReferenceImplementation(a.data(), b.data(), cReference.data());
 
   std::cout << "Running hardware emulation..." << std::flush;
-  MatrixMatrix(aKernel.data(), bKernel.data(), cKernel.data());
+  MatrixMultiplication(aKernel.data(), bKernel.data(), cKernel.data());
   std::cout << " Done.\n";
 
   const auto cTest = Unpack(cKernel);

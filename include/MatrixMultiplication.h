@@ -68,6 +68,6 @@ constexpr T PowerOfTwo(T number, unsigned char power) {
 
 extern "C" {
 
-void MatrixMatrix(MemoryPack_t const *aMem, MemoryPack_t const *bMem,
-                  MemoryPack_t *cMem);
+void MatrixMultiplication(MemoryPack_t const *aMem, MemoryPack_t const *bMem,
+                          MemoryPack_t *cMem);
 }

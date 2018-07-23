@@ -1,25 +1,30 @@
 # Author:  Johannes de Fine Licht (definelicht@inf.ethz.ch)
 # Created: June 2017
 
-cmake_minimum_required(VERSION 2.8)
-project(sdaccel_mm C CXX)
+cmake_minimum_required(VERSION 3.0)
+project(sdaccel_mm)
 
 # Target options 
 set(MM_PART_NAME "xcku115-flvb2104-2-e" CACHE STRING "Part name for HLS.")
 set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
     "DSA string for xocc.")
-set(MM_TARGET_CLOCK 250 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
+set(MM_TARGET_CLOCK 250 CACHE STRING
+    "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
+set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
+
+# Internal
+set(MM_KERNEL_NAME MatrixMultiplication)
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
 set(MM_MEMORY_BUS_WIDTH 64 CACHE STRING "Width of memory bus in bytes.")
-set(MM_SIZE_N 512 CACHE STRING "Size of matrix dimension.")
-set(MM_SIZE_K 512 CACHE STRING "Size of matrix dimension.")
-set(MM_SIZE_M 512 CACHE STRING "Size of matrix dimension.")
+set(MM_SIZE_N 256 CACHE STRING "Size of matrix dimension.")
+set(MM_SIZE_K 256 CACHE STRING "Size of matrix dimension.")
+set(MM_SIZE_M 256 CACHE STRING "Size of matrix dimension.")
 set(MM_OUTER_MEMORY_TILE_SIZE 128 CACHE STRING "Tile size of outer memory tile.")
 set(MM_OUTER_COMPUTE_TILE_SIZE_N 8 CACHE STRING "Tile size of outer compute tile.")
-set(MM_OUTER_COMPUTE_TILE_SIZE_M 32 CACHE STRING "Tile size of outer compute tile.")
+set(MM_OUTER_COMPUTE_TILE_SIZE_M 8 CACHE STRING "Tile size of outer compute tile.")
 set(MM_INNER_COMPUTE_TILE_SIZE_N 4 CACHE STRING "Tile size of inner compute tile.")
 set(MM_INNER_COMPUTE_TILE_SIZE_M 4 CACHE STRING "Tile size of inner compute tile.")
 set(MM_TRANSPOSE_WIDTH 64 CACHE STRING "Burst width when transposing reads from A.")
@@ -58,7 +63,7 @@ configure_file(include/Config.h.in Config.h)
 
 # C++ source code 
 set(MM_KERNEL_SRC
-    ${CMAKE_SOURCE_DIR}/kernel/MatrixMatrix.cpp
+    ${CMAKE_SOURCE_DIR}/kernel/Compute.cpp
     ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
@@ -67,42 +72,71 @@ target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 add_executable(Stats src/Stats.cpp)
 
 # Software test
-add_executable(TestMatrixMatrix test/TestMatrixMatrix.cpp)
-target_link_libraries(TestMatrixMatrix ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} mmkernel)
-add_test(TestMatrixMatrix TestMatrixMatrix)
+add_executable(TestSimulation test/TestSimulation.cpp)
+target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} mmkernel)
+add_test(TestSimulation TestSimulation)
 enable_testing()
 
 # Synthesis
-set(MM_PROJECT_NAME "MatrixMatrix")
+set(MM_HLS_PROJECT_NAME "hls")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-set(MM_ENTRY_FUNCTION "MatrixMatrix")
-configure_file(scripts/Synthesis.tcl.in SynthesizeMatrixMatrix.tcl)
-add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f SynthesizeMatrixMatrix.tcl) 
+set(MM_ENTRY_FUNCTION "MatrixMultiplicationTop")
+set(MM_SYNTHESIS_FLAGS "-std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
+configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
+add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
 
-# Hardware kernel
+# Vivado project options
+set(DONUT_KERNEL_NAME ${MM_KERNEL_NAME}) 
+set(DONUT_KERNEL_DIRECTORY ${CMAKE_BINARY_DIR})
+set(DONUT_VENDOR_NAME SPCL)
+set(DONUT_TMP_DIR ${MM_TMP_DIR})
+set(DONUT_PART_NAME ${MM_PART_NAME})
+set(DONUT_SOURCES_DIRECTORY ${CMAKE_BINARY_DIR}/${MM_HLS_PROJECT_NAME}/${MM_PART_NAME}/syn/verilog/)
+if(SDAccel_VERSION_MAJOR GREATER 2017 OR
+   (SDAccel_VERSION_MAJOR EQUAL 2017 AND SDAccel_VERSION_MINOR GREATER 2))
+  set(DONUT_CALL_PACKAGE_FUNCTION 1)
+else()
+  set(DONUT_CALL_PACKAGE_FUNCTION 0)
+endif() 
+include(CheckTypeSize)
+check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
+math(EXPR MM_KERNEL_WIDTH_M "${MM_KERNEL_WIDTH_N} * ${MM_INNER_COMPUTE_TILE_SIZE_M}")
+configure_file(scripts/config.tcl.in config.tcl)
+configure_file(hw/top.v.in top.v)
+
+# SDx kernel wizard custom RTL project
+add_custom_target(setup_project COMMAND ${CMAKE_SOURCE_DIR}/scripts/vivado.py setup ${DONUT_KERNEL_NAME} ${SDAccel_VIVADO} ${CMAKE_BINARY_DIR} ${DONUT_TMP_DIR})
+add_custom_target(package_kernel COMMAND ${CMAKE_SOURCE_DIR}/scripts/vivado.py package ${DONUT_KERNEL_NAME} ${SDAccel_VIVADO} ${CMAKE_BINARY_DIR} ${DONUT_TMP_DIR})
+
+# Remove Vivado project when running clean
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+             ${DONUT_KERNEL_DIRECTORY}/${DONUT_KERNEL_NAME}_ex)
+
+# Command to build hardware kernel
 set(MM_XOCC_COMMAND
   -t hw
-  -s
+  -l
   -O3
-  -o MatrixMatrix.xclbin
+  -s
+  -o MM.xclbin
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
   -I${CMAKE_BINARY_DIR}
-  ${MM_KERNEL_SRC}
-  --kernel MatrixMatrix
+  ${MM_KERNEL_NAME}.xo 
+  --kernel ${MM_ENTRY_FUNCTION} 
   --platform ${MM_DSA_NAME}
-  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="-std=c++11 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS"
-  # Matrices A and C use the same interface
-  --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
-  --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
-  --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM2.core.OCL_REGION_0.M00_AXI
+  --xp prop:kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
+  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
+  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m01_axi.core.OCL_REGION_0.M01_AXI
+  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m02_axi.core.OCL_REGION_0.M01_AXI
   --max_memory_ports all)
 if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
 add_custom_target(build_kernel
-  COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 
+  COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND})
 
-add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
-target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 
+# Host code to launch kernel
+add_executable(RunHardware host/RunHardware.cpp)
+target_link_libraries(RunHardware ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)

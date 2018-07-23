@@ -7,7 +7,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #include "Utility.h"
 #include "hlslib/SDAccel.h"
 
@@ -70,8 +70,9 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Programming device..." << std::flush;
-    auto program = context.MakeProgram("MatrixMatrix.xclbin");
-    auto kernel = program.MakeKernel("MatrixMatrix", aDevice, bDevice, cDevice);
+    auto program = context.MakeProgram("MatrixMultiplication.xclbin");
+    auto kernel =
+        program.MakeKernel("MatrixMultiplication", aDevice, bDevice, cDevice);
     std::cout << " Done.\n";
 
     std::cout << "Executing kernel..." << std::flush;

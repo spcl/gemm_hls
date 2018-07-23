@@ -2,7 +2,7 @@
 /// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #include "Memory.h"
 #include "hlslib/Stream.h"
 #include "hlslib/Simulation.h"
@@ -10,125 +10,6 @@
 
 using hlslib::Stream;
 using hlslib::DataPack;
-
-/// Feeds a single compute row
-void FeedA(Stream<ComputePackN_t> &previous,
-           Stream<ComputePackN_t> &next,
-           Stream<ComputePackN_t> &toKernel,
-           const int locationN) {
-
-  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                        kSizeK * kInnerTilesN * ComputePackN_t::kWidth ==
-                    kTotalReadsFromA / kComputeTilesN,
-                "Sanity check failed");
-
-FeedA_OuterTile_N:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  FeedA_OuterTile_M:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FeedA_K:
-      for (int k = 0; k < kSizeK; ++k) {
-
-        ComputePackN_t buffer[kInnerTilesN];
-
-      FeedA_SaturateOuter:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          if (locationN < kComputeTilesN - 1) {
-          FeedA_SaturateInner:
-            for (int n2 = 0; n2 < kComputeTilesN - locationN; ++n2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              const auto read = previous.Pop();
-              if (n2 == 0) {
-                buffer[n1] = read;
-              } else {
-                next.Push(read);
-              }
-            }
-          } else {
-            // Special case is needed to:
-            // 1) Workaround Vivado HLS not flattening and pipelining loops
-            //    with trip count == 1.
-            // 2) Convince Vivado HLS that next is never written for the last
-            //    feeder.
-            #pragma HLS PIPELINE II=1
-            buffer[n1] = previous.Pop();
-          }
-        }
-
-      FeedA_Pipeline_N:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        FeedA_Pipeline_M:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            toKernel.Push(buffer[n1]);
-          }
-        }
-
-      }
-    }
-  }
-}
-
-/// Feeds a single compute column
-void FeedB(Stream<ComputePackM_t> &previous,
-           Stream<ComputePackM_t> &next,
-           Stream<ComputePackM_t> &toKernel, const int locationM) {
-
-  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                        kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==
-                    kTotalReadsFromB / kComputeTilesM,
-                "Sanity check failed");
-
-FeedB_OuterTile_N:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  FeedB_OuterTile_M:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FeedB_K:
-      for (int k = 0; k < kSizeK; ++k) {
-
-        ComputePackM_t buffer[kInnerTilesM];
-
-      FeedB_SaturateOuter:
-        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          if (locationM < kComputeTilesM - 1) {
-          FeedB_SaturateInner:
-            for (int m2 = 0; m2 < kComputeTilesM - locationM; ++m2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              const auto read = previous.Pop();
-              if (m2 == 0) {
-                buffer[m1] = read;
-              } else {
-                next.Push(read);
-              }
-            }
-          } else {
-            // Special case is needed to:
-            // 1) Workaround Vivado HLS not flattening and pipelining loops
-            //    with trip count == 1.
-            // 2) Convince Vivado HLS that next is never written for the last
-            //    feeder.
-            #pragma HLS PIPELINE II=1
-            buffer[m1] = previous.Pop();
-          }
-        }
-
-      FeedB_Pipeline_N:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        FeedB_Pipeline_M:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            toKernel.Push(buffer[m1]);
-          }
-        }
-
-      }
-    }
-  }
-}
 
 int IndexCBuffer(int n1, int n2, int m1, int m2) {
   #pragma HLS INLINE
@@ -257,8 +138,8 @@ OuterTile_N:
 
 }
 
-void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
-                  MemoryPack_t c[]) {
+void MatrixMultiplication(MemoryPack_t const a[], MemoryPack_t const b[],
+                          MemoryPack_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1

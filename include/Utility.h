@@ -10,7 +10,7 @@
 #include <iterator>
 #include <sstream>
 #include <vector>
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #ifdef MM_HAS_BLAS
 #include "cblas.h"
 #endif

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #include "hlslib/Stream.h"
 
 static constexpr unsigned long kTotalReadsFromA =
@@ -36,3 +36,14 @@ void FanInC(Stream<OutputPack_t> fromDrainers[kComputeTilesM],
 void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide);
 
 void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
+
+/// Feeds a single compute row
+void FeedA(Stream<ComputePackN_t> &previous,
+           Stream<ComputePackN_t> &next,
+           Stream<ComputePackN_t> &toKernel,
+           const int locationN);
+
+/// Feeds a single compute column
+void FeedB(Stream<ComputePackM_t> &previous,
+           Stream<ComputePackM_t> &next,
+           Stream<ComputePackM_t> &toKernel, const int locationM);

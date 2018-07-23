@@ -1,4 +1,4 @@
-#include "MatrixMatrix.h"
+#include "MatrixMultiplication.h"
 #include "Memory.h"
 
 // Prints the expected performance of the current configuration in hardware.
