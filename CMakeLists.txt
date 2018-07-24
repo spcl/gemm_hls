@@ -8,8 +8,12 @@ project(sdaccel_mm C CXX)
 set(MM_PART_NAME "xcku115-flvb2104-2-e" CACHE STRING "Part name for HLS.")
 set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
     "DSA string for xocc.")
-set(MM_TARGET_CLOCK 250 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
+set(MM_TARGET_CLOCK 200 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
+set(MM_SYNTHESIS_FLAGS "" CACHE STRING "Extra flags for synthesis")
+set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for both compile and link steps of the xocc flow")
+set(MM_XOCC_COMPILE_FLAGS "" CACHE STRING "Extra flags for xocc compile step")
+set(MM_XOCC_LINK_FLAGS "" CACHE STRING "Extra flags for xocc link step")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -38,7 +42,8 @@ else()
 endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
 
 # Allow specifying the floating point unit for adders and multipliers
 if(MM_ADD_RESOURCE)
@@ -80,14 +85,13 @@ set(MM_XOCC_COMMAND
   -t hw
   -s
   -O3
-  -o MatrixMatrix.xclbin
+  ${MM_XOCC_FLAGS}
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
   -I${CMAKE_BINARY_DIR}
-  ${MM_KERNEL_SRC}
   --kernel MatrixMatrix
   --platform ${MM_DSA_NAME}
-  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${CMAKE_CXX_FLAGS} -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS"
+  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
   # Matrices A and C use the same interface
   --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
   --xp misc:map_connect=add.kernel.${MM_ENTRY_FUNCTION}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
@@ -97,7 +101,22 @@ if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
-add_custom_target(build_kernel
-  COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND}) 
+
+if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
+  add_custom_target(build_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
+    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
+    ${MM_KERNEL_SRC} -o MatrixMatrix.xclbin) 
+else()
+  add_custom_target(compile_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
+    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS}
+    ${MM_KERNEL_SRC} -o MatrixMatrix.xo) 
+  add_custom_target(link_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    MatrixMatrix.xo -o MatrixMatrix.xclbin) 
+endif()
+
 add_executable(RunMatrixMatrix host/RunMatrixMatrix.cpp)
 target_link_libraries(RunMatrixMatrix ${SDAccel_LIBRARIES} mmkernel ${BLAS_LIBRARIES}) 
