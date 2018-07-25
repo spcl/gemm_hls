@@ -89,15 +89,15 @@ add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl)
 # Vivado project options
 set(DONUT_KERNEL_NAME ${MM_KERNEL_NAME}) 
 set(DONUT_KERNEL_DIRECTORY ${CMAKE_BINARY_DIR})
+set(DONUT_LIBRARY_NAME "MM")
 set(DONUT_VENDOR_NAME SPCL)
 set(DONUT_TMP_DIR ${MM_TMP_DIR})
 set(DONUT_PART_NAME ${MM_PART_NAME})
 set(DONUT_SOURCES_DIRECTORY ${CMAKE_BINARY_DIR}/${MM_HLS_PROJECT_NAME}/${MM_PART_NAME}/syn/verilog/)
-if(SDAccel_VERSION_MAJOR GREATER 2017 OR
-   (SDAccel_VERSION_MAJOR EQUAL 2017 AND SDAccel_VERSION_MINOR GREATER 2))
-  set(DONUT_CALL_PACKAGE_FUNCTION 1)
-else()
+if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   set(DONUT_CALL_PACKAGE_FUNCTION 0)
+else()
+  set(DONUT_CALL_PACKAGE_FUNCTION 1)
 endif() 
 include(CheckTypeSize)
 check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
@@ -113,18 +113,16 @@ add_custom_target(package_kernel COMMAND ${CMAKE_SOURCE_DIR}/scripts/vivado.py p
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
              ${DONUT_KERNEL_DIRECTORY}/${DONUT_KERNEL_NAME}_ex)
 
-# Command to build hardware kernel
+# Hardware kernel
 set(MM_XOCC_COMMAND
   -t hw
-  -l
-  -O3
   -s
-  -o MM.xclbin
+  -O3
+  ${MM_XOCC_FLAGS}
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
   -I${CMAKE_BINARY_DIR}
-  ${MM_KERNEL_NAME}.xo 
-  --kernel ${MM_ENTRY_FUNCTION} 
+  --kernel ${MM_KERNEL_NAME} 
   --platform ${MM_DSA_NAME}
   --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
   --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
@@ -135,8 +133,21 @@ if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
-add_custom_target(build_kernel
-  COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} ${MM_XOCC_COMMAND})
+
+if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
+  add_custom_target(build_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
+    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
+    MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
+else()
+  add_custom_target(build_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank0
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1
+    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
+endif()
 
 # Host code to launch kernel
 add_executable(RunHardware host/RunHardware.cpp)

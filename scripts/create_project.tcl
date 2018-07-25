@@ -23,7 +23,7 @@ create_ip -name sdx_kernel_wizard -vendor xilinx.com -library ip -module_name $k
 # otherwise the variable names (rather than their content) are written to the
 # generated tcl files, and the example project will fail.
 # TODO: generalize this
-set cmd "set_property -dict \[list CONFIG.NUM_INPUT_ARGS {0} CONFIG.NUM_M_AXI {3} CONFIG.M00_AXI_NUM_ARGS {1} CONFIG.M00_AXI_ARG00_NAME {a} CONFIG.M01_AXI_NUM_ARGS {1} CONFIG.M01_AXI_ARG00_NAME {b} CONFIG.M02_AXI_NUM_ARGS {1} CONFIG.M02_AXI_ARG00_NAME {c} CONFIG.KERNEL_NAME {$kernelName} CONFIG.KERNEL_VENDOR {$kernelVendor}] \[get_ips $kernelName]"
+set cmd "set_property -dict \[list CONFIG.NUM_INPUT_ARGS {0} CONFIG.NUM_M_AXI {3} CONFIG.M00_AXI_NUM_ARGS {1} CONFIG.M00_AXI_ARG00_NAME {a} CONFIG.M01_AXI_NUM_ARGS {1} CONFIG.M01_AXI_ARG00_NAME {b} CONFIG.M02_AXI_NUM_ARGS {1} CONFIG.M02_AXI_ARG00_NAME {c} CONFIG.KERNEL_NAME {$kernelName} CONFIG.KERNEL_VENDOR {$kernelVendor} CONFIG.KERNEL_LIBRARY {$kernelLibrary}] \[get_ips $kernelName]"
 # Configure for correct OpenCL input arguments, including memory interfaces.
 eval $cmd
 

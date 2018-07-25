@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeMMemory);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeMMemory);
+        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeMMemory);
     std::cout << " Done.\n";
 
     if (verify) {
@@ -70,9 +70,9 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Programming device..." << std::flush;
-    auto program = context.MakeProgram("MatrixMultiplication.xclbin");
-    auto kernel =
-        program.MakeKernel("MatrixMultiplication", aDevice, bDevice, cDevice);
+    auto program = context.MakeProgram("MatrixMultiplicationKernel.xclbin");
+    auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
+                                     bDevice, cDevice);
     std::cout << " Done.\n";
 
     std::cout << "Executing kernel..." << std::flush;
