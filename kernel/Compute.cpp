@@ -137,8 +137,8 @@ OuterTile_N:
 
 }
 
-void MatrixMultiplication(MemoryPack_t const a[], MemoryPack_t const b[],
-                          MemoryPack_t c[]) {
+void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
+                                MemoryPack_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
@@ -149,7 +149,6 @@ void MatrixMultiplication(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS INTERFACE s_axilite port=return bundle=control
   
   #pragma HLS DATAFLOW
-
   // TODO: does this need to be kOuterTileSize?
   Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth];
   #pragma HLS STREAM variable=aSplit depth=kOuterTileSize

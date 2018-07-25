@@ -33,7 +33,7 @@ int main() {
   ReferenceImplementation(a.data(), b.data(), cReference.data());
 
   std::cout << "Running hardware emulation..." << std::flush;
-  MatrixMultiplication(aKernel.data(), bKernel.data(), cKernel.data());
+  MatrixMultiplicationKernel(aKernel.data(), bKernel.data(), cKernel.data());
   std::cout << " Done.\n";
 
   const auto cTest = Unpack(cKernel);

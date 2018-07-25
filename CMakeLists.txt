@@ -81,7 +81,7 @@ enable_testing()
 # Synthesis
 set(MM_HLS_PROJECT_NAME "hls")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-set(MM_ENTRY_FUNCTION "MatrixMultiplication")
+set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
 set(MM_SYNTHESIS_FLAGS "-std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
 configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
 add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
@@ -140,11 +140,16 @@ if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) 
     ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
     MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
 else()
-  add_custom_target(build_kernel
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
     --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank0
     --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1)
+  add_custom_target(compile_from_cpp
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
+    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    ${MM_KERNEL_SRC} -o MatrixMultiplication.xo) 
+  add_custom_target(build_kernel
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
     MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
 endif()
