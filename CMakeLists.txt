@@ -5,10 +5,10 @@ cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
 
 # Target options 
-set(MM_PART_NAME "xcku115-flvb2104-2-e" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0" CACHE STRING
+set(MM_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
+set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_0" CACHE STRING
     "DSA string for xocc.")
-set(MM_TARGET_CLOCK 250 CACHE STRING
+set(MM_TARGET_CLOCK 200 CACHE STRING
     "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
@@ -125,29 +125,33 @@ set(MM_XOCC_COMMAND
   --kernel ${MM_KERNEL_NAME} 
   --platform ${MM_DSA_NAME}
   --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
-  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
-  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m01_axi.core.OCL_REGION_0.M01_AXI
-  --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m02_axi.core.OCL_REGION_0.M01_AXI
   --max_memory_ports all)
 if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
+if(NOT (MM_DSA_NAME MATCHES "dynamic"))
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m01_axi.core.OCL_REGION_0.M01_AXI
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m02_axi.core.OCL_REGION_0.M01_AXI)
+else()
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1)
+endif()
 
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   add_custom_target(build_kernel
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
-    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
+    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS} -l
     MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
 else()
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank0
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem:bank1)
   add_custom_target(compile_from_cpp
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplication.xo) 
+    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel.xo) 
   add_custom_target(build_kernel
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}

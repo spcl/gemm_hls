@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Programming device..." << std::flush;
-    auto program = context.MakeProgram("MatrixMultiplicationKernel.xclbin");
+    auto program = context.MakeProgram("MatrixMultiplication.xclbin");
     auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
                                      bDevice, cDevice);
     std::cout << " Done.\n";
