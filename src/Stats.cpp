@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   std::cout << "Frequency:            " << frequency << " MHz\n";
   std::cout << "Number of operations: " << nOps << " ("
             << static_cast<float>(nOps) << ")\n";
-  const auto peakPerf = 2e-3 * kInnerTileSizeN * kInnerTileSizeM * frequency;
+  const auto peakPerf = 2e-3 * kInnerTileSizeN * kComputeTileSizeM * frequency;
   std::cout << "Peak performance:     " << peakPerf << " GOp/s\n";
   std::cout << "Peak runtime:         " << nOps / (1e9 * peakPerf)
             << " seconds.\n";

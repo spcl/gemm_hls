@@ -48,16 +48,12 @@ constexpr int kInnerTilesN = kOuterTileSize / kInnerTileSizeN;
 static_assert(kOuterTileSize % kInnerTileSizeN == 0,
               "Outer tile size must be divisable by the inner tile size.");
 
-constexpr int kInnerTilesM = kOuterTileSize / kInnerTileSizeM;
-static_assert(kOuterTileSize % kInnerTileSizeM == 0,
-              "Outer tile size must be divisable by the inner tile size.");
+constexpr int kInnerTilesM = kOuterTileSize / kComputeTileSizeM;
+static_assert(kOuterTileSize % kComputeTileSizeM == 0,
+              "Outer tile size must be divisable by compute tile size in M.");
 
 constexpr int kComputeTilesN = kInnerTileSizeN / kComputeTileSizeN;
 static_assert(kInnerTileSizeN % kComputeTileSizeN == 0,
-              "Inner tile size must be divisable by compute tile size.");
-
-constexpr int kComputeTilesM = kInnerTileSizeM / kComputeTileSizeM;
-static_assert(kInnerTileSizeM % kComputeTileSizeM == 0,
               "Inner tile size must be divisable by compute tile size.");
 
 template <typename T,

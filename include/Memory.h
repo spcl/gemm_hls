@@ -30,20 +30,10 @@ void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe);
 
 void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow);
 
-void FanInC(Stream<OutputPack_t> fromDrainers[kComputeTilesM],
-            Stream<OutputPack_t> &toMemory);
-
 void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide);
 
 void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
 
-/// Feeds a single compute row
-void FeedA(Stream<ComputePackN_t> &previous,
-           Stream<ComputePackN_t> &next,
-           Stream<ComputePackN_t> &toKernel,
-           const int locationN);
-
 /// Feeds a single compute column
-void FeedB(Stream<ComputePackM_t> &previous,
-           Stream<ComputePackM_t> &next,
-           Stream<ComputePackM_t> &toKernel, const int locationM);
+void FeedB(Stream<ComputePackM_t> &fromMemory,
+           Stream<ComputePackM_t> &toKernel);

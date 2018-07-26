@@ -198,33 +198,6 @@ ConvertWidthB_Outer:
   }
 }
 
-void FanInC(Stream<ComputePackM_t> fromDrainers[kComputeTilesM],
-            Stream<ComputePackM_t> &toMemory) {
-
-  static_assert((kOuterTilesN * kOuterTilesM * kOuterTileSize * kInnerTilesM *
-                 kComputeTilesM * ComputePackM_t::kWidth) == kSizeN * kSizeM,
-                "Sanity check failed for FanInC");
-
-FanInC_OuterTile_N:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  FanInC_OuterTile_M:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FanInC_N1:
-      for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
-      FanInC_M1:
-        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-        FanInC_M2:
-          for (int m2 = 0; m2 < kComputeTilesM; ++m2) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            toMemory.Push(fromDrainers[m2].Pop());
-          }
-        }
-      }
-    }
-  }
-}
-
 void ConvertWidthC(Stream<ComputePackM_t> &narrow, Stream<MemoryPack_t> &wide) {
 
   static_assert(kMemoryWidth % ComputePackM_t::kWidth == 0,
@@ -279,74 +252,13 @@ WriteC_OuterTile_N:
   }
 }
 
-/// Feeds a single compute row
-void FeedA(Stream<ComputePackN_t> &previous,
-           Stream<ComputePackN_t> &next,
-           Stream<ComputePackN_t> &toKernel,
-           const int locationN) {
-
-  static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                        kSizeK * kInnerTilesN * ComputePackN_t::kWidth ==
-                    kTotalReadsFromA / kComputeTilesN,
-                "Sanity check failed");
-
-FeedA_OuterTile_N:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  FeedA_OuterTile_M:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    FeedA_K:
-      for (int k = 0; k < kSizeK; ++k) {
-
-        ComputePackN_t buffer[kInnerTilesN];
-
-      FeedA_SaturateOuter:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-          if (locationN < kComputeTilesN - 1) {
-          FeedA_SaturateInner:
-            for (int n2 = 0; n2 < kComputeTilesN - locationN; ++n2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              const auto read = previous.Pop();
-              if (n2 == 0) {
-                buffer[n1] = read;
-              } else {
-                next.Push(read);
-              }
-            }
-          } else {
-            // Special case is needed to:
-            // 1) Workaround Vivado HLS not flattening and pipelining loops
-            //    with trip count == 1.
-            // 2) Convince Vivado HLS that next is never written for the last
-            //    feeder.
-            #pragma HLS PIPELINE II=1
-            buffer[n1] = previous.Pop();
-          }
-        }
-
-      FeedA_Pipeline_N:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-        FeedA_Pipeline_M:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            toKernel.Push(buffer[n1]);
-          }
-        }
-
-      }
-    }
-  }
-}
-
 /// Feeds a single compute column
-void FeedB(Stream<ComputePackM_t> &previous,
-           Stream<ComputePackM_t> &next,
-           Stream<ComputePackM_t> &toKernel, const int locationM) {
+void FeedB(Stream<ComputePackM_t> &fromMemory,
+           Stream<ComputePackM_t> &toKernel) {
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                         kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==
-                    kTotalReadsFromB / kComputeTilesM,
+                    kTotalReadsFromB,
                 "Sanity check failed");
 
 FeedB_OuterTile_N:
@@ -358,29 +270,10 @@ FeedB_OuterTile_N:
 
         ComputePackM_t buffer[kInnerTilesM];
 
-      FeedB_SaturateOuter:
+      FeedB_Saturate:
         for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          if (locationM < kComputeTilesM - 1) {
-          FeedB_SaturateInner:
-            for (int m2 = 0; m2 < kComputeTilesM - locationM; ++m2) {
-              #pragma HLS PIPELINE II=1
-              #pragma HLS LOOP_FLATTEN
-              const auto read = previous.Pop();
-              if (m2 == 0) {
-                buffer[m1] = read;
-              } else {
-                next.Push(read);
-              }
-            }
-          } else {
-            // Special case is needed to:
-            // 1) Workaround Vivado HLS not flattening and pipelining loops
-            //    with trip count == 1.
-            // 2) Convince Vivado HLS that next is never written for the last
-            //    feeder.
-            #pragma HLS PIPELINE II=1
-            buffer[m1] = previous.Pop();
-          }
+          #pragma HLS PIPELINE II=1
+          buffer[m1] = fromMemory.Pop();
         }
 
       FeedB_Pipeline_N:
