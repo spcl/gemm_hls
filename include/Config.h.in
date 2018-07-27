@@ -24,3 +24,11 @@ constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}";
 
 using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;
 using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
+
+#if ${MM_MEMORY_BUS_WIDTH} != ${MM_KERNEL_WIDTH_M} 
+  #define MM_CONVERT_B
+#endif
+
+#if ${MM_GRANULARITY_N} != 1
+  #define MM_CONVERT_A
+#endif

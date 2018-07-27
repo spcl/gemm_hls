@@ -36,6 +36,7 @@ void _ReadAInner(MemoryPack_t const a[],
                  int n1, int n2, int k0, int k1) {
   #pragma HLS INLINE
   auto pack = a[IndexA(n0, n1, n2, k0, k1)];
+ReadA_Unroll:
   for (int w = 0; w < kMemoryWidth; ++w) {
     #pragma HLS UNROLL
     aSplit[k1 * kMemoryWidth + w].Push(pack[w]); 
@@ -47,6 +48,7 @@ void _ReadAInnerLoop(MemoryPack_t const a[],
                      Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
                      int n0, int n1, int n2, int k0) {
   #pragma HLS INLINE
+ReadA_TransposeWidth:
   for (int k1 = 0; k1 < (kTransposeWidth / kMemoryWidth); ++k1) { 
     #pragma HLS PIPELINE II=1
     #pragma HLS LOOP_FLATTEN
@@ -121,7 +123,42 @@ TransposeA_N0:
   }
 }
 
+void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+                Stream<ComputePackN_t> &toKernel) {
+
+  static_assert(
+      kTotalReadsFromA <= static_cast<unsigned long>(kSizeN) * kSizeM * kSizeK /
+                              (kInnerTileSizeN * kComputeTileSizeM),
+      "In-memory transposition for A cannot keep up with the instantiated "
+      "number of compute units. Increase the outer tile size.");
+
+  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
+                 kSizeK * kOuterTileSize) == kTotalReadsFromA,
+                "Sanity check failed for TransposeA");
+
+TransposeA_N0:
+  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  TransposeA_M0:
+    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    TransposeA_K:
+      for (int k = 0; k < kSizeK; ++k) {
+      TransposeA_N1:
+        for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+          #pragma HLS PIPELINE II=1
+          #pragma HLS LOOP_FLATTEN
+          // Pop from each stream kOuterTileSize times in a row
+          ComputePackN_t pack;
+          pack[0] = aSplit[k % kTransposeWidth].Pop();
+          toKernel.Push(pack);
+        }
+      }
+    }
+  }
+}
+
+#ifdef MM_CONVERT_A
 void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide) {
+
 ConvertWidthA_Outer:
   for (int i = 0; i < kTotalReadsFromA / ComputePackN_t::kWidth; ++i) {
     ComputePackN_t pack;
@@ -134,6 +171,7 @@ ConvertWidthA_Outer:
     wide.Push(pack);
   }
 }
+#endif
 
 void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe) {
 
@@ -248,6 +286,11 @@ WriteC_OuterTile_N:
           memory[IndexC(n0, n1, m0, m1m)] = pipe.Pop();
         }
       }
+#ifndef MM_SYNTHESIS
+      std::cout << "Finished tile (" << n0 << ", " << m0 << ") of ("
+                << kOuterTilesN - 1 << ", " << kOuterTilesM - 1 << ")\n"
+                << std::flush;
+#endif
     }
   }
 }
@@ -270,19 +313,20 @@ FeedB_OuterTile_N:
 
         ComputePackM_t buffer[kInnerTilesM];
 
-      FeedB_Saturate:
-        for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-          #pragma HLS PIPELINE II=1
-          buffer[m1] = fromMemory.Pop();
-        }
-
       FeedB_Pipeline_N:
         for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
         FeedB_Pipeline_M:
           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
             #pragma HLS PIPELINE II=1
             #pragma HLS LOOP_FLATTEN
-            toKernel.Push(buffer[m1]);
+            ComputePackM_t val;
+            if (n1 == 0) {
+              val = fromMemory.Pop();
+              buffer[m1] = val;
+            } else {
+              val = buffer[m1];
+            }
+            toKernel.Push(val);
           }
         }
 

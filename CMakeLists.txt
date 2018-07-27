@@ -13,25 +13,28 @@ set(MM_TARGET_CLOCK 200 CACHE STRING
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 
-# Internal
-set(MM_KERNEL_NAME MatrixMultiplicationKernel)
-set(MM_ENTRY_FUNCTION MatrixMultiplication)
-
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
 set(MM_MEMORY_BUS_WIDTH 64 CACHE STRING "Width of memory bus in bytes.")
-set(MM_SIZE_N 256 CACHE STRING "Size of matrix dimension.")
-set(MM_SIZE_K 256 CACHE STRING "Size of matrix dimension.")
-set(MM_SIZE_M 256 CACHE STRING "Size of matrix dimension.")
-set(MM_MEMORY_TILE_SIZE 128 CACHE STRING "Tile size of outer memory tile.")
-set(MM_PARALLELISM_N 8 CACHE STRING "Number of parallel compute in N.")
-set(MM_PARALLELISM_M 4 CACHE STRING "Number of parallel compute in M.")
-set(MM_GRANULARITY_N 4 CACHE STRING "Granularity of processing elements in N.")
+set(MM_SIZE_N 512 CACHE STRING "Size of matrix dimension.")
+set(MM_SIZE_K 512 CACHE STRING "Size of matrix dimension.")
+set(MM_SIZE_M 512 CACHE STRING "Size of matrix dimension.")
+set(MM_MEMORY_TILE_SIZE 256 CACHE STRING "Tile size of outer memory tile.")
+set(MM_PARALLELISM_N 16 CACHE STRING "Number of parallel compute in N.")
+set(MM_PARALLELISM_M 16 CACHE STRING "Number of parallel compute in M.")
+set(MM_GRANULARITY_N 1 CACHE STRING "Granularity of processing elements in N.")
 set(MM_TRANSPOSE_WIDTH 64 CACHE STRING "Burst width when transposing reads from A.")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
 set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")  
+
+# Internal
+set(MM_KERNEL_NAME MatrixMultiplicationKernel)
+set(MM_ENTRY_FUNCTION MatrixMultiplication)
+include(CheckTypeSize)
+check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
+math(EXPR MM_KERNEL_WIDTH_M "${MM_KERNEL_WIDTH_N} * ${MM_PARALLELISM_M}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
 
@@ -98,9 +101,6 @@ if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) 
 else()
   set(DONUT_CALL_PACKAGE_FUNCTION 1)
 endif() 
-include(CheckTypeSize)
-check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
-math(EXPR MM_KERNEL_WIDTH_M "${MM_KERNEL_WIDTH_N} * ${MM_PARALLELISM_M}")
 configure_file(scripts/config.tcl.in config.tcl)
 configure_file(hw/top.v.in top.v)
 

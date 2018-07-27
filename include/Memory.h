@@ -21,8 +21,14 @@ void ReadA(MemoryPack_t const a[],
 
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
+#ifdef MM_CONVERT_A
 void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
                 Stream<Data_t> &toKernel);
+#else
+void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+                Stream<ComputePackN_t> &toKernel);
+#endif
+
 
 void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide);
 
