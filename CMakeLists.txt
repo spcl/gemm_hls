@@ -6,7 +6,7 @@ project(sdaccel_mm)
 
 # Target options 
 set(MM_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_0" CACHE STRING
+set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_1" CACHE STRING
     "DSA string for xocc.")
 set(MM_TARGET_CLOCK 200 CACHE STRING
     "Target clock for kernel (<=0 uses DSA default).")
