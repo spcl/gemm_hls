@@ -10,7 +10,7 @@ using hlslib::Stream;
 int IndexA(int n0, int n1, int n2, int k0, int k1) {
   #pragma HLS INLINE
   const auto index =
-      (n0 * kOuterTileSize + n1 * kInnerTileSizeN + n2) * kSizeKMemory +
+      (n0 * kOuterTileSizeN + n1 * kInnerTileSizeN + n2) * kSizeKMemory +
       (k0 * (kTransposeWidth / kMemoryWidth) + k1);
   assert(index < kSizeN * kSizeKMemory);
   return index;
@@ -18,22 +18,22 @@ int IndexA(int n0, int n1, int n2, int k0, int k1) {
 
 int IndexB(int k, int m0, int m1m) {
   #pragma HLS INLINE
-  const auto index = k * kSizeMMemory + (m0 * kOuterTileSizeMemory + m1m);
+  const auto index = k * kSizeMMemory + (m0 * kOuterTileSizeMMemory + m1m);
   assert(index < kSizeK * kSizeMMemory);
   return index;
 }
 
 int IndexC(int n0, int n1, int m0, int m1m) {
   #pragma HLS INLINE
-  const auto index = (n0 * kOuterTileSize + n1) * kSizeMMemory +
-                     (m0 * kOuterTileSizeMemory + m1m);
+  const auto index = (n0 * kOuterTileSizeN + n1) * kSizeMMemory +
+                     (m0 * kOuterTileSizeMMemory + m1m);
   assert(index < kSizeN * kSizeMMemory);
   return index;
 }
 
 void _ReadAInner(MemoryPack_t const a[],
-                 Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth], int n0,
-                 int n1, int n2, int k0, int k1) {
+                 Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+                 int n0, int n1, int n2, int k0, int k1) {
   #pragma HLS INLINE
   auto pack = a[IndexA(n0, n1, n2, k0, k1)];
 ReadA_Unroll:
@@ -45,7 +45,7 @@ ReadA_Unroll:
 
 template <int innerReads>
 void _ReadAInnerLoop(MemoryPack_t const a[],
-                     Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+                     Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                      int n0, int n1, int n2, int k0) {
   #pragma HLS INLINE
 ReadA_TransposeWidth:
@@ -60,7 +60,7 @@ ReadA_TransposeWidth:
 // otherwise doesn't pipeline the loops (because the inner trip count is 1).
 template <>
 void _ReadAInnerLoop<1>(MemoryPack_t const a[],
-                        Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+                        Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                         int n0, int n1, int n2, int k0) {
   #pragma HLS INLINE
   #pragma HLS PIPELINE II=1
@@ -69,7 +69,7 @@ void _ReadAInnerLoop<1>(MemoryPack_t const a[],
 }
 
 void ReadA(MemoryPack_t const a[],
-           Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth]) {
+           Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth]) {
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                  (kSizeK / kTransposeWidth) * kInnerTilesN * kInnerTileSizeN *
@@ -98,11 +98,11 @@ ReadA_N0:
 
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
-void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                 Stream<Data_t> &toKernel) {
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                 kSizeK * kOuterTileSize) == kTotalReadsFromA,
+                 kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
                 "Sanity check failed for TransposeA");
 
 TransposeA_N0:
@@ -112,10 +112,10 @@ TransposeA_N0:
     TransposeA_K:
       for (int k = 0; k < kSizeK; ++k) {
       TransposeA_N1:
-        for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+        for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
-          // Pop from each stream kOuterTileSize times in a row
+          // Pop from each stream kOuterTileSizeN times in a row
           toKernel.Push(aSplit[k % kTransposeWidth].Pop());
         }
       }
@@ -123,7 +123,7 @@ TransposeA_N0:
   }
 }
 
-void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
+void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                 Stream<ComputePackN_t> &toKernel) {
 
   static_assert(
@@ -133,7 +133,7 @@ void TransposeA(Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth],
       "number of compute units. Increase the outer tile size.");
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                 kSizeK * kOuterTileSize) == kTotalReadsFromA,
+                 kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
                 "Sanity check failed for TransposeA");
 
 TransposeA_N0:
@@ -143,10 +143,10 @@ TransposeA_N0:
     TransposeA_K:
       for (int k = 0; k < kSizeK; ++k) {
       TransposeA_N1:
-        for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+        for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
-          // Pop from each stream kOuterTileSize times in a row
+          // Pop from each stream kOuterTileSizeN times in a row
           ComputePackN_t pack;
           pack[0] = aSplit[k % kTransposeWidth].Pop();
           toKernel.Push(pack);
@@ -177,7 +177,7 @@ void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe) {
 
   static_assert(
       (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
-       kOuterTileSizeMemory * MemoryPack_t::kWidth) == kTotalReadsFromB,
+       kOuterTileSizeMMemory * MemoryPack_t::kWidth) == kTotalReadsFromB,
       "Sanity check failed for ReadB");
 
 ReadB_OuterTile_N:
@@ -188,7 +188,7 @@ ReadB_OuterTile_N:
       for (int k = 0; k < kSizeK; ++k) {
 
       ReadB_BufferB_M1:
-        for (int m1m = 0; m1m < kOuterTileSizeMemory; ++m1m) {
+        for (int m1m = 0; m1m < kOuterTileSizeMMemory; ++m1m) {
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
           pipe.Push(memory[IndexB(k, m0, m1m)]); 
@@ -269,7 +269,7 @@ ConvertWidthC_Outer:
 void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]) {
 
   static_assert(
-      (kOuterTilesN * kOuterTilesM * kOuterTileSize * kOuterTileSizeMemory *
+      (kOuterTilesN * kOuterTilesM * kOuterTileSizeN * kOuterTileSizeMMemory *
        MemoryPack_t::kWidth) == kSizeN * kSizeM,
       "Sanity check failed for WriteC");
 
@@ -278,9 +278,9 @@ WriteC_OuterTile_N:
   WriteC_OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
     WriteC_N1:
-      for (int n1 = 0; n1 < kOuterTileSize; ++n1) {
+      for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
       WriteC_M1:
-        for (int m1m = 0; m1m < kOuterTileSizeMemory; ++m1m) {
+        for (int m1m = 0; m1m < kOuterTileSizeMMemory; ++m1m) {
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
           memory[IndexC(n0, n1, m0, m1m)] = pipe.Pop();

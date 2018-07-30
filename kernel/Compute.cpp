@@ -203,9 +203,9 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS INTERFACE s_axilite port=return bundle=control
   
   #pragma HLS DATAFLOW
-  // TODO: does this need to be kOuterTileSize?
-  Stream<Data_t, kOuterTileSize> aSplit[kTransposeWidth];
-  #pragma HLS STREAM variable=aSplit depth=kOuterTileSize
+  // TODO: does this need to be kOuterTileSizeN?
+  Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth];
+  #pragma HLS STREAM variable=aSplit depth=kOuterTileSizeN
   Stream<Data_t> aConvert("aConvert");
   Stream<ComputePackN_t> aPipes[kComputeTilesN + 1];
 

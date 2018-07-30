@@ -32,24 +32,25 @@ constexpr int kSizeMMemory = kSizeM / kMemoryWidth;
 static_assert(kSizeM % kMemoryWidth == 0,
               "M must be divisable by memory width.");
 
-constexpr int kOuterTileSizeMemory = kOuterTileSize / kMemoryWidth;
-static_assert(kOuterTileSize % kMemoryWidth == 0,
-              "Outer memory tile size must be divisable by memory port width.");
+constexpr int kOuterTileSizeMMemory = kOuterTileSizeM / kMemoryWidth;
+static_assert(
+    kOuterTileSizeM % kMemoryWidth == 0,
+    "Outer memory tile size in M must be divisable by memory port width.");
 
-constexpr int kOuterTilesN = kSizeN / kOuterTileSize;
-static_assert(kSizeN % kOuterTileSize == 0,
-              "N must be divisable by the outer tile size.");
+constexpr int kOuterTilesN = kSizeN / kOuterTileSizeN;
+static_assert(kSizeN % kOuterTileSizeN == 0,
+              "N must be divisable by the outer tile size in N.");
 
-constexpr int kOuterTilesM = kSizeM / kOuterTileSize;
-static_assert(kSizeM % kOuterTileSize == 0,
-              "M must be divisable by the outer tile size.");
+constexpr int kOuterTilesM = kSizeM / kOuterTileSizeM;
+static_assert(kSizeM % kOuterTileSizeM == 0,
+              "M must be divisable by the outer tile size in M.");
 
-constexpr int kInnerTilesN = kOuterTileSize / kInnerTileSizeN;
-static_assert(kOuterTileSize % kInnerTileSizeN == 0,
+constexpr int kInnerTilesN = kOuterTileSizeN / kInnerTileSizeN;
+static_assert(kOuterTileSizeN % kInnerTileSizeN == 0,
               "Outer tile size must be divisable by the inner tile size.");
 
-constexpr int kInnerTilesM = kOuterTileSize / kComputeTileSizeM;
-static_assert(kOuterTileSize % kComputeTileSizeM == 0,
+constexpr int kInnerTilesM = kOuterTileSizeM / kComputeTileSizeM;
+static_assert(kOuterTileSizeM % kComputeTileSizeM == 0,
               "Outer tile size must be divisable by compute tile size in M.");
 
 constexpr int kComputeTilesN = kInnerTileSizeN / kComputeTileSizeN;
