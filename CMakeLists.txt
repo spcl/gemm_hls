@@ -158,5 +158,5 @@ else()
 endif()
 
 # Host code to launch kernel
-add_executable(RunHardware host/RunHardware.cpp)
-target_link_libraries(RunHardware ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)
+add_executable(RunHardware.exe host/RunHardware.cpp)
+target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)
