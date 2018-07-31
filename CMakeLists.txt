@@ -132,9 +132,9 @@ if(MM_TARGET_CLOCK GREATER 0)
 endif()
 if(NOT (MM_DSA_NAME MATCHES "dynamic"))
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m00_axi.core.OCL_REGION_0.M00_AXI
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m01_axi.core.OCL_REGION_0.M01_AXI
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.m02_axi.core.OCL_REGION_0.M01_AXI)
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
+    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM2.core.OCL_REGION_0.M01_AXI)
 else()
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
     --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
@@ -145,8 +145,8 @@ endif()
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   add_custom_target(build_kernel
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
-    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS} -l
-    MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
+    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
+    ${MM_KERNEL_SRC} -o MatrixMultiplication.xclbin) 
 else()
   add_custom_target(compile_from_cpp
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
