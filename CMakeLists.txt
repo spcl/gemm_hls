@@ -37,7 +37,8 @@ include(CheckTypeSize)
 check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
 math(EXPR MM_KERNEL_WIDTH_M "${MM_KERNEL_WIDTH_N} * ${MM_PARALLELISM_M}")
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
+    ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
 
 find_package(SDAccel REQUIRED)
 find_package(Threads REQUIRED)
