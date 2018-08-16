@@ -1,3 +1,4 @@
+/// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
 /// @date      August 2017 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
@@ -32,24 +33,26 @@ void MatrixMatrixStage(int id, hlslib::Stream<Data_t> &aIn,
   const int i_storeC_end = (id + 1) * kTileSizePKernel;
   const int i_saturated_end = kTileSizeN - id; 
 
+  //============================================================================
+  // Outer loops over tiles in rows (N) and columns (P) of C, respectively 
+  //============================================================================
+
 Blocks_N:
   for (int bn = 0; bn < kBlocksN; ++bn) {
   Blocks_P:
     for (int bp = 0; bp < kBlocksP; ++bp) {
 
-// #ifndef MM_SYNTHESIS
-//       hlslib::Stream<KernelPack_t> cLocal("cLocal");
-// #else
-//       hls::stream<KernelPack_t> cLocal("cLocal");
-//       #pragma HLS STREAM variable=cLocal depth=kTileSizePKernel
-// #endif
-      KernelPack_t cLocal[kTileSizePKernel];
+      KernelPack_t cLocal[kTileSizePKernel]; // Partial results buffer
 
       Data_t aNext, aVal; // Shift registers for forwarding A
 
       // Manually flattened loop
       const int loopBound =
           i_loadA_tn_end + kSizeM * i_streamB_tp_end + i_storeC_end;
+
+      //========================================================================
+      // Inner, pipelined loop over each tile 
+      //========================================================================
     Flattened:
       for (int i = 0; i < loopBound; ++i) {
         #pragma HLS LOOP_FLATTEN
@@ -92,7 +95,6 @@ Blocks_N:
           if (i_outer > 0) {
             cAcc = cLocal[i_streamB_tp];
             #pragma HLS DEPENDENCE variable=cLocal inter false
-            // cAcc = cLocal.Pop();
           } else {
             cAcc = KernelPack_t(OperatorReduce::identity());
           }
@@ -103,7 +105,6 @@ Blocks_N:
             const auto mapped = OperatorMap::Apply(readB[w], aVal);
             result[w] = OperatorReduce::Apply(mapped, cAcc[w]);
           }
-          // cLocal.WriteOptimistic(result, kTileSizePKernel);
           cLocal[i_streamB_tp] = result;
           #pragma HLS DEPENDENCE variable=cLocal inter false
 
@@ -119,10 +120,13 @@ Blocks_N:
             ++i_streamB_tp;
           }
 
-        } else { // Store C in last iterations
+        } else {
+
+          //====================================================================
+          // Write back C in separate iterations 
+          //====================================================================
 
           if (i_storeC < kTileSizePKernel) {
-            // cOut.Push(cLocal.ReadOptimistic());
             cOut.Push(cLocal[i_storeC]);
             #pragma HLS DEPENDENCE variable=cLocal inter false
           } else {
@@ -177,9 +181,9 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
 
   HLSLIB_DATAFLOW_INIT();
 
-  //----------------------------------------------------------------------------
+  //============================================================================
   // Memory modules 
-  //----------------------------------------------------------------------------
+  //============================================================================
   
   HLSLIB_DATAFLOW_FUNCTION(ReadASplit, a, aSplit);
   HLSLIB_DATAFLOW_FUNCTION(ReadARotate, aSplit, aPipes[0]);
@@ -188,9 +192,9 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
   HLSLIB_DATAFLOW_FUNCTION(WriteCKernel, cPipes[kTileSizeN], cMem);
   HLSLIB_DATAFLOW_FUNCTION(WriteCMemory, cMem, c);
 
-  //----------------------------------------------------------------------------
+  //============================================================================
   // Name pipes for debugging simulation
-  //----------------------------------------------------------------------------
+  //============================================================================
 
 #ifndef MM_SYNTHESIS
   for (int mw = 0; mw < kMemoryWidth; ++mw) {
@@ -210,9 +214,9 @@ void MatrixMatrix(MemoryPack_t const a[], MemoryPack_t const b[],
       ("cPipes[" + std::to_string(kTileSizeN) + "]").c_str());
 #endif
 
-  //----------------------------------------------------------------------------
+  //============================================================================
   // Compute modules in systolic array 
-  //----------------------------------------------------------------------------
+  //============================================================================
 
 UnrollCompute:
   for (int tn = 0; tn < kTileSizeN; ++tn) {
