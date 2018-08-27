@@ -140,7 +140,7 @@ else()
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
     --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
     --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1)
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
 endif()
 
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)

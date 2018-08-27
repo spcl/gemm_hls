@@ -55,19 +55,12 @@ int main(int argc, char **argv) {
 
     std::cout << "Initializing device memory..." << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeKMemory);
+        hlslib::ocl::MemoryBank::bank0, &aMem[0], &aMem[kSizeN * kSizeKMemory]);
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeMMemory);
+        hlslib::ocl::MemoryBank::bank1, &bMem[0], &bMem[kSizeK * kSizeMMemory]);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeMMemory);
+        hlslib::ocl::MemoryBank::bank1, &cMem[0], &cMem[kSizeN * kSizeMMemory]);
     std::cout << " Done.\n";
-
-    if (verify) {
-      std::cout << "Copying data to device..." << std::flush;
-      aDevice.CopyFromHost(aMem.cbegin());
-      bDevice.CopyFromHost(bMem.cbegin());
-      std::cout << " Done.\n";
-    }
 
     std::cout << "Programming device..." << std::flush;
     auto program = context.MakeProgram("MatrixMultiplication.xclbin");
