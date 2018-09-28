@@ -12,6 +12,8 @@ set(MM_TARGET_CLOCK 200 CACHE STRING
     "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
+set(MM_ENABLE_PROFILING OFF CACHE STRING "Collect profiling information")
+set(MM_ENABLE_DEBUGGING OFF CACHE STRING "Inject debugging cores to design")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -127,6 +129,18 @@ set(MM_XOCC_COMMAND
   --platform ${MM_DSA_NAME}
   --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
   --max_memory_ports all)
+if(MM_ENABLE_PROFILING)
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    --profile_kernel "data:all:all:all"
+    --profile_kernel "stall:all:all"
+    --profile_kernel "exec:all:all")
+endif()
+if(MM_ENABLE_DEBUGGING)
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM0
+    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM1
+    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM2)
+endif()
 if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
