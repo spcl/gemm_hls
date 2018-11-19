@@ -56,16 +56,17 @@ int main(int argc, char **argv) {
   }
 
   std::vector<Data_t> a, b, cRef;
-  std::vector<MemoryPack_t> aMem, bMem, cMem;
+  std::vector<MemoryPack_t, hlslib::ocl::AlignedAllocator<MemoryPack_t, 4096>>
+      aMem, bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
-    a = std::vector<Data_t>(kSizeN * kSizeK);
+    a = decltype(a)(kSizeN * kSizeK);
     std::for_each(a.begin(), a.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    b = std::vector<Data_t>(kSizeK * kSizeM);
+    b = decltype(b)(kSizeK * kSizeM);
     std::for_each(b.begin(), b.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    cRef = std::vector<Data_t>(kSizeN * kSizeM, 0);
+    cRef = decltype(cRef)(kSizeN * kSizeM, 0);
 
     aMem = Pack(a);
     bMem = Pack(b);

@@ -10,6 +10,7 @@
 #include <iterator>
 #include <sstream>
 #include <vector>
+#include "hlslib/SDAccel.h"
 #include "MatrixMultiplication.h"
 #ifdef MM_HAS_BLAS
 #include "cblas.h"
@@ -37,15 +38,19 @@ void Naive(IteratorRead aBegin, IteratorRead bBegin, IteratorWrite cBegin,
   }
 }
 
-inline std::vector<MemoryPack_t> Pack(std::vector<Data_t> const &in) {
-  std::vector<MemoryPack_t> result(in.size() / kMemoryWidth);
+template <class Container>
+inline auto Pack(Container const &in) {
+  std::vector<MemoryPack_t, hlslib::ocl::AlignedAllocator<MemoryPack_t, 4096>>
+      result(in.size() / kMemoryWidth);
   for (int i = 0, iMax = in.size() / kMemoryWidth; i < iMax; ++i) {
-    result[i].Pack(&in[i * kMemoryWidth]);;
+    result[i].Pack(&in[i * kMemoryWidth]);
+    ;
   }
   return result;
 }
 
-inline std::vector<Data_t> Unpack(std::vector<MemoryPack_t> const &in) {
+template <class Container>
+inline auto Unpack(Container const &in) {
   std::vector<Data_t> result(in.size() * kMemoryWidth);
   for (int i = 0, iMax = in.size(); i < iMax; ++i) {
     in[i].Unpack(&result[i * kMemoryWidth]);
