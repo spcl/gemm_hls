@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
 
   bool emulation = false;
   bool verify = true;
+  std::string path = "MatrixMultiplication_hw.xclbin";
   if (argc > 3) {
     PrintUsage();
     return 1;
@@ -35,6 +36,7 @@ int main(int argc, char **argv) {
     const std::string emulation_arg(argv[1]);
     if (emulation_arg == "hw_emu") {
       emulation = true;
+      path = "MatrixMultiplication_hw_emu.xclbin";
     } else if (emulation_arg != "hw") {
       PrintUsage();
       return 1;
@@ -81,7 +83,7 @@ int main(int argc, char **argv) {
         hlslib::ocl::MemoryBank::bank1, &cMem[0], &cMem[kSizeN * kSizeMMemory]);
 
     std::cout << "Programming device...\n" << std::flush;
-    auto program = context.MakeProgram("MatrixMultiplication.xclbin");
+    auto program = context.MakeProgram(path);
     auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
                                      bDevice, cDevice);
 
