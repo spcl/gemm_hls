@@ -32,13 +32,12 @@ int main() {
 
   ReferenceImplementation(a.data(), b.data(), cReference.data());
 
-  std::cout << "Running hardware emulation..." << std::flush;
+  std::cout << "Running simulation...\n" << std::flush;
   MatrixMultiplicationKernel(aKernel.data(), bKernel.data(), cKernel.data());
-  std::cout << " Done.\n";
+  std::cout << "Verifying results...\n" << std::flush;
 
   const auto cTest = Unpack(cKernel);
 
-  std::cout << "Verifying results..." << std::endl;
   for (int i = 0; i < kSizeN; ++i) {
     for (int j = 0; j < kSizeM; ++j) {
       const auto testVal = cTest[i * kSizeM + j];

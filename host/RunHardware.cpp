@@ -11,21 +11,41 @@
 #include "Utility.h"
 #include "hlslib/SDAccel.h"
 
+void PrintUsage() {
+  std::cout
+      << "Usage: ./RunHardware.exe <mode [hw/hw_emu]> [<verify [on/off]>]\n"
+      << std::flush;
+}
+
 int main(int argc, char **argv) {
-  // Use fixed seed to enable comparison to saved golden values
+
   std::default_random_engine rng(kSeed);
   typename std::conditional<std::is_integral<Data_t>::value,
                             std::uniform_int_distribution<unsigned long>,
                             std::uniform_real_distribution<double>>::type
       dist(1, 10);
 
+  bool emulation = false;
   bool verify = true;
+  if (argc > 3) {
+    PrintUsage();
+    return 1;
+  }
   if (argc > 1) {
-    const std::string verifyArg(argv[1]);
-    if (verifyArg == "off") {
+    const std::string emulation_arg(argv[1]);
+    if (emulation_arg == "hw_emu") {
+      emulation = true;
+    } else if (emulation_arg != "hw") {
+      PrintUsage();
+      return 1;
+    }
+  }
+  if (argc > 2) {
+    const std::string verify_arg(argv[1]);
+    if (verify_arg == "off") {
       verify = false;
-    } else if (verifyArg != "on") {
-      std::cerr << "Argument should be [on/off]" << std::endl;
+    } else if (verify_arg != "on") {
+      PrintUsage();
       return 1;
     }
   }
@@ -49,28 +69,24 @@ int main(int argc, char **argv) {
   std::cout << " Done.\n";
 
   try {
-    std::cout << "Initializing OpenCL context..." << std::flush;
+    std::cout << "Initializing OpenCL context...\n" << std::flush;
     hlslib::ocl::Context context;
-    std::cout << " Done.\n";
 
-    std::cout << "Initializing device memory..." << std::flush;
+    std::cout << "Initializing device memory...\n" << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank0, &aMem[0], &aMem[kSizeN * kSizeKMemory]);
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank1, &bMem[0], &bMem[kSizeK * kSizeMMemory]);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
         hlslib::ocl::MemoryBank::bank1, &cMem[0], &cMem[kSizeN * kSizeMMemory]);
-    std::cout << " Done.\n";
 
-    std::cout << "Programming device..." << std::flush;
+    std::cout << "Programming device...\n" << std::flush;
     auto program = context.MakeProgram("MatrixMultiplication.xclbin");
     auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
                                      bDevice, cDevice);
-    std::cout << " Done.\n";
 
-    std::cout << "Executing kernel..." << std::flush;
+    std::cout << "Executing kernel...\n" << std::flush;
     const auto elapsed = kernel.ExecuteTask();
-    std::cout << " Done.\n";
 
     const auto perf = 1e-9 *
                       (2 * static_cast<float>(kSizeN) * kSizeK * kSizeM) /
@@ -81,9 +97,8 @@ int main(int argc, char **argv) {
               << " GOp/s.\n";
 
     if (verify) {
-      std::cout << "Copying back result..." << std::flush;
+      std::cout << "Copying back result...\n" << std::flush;
       cDevice.CopyToHost(cMem.begin());
-      std::cout << " Done.\n";
     }
 
   } catch (std::runtime_error const &err) {
@@ -94,8 +109,10 @@ int main(int argc, char **argv) {
 
   // Run reference implementation
   if (verify) {
+    std::cout << "Running reference implementation...\n" << std::flush;
     ReferenceImplementation(a.data(), b.data(), cRef.data());
 
+    std::cout << "Verifying result...\n" << std::flush;
     // Convert to single element vector
     const auto cTest = Unpack(cMem);
 

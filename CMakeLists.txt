@@ -55,6 +55,7 @@ endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+add_definitions("-DHLSLIB_STREAM_TIMEOUT=16")
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   add_definitions(-DHLSLIB_LEGACY_SDX=1)
 else()
@@ -96,30 +97,6 @@ set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
 set(MM_SYNTHESIS_FLAGS "-std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
 configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
 add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
-
-# Vivado project options
-set(DONUT_KERNEL_NAME ${MM_KERNEL_NAME}) 
-set(DONUT_KERNEL_DIRECTORY ${CMAKE_BINARY_DIR})
-set(DONUT_LIBRARY_NAME "MM")
-set(DONUT_VENDOR_NAME SPCL)
-set(DONUT_TMP_DIR ${MM_TMP_DIR})
-set(DONUT_PART_NAME ${MM_PART_NAME})
-set(DONUT_SOURCES_DIRECTORY ${CMAKE_BINARY_DIR}/${MM_HLS_PROJECT_NAME}/${MM_PART_NAME}/syn/verilog/)
-if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
-  set(DONUT_CALL_PACKAGE_FUNCTION 0)
-else()
-  set(DONUT_CALL_PACKAGE_FUNCTION 1)
-endif() 
-configure_file(scripts/config.tcl.in config.tcl)
-configure_file(hw/top.v.in top.v)
-
-# SDx kernel wizard custom RTL project
-add_custom_target(setup_project COMMAND ${CMAKE_SOURCE_DIR}/scripts/vivado.py setup ${DONUT_KERNEL_NAME} ${SDAccel_VIVADO} ${CMAKE_BINARY_DIR} ${DONUT_TMP_DIR})
-add_custom_target(package_kernel COMMAND ${CMAKE_SOURCE_DIR}/scripts/vivado.py package ${DONUT_KERNEL_NAME} ${SDAccel_VIVADO} ${CMAKE_BINARY_DIR} ${DONUT_TMP_DIR})
-
-# Remove Vivado project when running clean
-set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-             ${DONUT_KERNEL_DIRECTORY}/${DONUT_KERNEL_NAME}_ex)
 
 # Hardware kernel
 set(MM_XOCC_COMMAND
@@ -166,16 +143,26 @@ if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) 
   add_custom_target(build_kernel
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
     ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplication.xclbin) 
+    ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xclbin) 
 else()
-  add_custom_target(compile_from_cpp
+  # Hardware
+  add_custom_target(compile_hardware
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel.xo) 
-  add_custom_target(build_kernel
+    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel_hw.xo) 
+  add_custom_target(link_hardware
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    MatrixMultiplicationKernel.xo -o MatrixMultiplication.xclbin) 
+    MatrixMultiplicationKernel_hw.xo -o MatrixMultiplication_hw.xclbin) 
+  # Hardware emulation
+  add_custom_target(compile_hardware_emulation
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
+    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel_hw_emu.xo) 
+  add_custom_target(link_hardware_emulation
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    MatrixMultiplicationKernel_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
 endif()
 
 # Host code to launch kernel
