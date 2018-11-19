@@ -10,6 +10,7 @@
 #include "MatrixMultiplication.h"
 #include "Utility.h"
 #include "hlslib/SDAccel.h"
+#include "hlslib/Utility.h"
 
 void PrintUsage() {
   std::cout
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
 
   bool emulation = false;
   bool verify = true;
+  hlslib::UnsetEnvironmentVariable("XCL_EMULATION_MODE");
   std::string path = "MatrixMultiplication_hw.xclbin";
   if (argc > 3) {
     PrintUsage();
@@ -36,6 +38,7 @@ int main(int argc, char **argv) {
     const std::string emulation_arg(argv[1]);
     if (emulation_arg == "hw_emu") {
       emulation = true;
+      hlslib::SetEnvironmentVariable("XCL_EMULATION_MODE", "hw_emu");
       path = "MatrixMultiplication_hw_emu.xclbin";
     } else if (emulation_arg != "hw") {
       PrintUsage();

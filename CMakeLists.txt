@@ -101,7 +101,6 @@ add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl)
 
 # Hardware kernel
 set(MM_XOCC_COMMAND
-  -t hw
   -s
   -O3
   ${MM_XOCC_FLAGS}
@@ -120,6 +119,7 @@ if(MM_ENABLE_PROFILING)
 endif()
 if(MM_ENABLE_DEBUGGING)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    -g
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM0
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM1
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM2)
@@ -142,28 +142,28 @@ endif()
 
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   add_custom_target(build_kernel
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -t hw
     ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
     ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xclbin) 
 else()
   # Hardware
   add_custom_target(compile_hardware
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c -t hw
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel_hw.xo) 
+    ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xo) 
   add_custom_target(link_hardware
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    MatrixMultiplicationKernel_hw.xo -o MatrixMultiplication_hw.xclbin) 
+    MatrixMultiplication_hw.xo -o MatrixMultiplication_hw.xclbin) 
   # Hardware emulation
   add_custom_target(compile_hardware_emulation
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c -t hw_emu
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplicationKernel_hw_emu.xo) 
+    ${MM_KERNEL_SRC} -o MatrixMultiplication_hw_emu.xo) 
   add_custom_target(link_hardware_emulation
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw_emu
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
-    MatrixMultiplicationKernel_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
+    MatrixMultiplication_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
 endif()
 
 # Host code to launch kernel
