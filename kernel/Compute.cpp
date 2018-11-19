@@ -19,13 +19,13 @@ int IndexCBuffer(int n1, int n2, int m1, int m2) {
   return index;
 }
 
-void ProcessingElement(Stream<ComputePackN_t> &aIn,
-                       Stream<ComputePackN_t> &aOut,
+void ProcessingElement(Stream<ComputePackN_t, kFifoDepth> &aIn,
+                       Stream<ComputePackN_t, kFifoDepth> &aOut,
                        Stream<ComputePackM_t> &bIn,
                        Stream<ComputePackM_t> &bOut,
                        Stream<ComputePackM_t> &cOut,
-                       Stream<ComputePackM_t> &cIn, const int locationN) {
-
+                       Stream<ComputePackM_t> &cIn,
+                       const int locationN) {
   static_assert(
       (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
        kInnerTilesN * kInnerTilesM * kComputeTileSizeN * kComputeTileSizeM) ==
@@ -262,21 +262,25 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS INTERFACE s_axilite port=b bundle=control
   #pragma HLS INTERFACE s_axilite port=c bundle=control
   #pragma HLS INTERFACE s_axilite port=return bundle=control
-  
+
   #pragma HLS DATAFLOW
   // TODO: does this need to be kOuterTileSizeN?
   Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth];
-  #pragma HLS STREAM variable=aSplit depth=kOuterTileSizeN
-  Stream<Data_t> aConvert("aConvert");
-  Stream<ComputePackN_t> aPipes[kComputeTilesN + 1];
+  #pragma HLS STREAM variable=aSplit depth=kFifoDepth
+  Stream<Data_t, kFifoDepth> aConvert("aConvert");
+  #pragma HLS STREAM variable=aConvery depth=kFifoDepth
+  Stream<ComputePackN_t, kFifoDepth> aPipes[kComputeTilesN + 1];
+  #pragma HLS STREAM variable=aPipes depth=kFifoDepth
 
   Stream<MemoryPack_t> bMemory("bMemory");
-  Stream<ComputePackM_t> bDistribute("bDistribute");
+  Stream<ComputePackM_t, kFifoDepth> bDistribute("bDistribute");
+  #pragma HLS STREAM variable=bDistribute depth=kFifoDepth
   Stream<ComputePackM_t> bPipes[kComputeTilesN + 1];
   Stream<ComputePackM_t> bFeed("bFeed");
 
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];
-  Stream<MemoryPack_t> cMemory("cMemory");
+  Stream<MemoryPack_t, kFifoDepth> cMemory("cMemory");
+  #pragma HLS STREAM variable=cMemory depth=kFifoDepth
 
 #ifndef HLSLIB_SYNTHESIS
   for (int i = 0; i < kTransposeWidth; ++i) {

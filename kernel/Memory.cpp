@@ -34,6 +34,7 @@ int IndexC(int n0, int n1, int m0, int m1m) {
 void _ReadAInner(MemoryPack_t const a[],
                  Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                  int n0, int n1, int n2, int k0, int k1) {
+
   #pragma HLS INLINE
   auto pack = a[IndexA(n0, n1, n2, k0, k1)];
 ReadA_Unroll:
@@ -46,6 +47,7 @@ ReadA_Unroll:
 template <int innerReads>
 void _ReadAInnerLoop(MemoryPack_t const a[],
                      Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+
                      int n0, int n1, int n2, int k0) {
   #pragma HLS INLINE
 ReadA_TransposeWidth:
@@ -99,7 +101,7 @@ ReadA_N0:
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t> &toKernel) {
+                Stream<Data_t, kFifoDepth> &toKernel) {
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                  kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
@@ -124,7 +126,7 @@ TransposeA_N0:
 }
 
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<ComputePackN_t> &toKernel) {
+                Stream<ComputePackN_t, kFifoDepth> &toKernel) {
 
   static_assert(
       kTotalReadsFromA <= static_cast<unsigned long>(kSizeN) * kSizeM * kSizeK /
@@ -157,8 +159,8 @@ TransposeA_N0:
 }
 
 #ifdef MM_CONVERT_A
-void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide) {
-
+void ConvertWidthA(Stream<Data_t, kFifoDepth> &narrow,
+                   Stream<ComputePackN_t, kFifoDepth> &wide) {
 ConvertWidthA_Outer:
   for (int i = 0; i < kTotalReadsFromA / ComputePackN_t::kWidth; ++i) {
     ComputePackN_t pack;
@@ -173,8 +175,8 @@ ConvertWidthA_Outer:
 }
 #endif
 
-void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe) {
-
+void ReadB(MemoryPack_t const memory[],
+           Stream<MemoryPack_t> &pipe) {
   static_assert(
       (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
        kOuterTileSizeMMemory * MemoryPack_t::kWidth) == kTotalReadsFromB,
@@ -199,8 +201,8 @@ ReadB_OuterTile_N:
   }
 }
 
-void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow) {
-
+void ConvertWidthB(Stream<MemoryPack_t> &wide,
+                   Stream<ComputePackM_t> &narrow) {
   // This assertion will be relaxed once Xilinx IP memory converters have been
   // inserted
   static_assert(kMemoryWidth % kComputeTileSizeM == 0,
@@ -236,8 +238,8 @@ ConvertWidthB_Outer:
   }
 }
 
-void ConvertWidthC(Stream<ComputePackM_t> &narrow, Stream<MemoryPack_t> &wide) {
-
+void ConvertWidthC(Stream<ComputePackM_t> &narrow,
+                   Stream<MemoryPack_t> &wide) {
   static_assert(kMemoryWidth % ComputePackM_t::kWidth == 0,
                 "Memory width must be divisable by compute tile width.");
 

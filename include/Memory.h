@@ -1,6 +1,6 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      August 2017 
-/// @copyright This software is copyrighted under the BSD 3-Clause License. 
+/// @date      August 2017
+/// @copyright This software is copyrighted under the BSD 3-Clause License.
 
 #pragma once
 
@@ -25,20 +25,22 @@ void ReadA(MemoryPack_t const a[],
 // transposed data to the kernel
 #ifdef MM_CONVERT_A
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t> &toKernel);
+                Stream<Data_t, kFifoDepth> &toKernel);
 #else
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<ComputePackN_t> &toKernel);
+                Stream<ComputePackN_t, kFifoDepth> &toKernel);
 #endif
 
-
-void ConvertWidthA(Stream<Data_t> &narrow, Stream<ComputePackN_t> &wide);
+void ConvertWidthA(Stream<Data_t, kFifoDepth> &narrow,
+                   Stream<ComputePackN_t, kFifoDepth> &wide);
 
 void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe);
 
-void ConvertWidthB(Stream<MemoryPack_t> &wide, Stream<ComputePackM_t> &narrow);
+void ConvertWidthB(Stream<MemoryPack_t> &wide,
+                   Stream<ComputePackM_t> &narrow);
 
-void ConvertWidthC(Stream<OutputPack_t> &narrow, Stream<MemoryPack_t> &wide);
+void ConvertWidthC(Stream<OutputPack_t> &narrow,
+                   Stream<MemoryPack_t> &wide);
 
 void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
 

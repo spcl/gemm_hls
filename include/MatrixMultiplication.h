@@ -9,6 +9,7 @@
 #include <type_traits>
 
 constexpr int kSeed = 5; // For initializing matrices for testing
+constexpr int kFifoDepth = 8;
 
 constexpr int kMemoryWidth = kMemoryWidthBytes / sizeof(Data_t);
 static_assert(kMemoryWidthBytes % sizeof(Data_t) == 0,
