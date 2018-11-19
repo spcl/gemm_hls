@@ -55,6 +55,11 @@ endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
+  add_definitions(-DHLSLIB_LEGACY_SDX=1)
+else()
+  add_definitions(-DHLSLIB_LEGACY_SDX=0)
+endif()
 
 # Allow specifying the floating point unit for adders and multipliers
 if(MM_ADD_RESOURCE)
