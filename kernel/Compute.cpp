@@ -10,17 +10,8 @@
 
 using hlslib::Stream;
 
-int IndexCBuffer(int n1, int n2, int m1, int m2) {
-  #pragma HLS INLINE
-  auto index = (n1 * kComputeTileSizeN + n2) * kComputeTileSizeM +
-               (m1 * kComputeTileSizeM + m2);
-  assert(index <
-         kInnerTilesN * kComputeTileSizeN * kInnerTilesM * kComputeTileSizeM);
-  return index;
-}
-
-void ProcessingElement(Stream<ComputePackN_t, kFifoDepth> &aIn,
-                       Stream<ComputePackN_t, kFifoDepth> &aOut,
+void ProcessingElement(Stream<ComputePackN_t> &aIn,
+                       Stream<ComputePackN_t> &aOut,
                        Stream<ComputePackM_t> &bIn,
                        Stream<ComputePackM_t> &bOut,
                        Stream<ComputePackM_t> &cOut,
@@ -33,223 +24,162 @@ void ProcessingElement(Stream<ComputePackN_t, kFifoDepth> &aIn,
            kComputeTilesN),
       "Sanity check for ProcessingElement failed");
 
-  const int kInitializePhase = kInnerTilesN * (kComputeTilesN - locationN);
-  constexpr int kComputePhase = kSizeK * kInnerTilesN * kInnerTilesM;
-  constexpr int kDrainPhaseOwn = kComputeTileSizeN * kInnerTilesM;
-  const int kDrainPhaseOthers =
-      (kComputeTilesN - locationN - 1) * kComputeTileSizeN * kInnerTilesM;
-  const int kDrainPhaseInner = kDrainPhaseOwn + kDrainPhaseOthers;
-  const int kDrainPhase = kInnerTilesN * kDrainPhaseInner;
+  // A is double-buffered, such that new values can be read while the 
+  // previous outer product is being computed. This is required to achieve
+  // a perfect pipeline across the K-dimension, which is necessary for
+  // many processing elements (kInnerTileSizeN).
+  ComputePackN_t aBuffer[2 * kInnerTilesN];
 
-  int i_innerTilesN = 0;
-  const int i_innerTilesN_max = kInnerTilesN;
+  // This is where we spend all our T^2 fast memory
+  ComputePackM_t cBuffer[kInnerTilesN * kInnerTilesM][kComputeTileSizeN];
+  #pragma HLS ARRAY_PARTITION variable=cBuffer complete dim=2
 
-  int i_innerTilesM = 0;
-  const int i_innerTilesM_max = kInnerTilesM;
-
-  int i_computeTilesN = 0;
-  const int i_computeTilesN_max = kComputeTilesN - locationN;
-
-  int i_computeTileSizeN = 0;
-  const int i_computeTileSizeN_max = kComputeTileSizeN;
-
-  int i_sizeK = 0;
-  const int i_sizeK_max = kSizeK;
-
-  int i_drainPhase = 0;
-  const int i_drainPhase_max = kDrainPhaseInner; 
+  // Populate the buffer for the first outer product 
+InitializeABuffer_Inner:
+  for (int n2 = 0; n2 < kInnerTilesN; ++n2) {
+    if (locationN < kComputeTilesN - 1) {
+      // All but the last processing element 
+    InitializeABuffer_Outer:
+      for (int n1 = 0; n1 < kComputeTilesN - locationN; ++n1) {
+        #pragma HLS PIPELINE II=1
+        #pragma HLS LOOP_FLATTEN
+        const auto read = aIn.Pop();
+        if (n1 == 0) {
+          aBuffer[n2] = read;
+        } else {
+          aOut.Push(read);
+        }
+      }
+    } else {
+      // Last processing element gets a special case, because Vivado HLS
+      // refuses to flatten and pipeline loops with trip count 1
+      #pragma HLS PIPELINE II=1
+      aBuffer[n2] = aIn.Pop();
+    }
+  }
 
 OuterTile_N:
   for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
   OuterTile_M:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
 
-    FlattenedLoops:
-      for (int i = 0; i < kInitializePhase + kComputePhase + kDrainPhase; ++i) {
+      // We do not tile K further, but loop over the entire outer tile here
+    Collapse_K:
+      for (int k = 0; k < kSizeK; ++k) {
+        // Begin outer tile ---------------------------------------------------
 
-        #pragma HLS PIPELINE II=1
-        #pragma HLS LOOP_FLATTEN
+      Pipeline_N:
+        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
 
-        // A is double-buffered, such that new values can be read while the
-        // previous outer product is being computed. This is required to achieve
-        // a perfect pipeline across the K-dimension, which is necessary for
-        // many processing elements (kInnerTileSizeN).
-        ComputePackN_t aBuffer[2 * kInnerTilesN];
+        Pipeline_M:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
 
-        ComputePackM_t cBuffer[kInnerTilesN * kInnerTilesM][kComputeTileSizeN];
-        #pragma HLS ARRAY_PARTITION variable=cBuffer complete dim=2
-    
-        //---------------------------------------------------------------------
-        // Begin initialize phase
-        if (i < kInitializePhase) {
+            // Begin compute tile --------------------------------------------
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
 
-          const auto read = aIn.Pop();
+            static_assert(kInnerTilesM >= kInnerTilesN,
+                          "Double buffering does not work if there are more "
+                          "N-tiles than M-tiles");
 
-          if (i_computeTilesN == 0) {
-            aBuffer[i_innerTilesN] = read;
-          } else {
-            // Put extra condition here, otherwise Vivado HLS cannot infer that
-            // this never happens
-            if (locationN < kComputeTilesN - 1) {
-              aOut.Push(read);
-            }
-          }
-
-          // Update indices
-          if (i_computeTilesN == i_computeTilesN_max - 1) {
-            i_computeTilesN = 0;
-            if (i_innerTilesN == i_innerTilesN_max - 1) {
-              i_innerTilesN = 0;
-            } else {
-              ++i_innerTilesN;
-            }
-          } else {
-            ++i_computeTilesN;
-          }
-
-          // End initialize phase
-          //-------------------------------------------------------------------
-        } else if (i < kInitializePhase + kComputePhase) {
-          //-------------------------------------------------------------------
-          // Begin compute phase 
-
-          static_assert(kInnerTilesM >= kInnerTilesN,
-                        "Double buffering does not work if there are more "
-                        "N-tiles than M-tiles");
-
-          // Double-buffering scheme. This hijacks the i_innerTilesM-index to
-          // perform the buffering and forwarding of values for the following
-          // outer product, required to flatten the K-loop.
-          if (i_sizeK < kSizeK - 1  // Don't forward on the last iteration.
-              && i_innerTilesM >= locationN  // Start at own index.
-              && i_innerTilesM < kComputeTilesN) {  // Number of PEs in front. 
-
-            const auto read = aIn.Pop();
-            if (i_innerTilesM == locationN) {
-              // Double buffering
-              aBuffer[i_innerTilesN + (i_sizeK % 2 == 0 ? kInnerTilesN : 0)] =
-                  read;
-              #pragma HLS DEPENDENCE variable=aBuffer false
-            } else {
-              // Without this check, Vivado HLS thinks aOut can be written
-              // from the last processing element and fails dataflow
-              // checking.
-              if (locationN < kComputeTilesN - 1) {
-                aOut.Push(read);
+            // Double-buffering scheme. This hijacks the m1-index to perform
+            // the buffering and forwarding of values for the following outer
+            // product, required to flatten the K-loop.
+            if ((n0 < kOuterTilesN - 1 || m0 < kOuterTilesM - 1 ||
+                 k < kSizeK - 1) &&
+                m1 >= locationN            // Start at own index.
+                && m1 < kComputeTilesN) {  // Number of PEs in front.
+              const auto read = aIn.Pop();
+              if (m1 == locationN) {
+                // Double buffering
+                aBuffer[n1 + (k % 2 == 0 ? kInnerTilesN : 0)] = read;
+                #pragma HLS DEPENDENCE variable=aBuffer false
+              } else {
+                // Without this check, Vivado HLS thinks aOut can be written
+                // from the last processing element and fails dataflow
+                // checking.
+                if (locationN < kComputeTilesN - 1) {
+                  aOut.Push(read);
+                }
               }
             }
-          }
 
-          // Double buffering, read from the opposite end of where the buffer
-          // is being written
-          const auto aVal =
-              aBuffer[i_innerTilesN + (i_sizeK % 2 == 0 ? 0 : kInnerTilesN)];
-          #pragma HLS DEPENDENCE variable=aBuffer false
+            // Double buffering, read from the opposite end of where the buffer
+            // is being written
+            const auto aVal = aBuffer[n1 + (k % 2 == 0 ? 0 : kInnerTilesN)];
+            #pragma HLS DEPENDENCE variable=aBuffer false
+            const auto bVal = bIn.Pop();
+            if (locationN < kComputeTilesN - 1) {
+              bOut.Push(bVal);
+            }
 
-          const auto bVal = bIn.Pop();
-          if (locationN < kComputeTilesN - 1) {
-            bOut.Push(bVal);
-          }
-
-        Unroll_N:
-          for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
-            #pragma HLS UNROLL
-
-            ComputePackM_t cStore;
-            const auto cPrev =
-                (i_sizeK > 0)
-                    ? cBuffer[i_innerTilesN * kInnerTilesM + i_innerTilesM][n2]
-                    : ComputePackM_t(static_cast<Data_t>(0));
-
-          Unroll_M:
-            for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
+          Unroll_N:
+            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
               #pragma HLS UNROLL
 
-              const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
-              const auto prev = cPrev[m2];
+              ComputePackM_t cStore;
+              const auto cPrev = (k > 0)
+                                     ? cBuffer[n1 * kInnerTilesM + m1][n2]
+                                     : ComputePackM_t(static_cast<Data_t>(0));
 
-              cStore[m2] = OperatorReduce::Apply(prev, mapped);
-              #pragma HLS DEPENDENCE variable=cBuffer false
-            }
+            Unroll_M:
+              for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
+                #pragma HLS UNROLL
 
-            cBuffer[i_innerTilesN * kInnerTilesM + i_innerTilesM][n2] = cStore;
-          }
+                const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
+                const auto prev = cPrev[m2];
 
-          if (i_innerTilesM == i_innerTilesM_max - 1) {
-            i_innerTilesM = 0;
-            if (i_innerTilesN == i_innerTilesN_max - 1) {
-              i_innerTilesN = 0;
-              if (i_sizeK == i_sizeK_max - 1) {
-                i_sizeK = 0;
-              } else {
-                ++i_sizeK;
+                cStore[m2] = OperatorReduce::Apply(prev, mapped);
+                #pragma HLS DEPENDENCE variable=cBuffer false
               }
-            } else {
-              ++i_innerTilesN;
+
+              cBuffer[n1 * kInnerTilesM + m1][n2] = cStore;
             }
-          } else {
-            ++i_innerTilesM;
+
+            // End compute tile ----------------------------------------------
           }
-
-          // End compute phase 
-          //-------------------------------------------------------------------
-        } else {
-          //-------------------------------------------------------------------
-          
-          if (i_drainPhase < kDrainPhaseOwn) {
-            //-----------------------------------------------------------------
-            // Begin draining own tile 
-
-            cOut.Push(cBuffer[i_innerTilesN * kInnerTilesM + i_innerTilesM]
-                             [i_computeTileSizeN]);
-
-            if (i_innerTilesM == i_innerTilesM_max - 1) {
-              i_innerTilesM = 0;
-              if (i_computeTileSizeN == i_computeTileSizeN_max - 1) {
-                i_computeTileSizeN = 0;
-              } else {
-                ++i_computeTileSizeN;
-              }
-            } else {
-              ++i_innerTilesM;
-            }
-
-            // End draining own tile 
-            //-----------------------------------------------------------------
-          } else {
-            //-----------------------------------------------------------------
-            // Begin forwarding other tiles 
-
-            // Need an extra condition so Vivado HLS understands that this is
-            // never written in the last PE
-            if (locationN < kComputeTilesN - 1) {
-              cOut.Push(cIn.Pop());
-            }
-
-            // End forwarding other tiles 
-            //-----------------------------------------------------------------
-          }
-
-          if (i_drainPhase == i_drainPhase_max - 1) {
-            i_drainPhase = 0;
-            if (i_innerTilesN == i_innerTilesN_max - 1) {
-              i_innerTilesN = 0;
-            } else {
-              ++i_innerTilesN;
-            }
-          } else {
-            ++i_drainPhase;
-          }
-
-          // End drain phase 
-          //-------------------------------------------------------------------
         }
 
-      } // End flattened loop
+        // End outer tile -----------------------------------------------------
+      }
 
-    } // End outer tile M
-  } // End outer tile N
+      // Write back tile of C --------------------------------------------------
+    WriteC_N1:
+      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
 
+      WriteC_N2:
+        for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+        WriteC_M1:
+          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+            #pragma HLS PIPELINE II=1
+            #pragma HLS LOOP_FLATTEN
+            cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
+          }
+        }
+
+        // Forward other tiles of C ----------------------------------------------
+        // We send values upwards, so first tile forwards N-1 times, and the
+        // last tile forwards 0 times.
+        if (locationN < kComputeTilesN - 1) {
+        ForwardC_Others:
+          for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+          ForwardC_N2:
+            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+            ForwardC_M1:
+              for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+                #pragma HLS PIPELINE II=1
+                #pragma HLS LOOP_FLATTEN
+                cOut.Push(cIn.Pop());
+              }
+            }
+          }
+        }
+
+      }
+
+      // -----------------------------------------------------------------------
+    }
+  }
 }
 
 void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
@@ -264,25 +194,23 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS INTERFACE s_axilite port=return bundle=control
 
   #pragma HLS DATAFLOW
+
   // TODO: does this need to be kOuterTileSizeN?
   Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth];
-  #pragma HLS STREAM variable=aSplit depth=kFifoDepth
-  Stream<Data_t, kFifoDepth> aConvert("aConvert");
-  #pragma HLS STREAM variable=aConvery depth=kFifoDepth
-  Stream<ComputePackN_t, kFifoDepth> aPipes[kComputeTilesN + 1];
-  #pragma HLS STREAM variable=aPipes depth=kFifoDepth
+  #pragma HLS STREAM variable=aSplit depth=kOuterTileSizeN
+  Stream<Data_t> aConvert("aConvert");
+  Stream<ComputePackN_t> aPipes[kComputeTilesN + 1];
 
   Stream<MemoryPack_t> bMemory("bMemory");
-  Stream<ComputePackM_t, kFifoDepth> bDistribute("bDistribute");
-  #pragma HLS STREAM variable=bDistribute depth=kFifoDepth
+  Stream<ComputePackM_t> bDistribute("bDistribute");
   Stream<ComputePackM_t> bPipes[kComputeTilesN + 1];
   Stream<ComputePackM_t> bFeed("bFeed");
 
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];
-  Stream<MemoryPack_t, kFifoDepth> cMemory("cMemory");
-  #pragma HLS STREAM variable=cMemory depth=kFifoDepth
+  Stream<MemoryPack_t> cMemory("cMemory");
 
 #ifndef HLSLIB_SYNTHESIS
+  // Name the arrays of channels for debugging purposes
   for (int i = 0; i < kTransposeWidth; ++i) {
     aSplit[i].set_name(("aSplit[" + std::to_string(i) + "]").c_str());
   }

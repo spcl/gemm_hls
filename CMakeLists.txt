@@ -95,9 +95,9 @@ set(MM_HLS_PROJECT_NAME "hls")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
 set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
 set(MM_SYNTHESIS_FLAGS "-std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
-string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
 add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
+string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 
 # Hardware kernel
 set(MM_XOCC_COMMAND

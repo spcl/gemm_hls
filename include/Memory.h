@@ -25,14 +25,14 @@ void ReadA(MemoryPack_t const a[],
 // transposed data to the kernel
 #ifdef MM_CONVERT_A
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t, kFifoDepth> &toKernel);
+                Stream<Data_t> &toKernel);
 #else
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<ComputePackN_t, kFifoDepth> &toKernel);
+                Stream<ComputePackN_t> &toKernel);
 #endif
 
-void ConvertWidthA(Stream<Data_t, kFifoDepth> &narrow,
-                   Stream<ComputePackN_t, kFifoDepth> &wide);
+void ConvertWidthA(Stream<Data_t> &narrow,
+                   Stream<ComputePackN_t> &wide);
 
 void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe);
 

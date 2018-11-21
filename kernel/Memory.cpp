@@ -101,7 +101,7 @@ ReadA_N0:
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t, kFifoDepth> &toKernel) {
+                Stream<Data_t> &toKernel) {
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                  kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
@@ -126,7 +126,7 @@ TransposeA_N0:
 }
 
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<ComputePackN_t, kFifoDepth> &toKernel) {
+                Stream<ComputePackN_t> &toKernel) {
 
   static_assert(
       kTotalReadsFromA <= static_cast<unsigned long>(kSizeN) * kSizeM * kSizeK /
@@ -159,8 +159,8 @@ TransposeA_N0:
 }
 
 #ifdef MM_CONVERT_A
-void ConvertWidthA(Stream<Data_t, kFifoDepth> &narrow,
-                   Stream<ComputePackN_t, kFifoDepth> &wide) {
+void ConvertWidthA(Stream<Data_t> &narrow,
+                   Stream<ComputePackN_t> &wide) {
 ConvertWidthA_Outer:
   for (int i = 0; i < kTotalReadsFromA / ComputePackN_t::kWidth; ++i) {
     ComputePackN_t pack;
