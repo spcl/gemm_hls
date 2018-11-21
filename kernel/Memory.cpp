@@ -98,33 +98,41 @@ ReadA_N0:
   }
 }
 
-// We pop from the column buffers in column-major order, funneling the
-// transposed data to the kernel
-void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t> &toKernel) {
-
-  static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
-                 kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
-                "Sanity check failed for TransposeA");
-
-TransposeA_N0:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
-  TransposeA_M0:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
-    TransposeA_K:
-      for (int k = 0; k < kSizeK; ++k) {
-      TransposeA_N1:
-        for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
-          #pragma HLS PIPELINE II=1
-          #pragma HLS LOOP_FLATTEN
-          // Pop from each stream kOuterTileSizeN times in a row
-          toKernel.Push(aSplit[k % kTransposeWidth].Pop());
-        }
+template <unsigned inner_tiles>
+void _TransposeAInner(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+                      Stream<ComputePackN_t> &toKernel, const unsigned k) {
+  #pragma HLS INLINE
+  for (int n1 = 0; n1 < kOuterTileSizeN / kComputeTileSizeN; ++n1) {
+    ComputePackN_t pack;
+  TransposeA_N2:
+    for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      pack[n2] = aSplit[k % kTransposeWidth].Pop();
+      // Pop from each stream kOuterTileSizeN times in a row
+      if (n2 == kComputeTileSizeN - 1) {
+        toKernel.Push(pack);
       }
     }
   }
 }
 
+template <>
+void _TransposeAInner<1>(
+    Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+    Stream<ComputePackN_t> &toKernel, const unsigned k) {
+  #pragma HLS INLINE
+  for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
+    #pragma HLS PIPELINE II=1
+    #pragma HLS LOOP_FLATTEN
+    ComputePackN_t pack;
+    pack[0] = aSplit[k % kTransposeWidth].Pop();
+    toKernel.Push(pack);
+  }
+}
+
+// We pop from the column buffers in column-major order, funneling the
+// transposed data to the kernel
 void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
                 Stream<ComputePackN_t> &toKernel) {
 
@@ -144,15 +152,7 @@ TransposeA_N0:
     for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
     TransposeA_K:
       for (int k = 0; k < kSizeK; ++k) {
-      TransposeA_N1:
-        for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
-          #pragma HLS PIPELINE II=1
-          #pragma HLS LOOP_FLATTEN
-          // Pop from each stream kOuterTileSizeN times in a row
-          ComputePackN_t pack;
-          pack[0] = aSplit[k % kTransposeWidth].Pop();
-          toKernel.Push(pack);
-        }
+        _TransposeAInner<kComputeTileSizeN>(aSplit, toKernel, k);
       }
     }
   }
