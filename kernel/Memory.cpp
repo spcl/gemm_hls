@@ -299,7 +299,7 @@ WriteC_OuterTile_N:
 
 /// Feeds a single compute column
 void FeedB(Stream<ComputePackM_t> &fromMemory,
-           Stream<ComputePackM_t> &toKernel) {
+           Stream<ComputePackM_t, kPipeDepth> &toKernel) {
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                         kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==

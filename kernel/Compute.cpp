@@ -12,8 +12,8 @@ using hlslib::Stream;
 
 void ProcessingElement(Stream<ComputePackN_t> &aIn,
                        Stream<ComputePackN_t> &aOut,
-                       Stream<ComputePackM_t> &bIn,
-                       Stream<ComputePackM_t> &bOut,
+                       Stream<ComputePackM_t, kPipeDepth> &bIn,
+                       Stream<ComputePackM_t, kPipeDepth> &bOut,
                        Stream<ComputePackM_t> &cOut,
                        Stream<ComputePackM_t> &cIn,
                        const int locationN) {
@@ -203,7 +203,7 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
 
   Stream<MemoryPack_t> bMemory("bMemory");
   Stream<ComputePackM_t> bDistribute("bDistribute");
-  Stream<ComputePackM_t> bPipes[kComputeTilesN + 1];
+  Stream<ComputePackM_t, kPipeDepth> bPipes[kComputeTilesN + 1];
   Stream<ComputePackM_t> bFeed("bFeed");
 
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];

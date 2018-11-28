@@ -14,6 +14,7 @@ set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 set(MM_ENABLE_PROFILING OFF CACHE STRING "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE STRING "Inject debugging cores to design")
+set(MM_QUICK_BUILD OFF CACHE STRING "Enable quick build option for xocc")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -102,7 +103,6 @@ string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 # Hardware kernel
 set(MM_XOCC_COMMAND
   -s
-  -O3
   ${MM_XOCC_FLAGS}
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
@@ -116,6 +116,11 @@ if(MM_ENABLE_PROFILING)
     --profile_kernel "data:all:all:all"
     --profile_kernel "stall:all:all"
     --profile_kernel "exec:all:all")
+endif()
+if(MM_QUICK_BUILD)
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -Oquick)
+else()
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -O3)
 endif()
 if(MM_ENABLE_DEBUGGING)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -g

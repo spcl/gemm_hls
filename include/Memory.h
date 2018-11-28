@@ -7,6 +7,8 @@
 #include "MatrixMultiplication.h"
 #include "hlslib/Stream.h"
 
+constexpr unsigned kPipeDepth = 4;
+
 static constexpr unsigned long kTotalReadsFromA =
     static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kOuterTileSizeN *
     kSizeK;
@@ -46,4 +48,4 @@ void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
 
 /// Feeds a single compute column
 void FeedB(Stream<ComputePackM_t> &fromMemory,
-           Stream<ComputePackM_t> &toKernel);
+           Stream<ComputePackM_t, kPipeDepth> &toKernel);
