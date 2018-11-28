@@ -78,6 +78,9 @@ int main(int argc, char **argv) {
     std::cout << "Initializing OpenCL context...\n" << std::flush;
     hlslib::ocl::Context context;
 
+    std::cout << "Programming device...\n" << std::flush;
+    auto program = context.MakeProgram(path);
+
     std::cout << "Initializing device memory...\n" << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeK / kMemoryWidth);
@@ -93,8 +96,7 @@ int main(int argc, char **argv) {
       cDevice.CopyFromHost(cMem.cbegin());
     }
 
-    std::cout << "Programming device...\n" << std::flush;
-    auto program = context.MakeProgram(path);
+    std::cout << "Creating kernel...\n" << std::flush;
     auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
                                      bDevice, cDevice);
 
