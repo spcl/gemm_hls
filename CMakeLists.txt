@@ -118,8 +118,7 @@ if(MM_ENABLE_PROFILING)
     --profile_kernel "exec:all:all")
 endif()
 if(MM_ENABLE_DEBUGGING)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
-    -g
+  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -g
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM0
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM1
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM2)

@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     }
   }
   if (argc > 2) {
-    const std::string verify_arg(argv[1]);
+    const std::string verify_arg(argv[2]);
     if (verify_arg == "off") {
       verify = false;
     } else if (verify_arg != "on") {
@@ -80,11 +80,18 @@ int main(int argc, char **argv) {
 
     std::cout << "Initializing device memory...\n" << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, &aMem[0], &aMem[kSizeN * kSizeKMemory]);
+        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeK / kMemoryWidth);
     auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, &bMem[0], &bMem[kSizeK * kSizeMMemory]);
+        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeM / kMemoryWidth);
     auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank1, &cMem[0], &cMem[kSizeN * kSizeMMemory]);
+        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeM / kMemoryWidth);
+
+    if (verify) {
+      std::cout << "Copying memory to device...\n" << std::flush;
+      aDevice.CopyFromHost(aMem.cbegin());
+      bDevice.CopyFromHost(bMem.cbegin());
+      cDevice.CopyFromHost(cMem.cbegin());
+    }
 
     std::cout << "Programming device...\n" << std::flush;
     auto program = context.MakeProgram(path);
