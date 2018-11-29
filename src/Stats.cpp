@@ -18,5 +18,7 @@ int main(int argc, char **argv) {
   std::cout << "Peak performance:     " << peakPerf << " GOp/s\n";
   std::cout << "Peak runtime:         " << nOps / (1e9 * peakPerf)
             << " seconds.\n";
+  std::cout << "Tiles in N: " << kOuterTilesN << " / " << kInnerTilesN << "\n";
+  std::cout << "Tiles in M: " << kOuterTilesM << " / " << kInnerTilesM << "\n";
   return 0;
 }
