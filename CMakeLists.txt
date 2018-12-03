@@ -15,6 +15,7 @@ set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 set(MM_ENABLE_PROFILING OFF CACHE STRING "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE STRING "Inject debugging cores to design")
 set(MM_QUICK_BUILD OFF CACHE STRING "Enable quick build option for xocc")
+set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -101,6 +102,7 @@ add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl)
 string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 
 # Hardware kernel
+string(REPLACE " " ";" MM_XOCC_FLAGS ${MM_XOCC_FLAGS})
 set(MM_XOCC_COMMAND
   -s
   ${MM_XOCC_FLAGS}
