@@ -102,7 +102,7 @@ add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl)
 string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 
 # Hardware kernel
-string(REPLACE " " ";" MM_XOCC_FLAGS ${MM_XOCC_FLAGS})
+string(REPLACE " " ";" MM_XOCC_FLAGS "${MM_XOCC_FLAGS}")
 set(MM_XOCC_COMMAND
   -s
   ${MM_XOCC_FLAGS}
