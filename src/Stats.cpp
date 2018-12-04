@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
        kInnerTilesN * (kComputeTileSizeM * kInnerTilesM +
                        kComputeTilesN * kComputeTileSizeN * kInnerTilesM)) /
       (1e6 * kFrequency);
-  const auto expected_perf = nOps / expected_runtime;
+  const auto expected_perf = 1e-9 * nOps / expected_runtime;
   const auto peak_perf = 2e-3 * kInnerTileSizeN * kComputeTileSizeM * frequency;
   std::cout << "Expected runtime:     " << expected_runtime << " seconds\n";
   std::cout << "Peak runtime:         " << nOps / (1e9 * peak_perf)
