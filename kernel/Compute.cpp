@@ -10,8 +10,8 @@
 
 using hlslib::Stream;
 
-void ProcessingElement(Stream<ComputePackN_t> &aIn,
-                       Stream<ComputePackN_t> &aOut,
+void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
+                       Stream<ComputePackN_t, kPipeDepth> &aOut,
                        Stream<ComputePackM_t, kPipeDepth> &bIn,
                        Stream<ComputePackM_t, kPipeDepth> &bOut,
                        Stream<ComputePackM_t> &cOut,
@@ -196,18 +196,15 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
   #pragma HLS DATAFLOW
 
   // TODO: does this need to be kOuterTileSizeN?
-  Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth];
-  #pragma HLS STREAM variable=aSplit depth=kOuterTileSizeN
+  Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth];
+  #pragma HLS STREAM variable=aSplit depth=2*kOuterTileSizeN
   Stream<Data_t> aConvert("aConvert");
-  Stream<ComputePackN_t> aPipes[kComputeTilesN + 1];
+  Stream<ComputePackN_t, kPipeDepth> aPipes[kComputeTilesN + 1];
 
-  Stream<MemoryPack_t> bMemory("bMemory");
-  Stream<ComputePackM_t> bDistribute("bDistribute");
+  Stream<MemoryPack_t, 2 * kOuterTileSizeM> bMemory("bMemory");
   Stream<ComputePackM_t, kPipeDepth> bPipes[kComputeTilesN + 1];
-  Stream<ComputePackM_t> bFeed("bFeed");
 
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];
-  Stream<MemoryPack_t> cMemory("cMemory");
 
 #ifndef HLSLIB_SYNTHESIS
   // Name the arrays of channels for debugging purposes
@@ -241,6 +238,7 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
 
   // Only convert memory width if necessary
 #ifdef MM_CONVERT_B
+    Stream<ComputePackM_t> bFeed("bFeed");
     HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bFeed);
     HLSLIB_DATAFLOW_FUNCTION(FeedB, bFeed, bPipes[0]);
 #else
@@ -261,6 +259,7 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
 
   // Only convert memory width if necessary
 #ifdef MM_CONVERT_B
+    Stream<MemoryPack_t> cMemory("cMemory");
     HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cPipes[0], cMemory);
     HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c);
 #else

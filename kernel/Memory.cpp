@@ -32,7 +32,7 @@ int IndexC(int n0, int n1, int m0, int m1m) {
 }
 
 void _ReadAInner(MemoryPack_t const a[],
-                 Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+                 Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
                  int n0, int n1, int n2, int k0, int k1) {
 
   #pragma HLS INLINE
@@ -45,11 +45,12 @@ ReadA_Unroll:
 }
 
 template <int innerReads>
-void _ReadAInnerLoop(MemoryPack_t const a[],
-                     Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
+void _ReadAInnerLoop(
+    MemoryPack_t const a[],
+    Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
 
-                     int n0, int n1, int n2, int k0) {
-  #pragma HLS INLINE
+    int n0, int n1, int n2, int k0) {
+#pragma HLS INLINE
 ReadA_TransposeWidth:
   for (int k1 = 0; k1 < (kTransposeWidth / kMemoryWidth); ++k1) { 
     #pragma HLS PIPELINE II=1
@@ -61,9 +62,10 @@ ReadA_TransposeWidth:
 // Need a special case for kMemoryWidth == kTransposeWidth, as Vivado HLS
 // otherwise doesn't pipeline the loops (because the inner trip count is 1).
 template <>
-void _ReadAInnerLoop<1>(MemoryPack_t const a[],
-                        Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                        int n0, int n1, int n2, int k0) {
+void _ReadAInnerLoop<1>(
+    MemoryPack_t const a[],
+    Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth], int n0, int n1,
+    int n2, int k0) {
   #pragma HLS INLINE
   #pragma HLS PIPELINE II=1
   #pragma HLS LOOP_FLATTEN
@@ -71,7 +73,7 @@ void _ReadAInnerLoop<1>(MemoryPack_t const a[],
 }
 
 void ReadA(MemoryPack_t const a[],
-           Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth]) {
+           Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth]) {
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                  (kSizeK / kTransposeWidth) * kInnerTilesN * kInnerTileSizeN *
@@ -99,8 +101,9 @@ ReadA_N0:
 }
 
 template <unsigned inner_tiles>
-void _TransposeAInner(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                      Stream<ComputePackN_t> &toKernel, const unsigned k) {
+void _TransposeAInner(
+    Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
+    Stream<ComputePackN_t, kPipeDepth> &toKernel, const unsigned k) {
   #pragma HLS INLINE
   for (int n1 = 0; n1 < kOuterTileSizeN / kComputeTileSizeN; ++n1) {
     ComputePackN_t pack;
@@ -119,8 +122,8 @@ void _TransposeAInner(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
 
 template <>
 void _TransposeAInner<1>(
-    Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-    Stream<ComputePackN_t> &toKernel, const unsigned k) {
+    Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
+    Stream<ComputePackN_t, kPipeDepth> &toKernel, const unsigned k) {
   #pragma HLS INLINE
   for (int n1 = 0; n1 < kOuterTileSizeN; ++n1) {
     #pragma HLS PIPELINE II=1
@@ -133,8 +136,8 @@ void _TransposeAInner<1>(
 
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
-void TransposeA(Stream<Data_t, kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<ComputePackN_t> &toKernel) {
+void TransposeA(Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
+                Stream<ComputePackN_t, kPipeDepth> &toKernel) {
 
   static_assert(
       kTotalReadsFromA <= static_cast<unsigned long>(kSizeN) * kSizeM * kSizeK /
@@ -159,8 +162,8 @@ TransposeA_N0:
 }
 
 #ifdef MM_CONVERT_A
-void ConvertWidthA(Stream<Data_t> &narrow,
-                   Stream<ComputePackN_t> &wide) {
+void ConvertWidthA(Stream<Data_t, kPipeDepth> &narrow,
+                   Stream<ComputePackN_t, kPipeDepth> &wide) {
 ConvertWidthA_Outer:
   for (int i = 0; i < kTotalReadsFromA / ComputePackN_t::kWidth; ++i) {
     ComputePackN_t pack;
@@ -176,7 +179,7 @@ ConvertWidthA_Outer:
 #endif
 
 void ReadB(MemoryPack_t const memory[],
-           Stream<MemoryPack_t> &pipe) {
+           Stream<MemoryPack_t, 2 * kOuterTileSizeM> &pipe) {
   static_assert(
       (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
        kOuterTileSizeMMemory * MemoryPack_t::kWidth) == kTotalReadsFromB,
@@ -201,8 +204,8 @@ ReadB_OuterTile_N:
   }
 }
 
-void ConvertWidthB(Stream<MemoryPack_t> &wide,
-                   Stream<ComputePackM_t> &narrow) {
+void ConvertWidthB(Stream<MemoryPack_t, 2 * kOuterTileSizeM> &wide,
+                   Stream<ComputePackM_t, kPipeDepth> &narrow) {
   // This assertion will be relaxed once Xilinx IP memory converters have been
   // inserted
   static_assert(kMemoryWidth % kComputeTileSizeM == 0,
@@ -239,7 +242,7 @@ ConvertWidthB_Outer:
 }
 
 void ConvertWidthC(Stream<ComputePackM_t> &narrow,
-                   Stream<MemoryPack_t> &wide) {
+                   Stream<MemoryPack_t, kPipeDepth> &wide) {
   static_assert(kMemoryWidth % ComputePackM_t::kWidth == 0,
                 "Memory width must be divisable by compute tile width.");
 
@@ -298,7 +301,7 @@ WriteC_OuterTile_N:
 }
 
 /// Feeds a single compute column
-void FeedB(Stream<ComputePackM_t> &fromMemory,
+void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeM> &fromMemory,
            Stream<ComputePackM_t, kPipeDepth> &toKernel) {
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
