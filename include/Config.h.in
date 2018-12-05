@@ -1,5 +1,5 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      July 2017 
+/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #pragma once
@@ -10,15 +10,26 @@
 #include "hls_half.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
-constexpr int kKernelWidth = ${MM_KERNEL_WIDTH};
-constexpr int kMemoryWidthBytes = 64; // 512-bit memory port
+constexpr int kMemoryWidthBytes = ${MM_MEMORY_BUS_WIDTH};
 constexpr int kSizeN = ${MM_SIZE_N};
+constexpr int kSizeK = ${MM_SIZE_K};
 constexpr int kSizeM = ${MM_SIZE_M};
-constexpr int kSizeP = ${MM_SIZE_P};
-constexpr int kTileSizeN = ${MM_TILE_SIZE_N};
-constexpr int kTileSizeP = ${MM_TILE_SIZE_P};
+constexpr int kOuterTileSizeN = ${MM_MEMORY_TILE_SIZE_N};
+constexpr int kOuterTileSizeM = ${MM_MEMORY_TILE_SIZE_M};
+constexpr int kInnerTileSizeN = ${MM_PARALLELISM_N};
+constexpr int kComputeTileSizeM = ${MM_PARALLELISM_M};
+constexpr int kComputeTileSizeN = ${MM_GRANULARITY_N};
+constexpr int kTransposeWidthBytes = ${MM_TRANSPOSE_WIDTH};
 constexpr float kFrequency = ${MM_TARGET_CLOCK};
 constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}"; 
 
 using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;
 using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
+
+#if ${MM_MEMORY_BUS_WIDTH} != ${MM_KERNEL_WIDTH_M} 
+  #define MM_CONVERT_B
+#endif
+
+#if ${MM_GRANULARITY_N} != 1
+  #define MM_CONVERT_A
+#endif

@@ -1,14 +1,8 @@
-# Templated synthesis script.
-#
-# Use CMake to substitute variables with:
-#   configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
-
-open_project ${MM_PROJECT_NAME} 
+open_project ${MM_HLS_PROJECT_NAME} 
 open_solution ${MM_PART_NAME}  
 set_part ${MM_PART_NAME} 
 add_files -cflags "${MM_SYNTHESIS_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I${CMAKE_SOURCE_DIR}/hlslib/include -I${CMAKE_BINARY_DIR}" "${MM_SRC_SYNTHESIS}" 
 set_top ${MM_ENTRY_FUNCTION} 
-set_part ${MM_PART_NAME} 
 create_clock -period ${MM_TARGET_CLOCK}MHz -name default
 set_clock_uncertainty ${MM_TARGET_CLOCK_UNCERTAINTY} 
 # SDAccel default options
