@@ -6,25 +6,14 @@ project(sdaccel_mm)
 
 # Target options 
 set(MM_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_1" CACHE STRING
-    "DSA string for xocc.")
-<<<<<<< HEAD
+set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_1" CACHE STRING "DSA string for xocc.")
 set(MM_TARGET_CLOCK 200 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
-set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
-set(MM_SYNTHESIS_FLAGS "" CACHE STRING "Extra flags for synthesis")
-set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for both compile and link steps of the xocc flow")
-set(MM_XOCC_COMPILE_FLAGS "" CACHE STRING "Extra flags for xocc compile step")
-set(MM_XOCC_LINK_FLAGS "" CACHE STRING "Extra flags for xocc link step")
-=======
-set(MM_TARGET_CLOCK 200 CACHE STRING
-    "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 set(MM_ENABLE_PROFILING OFF CACHE STRING "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE STRING "Inject debugging cores to design")
 set(MM_QUICK_BUILD OFF CACHE STRING "Enable quick build option for xocc")
 set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
->>>>>>> systolic_1d
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -66,16 +55,12 @@ endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-<<<<<<< HEAD
-set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
-=======
 add_definitions("-DHLSLIB_STREAM_TIMEOUT=16")
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
   add_definitions(-DHLSLIB_LEGACY_SDX=1)
 else()
   add_definitions(-DHLSLIB_LEGACY_SDX=0)
 endif()
->>>>>>> systolic_1d
 
 # Allow specifying the floating point unit for adders and multipliers
 if(MM_ADD_RESOURCE)
