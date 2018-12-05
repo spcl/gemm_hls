@@ -205,7 +205,7 @@ ReadB_OuterTile_N:
 }
 
 void ConvertWidthB(Stream<MemoryPack_t, 2 * kOuterTileSizeM> &wide,
-                   Stream<ComputePackM_t, kPipeDepth> &narrow) {
+                   Stream<ComputePackM_t> &narrow) {
   // This assertion will be relaxed once Xilinx IP memory converters have been
   // inserted
   static_assert(kMemoryWidth % kComputeTileSizeM == 0,
@@ -242,7 +242,7 @@ ConvertWidthB_Outer:
 }
 
 void ConvertWidthC(Stream<ComputePackM_t> &narrow,
-                   Stream<MemoryPack_t, kPipeDepth> &wide) {
+                   Stream<MemoryPack_t> &wide) {
   static_assert(kMemoryWidth % ComputePackM_t::kWidth == 0,
                 "Memory width must be divisable by compute tile width.");
 
@@ -300,9 +300,13 @@ WriteC_OuterTile_N:
   }
 }
 
-/// Feeds a single compute column
+#ifndef MM_CONVERT_B
 void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeM> &fromMemory,
            Stream<ComputePackM_t, kPipeDepth> &toKernel) {
+#else
+void FeedB(Stream<ComputePackM_t> &fromMemory,
+           Stream<ComputePackM_t, kPipeDepth> &toKernel) {
+#endif
 
   static_assert(static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                         kSizeK * kInnerTilesM * ComputePackM_t::kWidth ==

@@ -36,21 +36,21 @@ void TransposeA(Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
 void ConvertWidthA(Stream<Data_t, kPipeDepth> &narrow,
                    Stream<ComputePackN_t, kPipeDepth> &wide);
 
-#ifndef MM_CONVERT_B
 void ReadB(MemoryPack_t const memory[],
            Stream<MemoryPack_t, 2 * kOuterTileSizeM> &pipe);
-#else
-void ReadB(MemoryPack_t const memory[], Stream<MemoryPack_t> &pipe);
-#endif
 
 void ConvertWidthB(Stream<MemoryPack_t, 2 * kOuterTileSizeM> &wide,
                    Stream<ComputePackM_t> &narrow);
 
 void ConvertWidthC(Stream<OutputPack_t> &narrow,
-                   Stream<MemoryPack_t, kPipeDepth> &wide);
+                   Stream<MemoryPack_t> &wide);
 
 void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
 
-/// Feeds a single compute column
+#ifndef MM_CONVERT_B
 void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeM> &fromMemory,
            Stream<ComputePackM_t, kPipeDepth> &toKernel);
+#else
+void FeedB(Stream<ComputePackM_t> &fromMemory,
+           Stream<ComputePackM_t, kPipeDepth> &toKernel);
+#endif
