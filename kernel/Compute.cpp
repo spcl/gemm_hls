@@ -6,7 +6,6 @@
 #include "hlslib/Simulation.h"
 #include "MatrixMultiplication.h"
 #include "Memory.h"
-#include <cassert>
 
 using hlslib::Stream;
 
