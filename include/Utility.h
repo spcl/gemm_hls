@@ -61,6 +61,10 @@ inline auto Unpack(Container const &in) {
 // Fallback
 template <typename T, class OperatorMap, class OperatorReduce>
 void CallBLAS(T const *a, T const *b, T *c) {
+  std::cout
+      << "WARNING: BLAS not available, so I'm falling back on a naive "
+         "implementation. This will take a long time for large matrix sizes.\n"
+      << std::flush;
   Naive<OperatorMap, OperatorReduce>(a, b, c, kSizeN, kSizeK, kSizeM);
 }
 
@@ -68,12 +72,14 @@ void CallBLAS(T const *a, T const *b, T *c) {
 template <>
 void CallBLAS<float, hlslib::op::Multiply<float>, hlslib::op::Add<float>>(
     float const *a, float const *b, float *c) {
+  std::cout << "Running BLAS...\n" << std::flush;
   cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeM, kSizeK,
               1.0, a, kSizeK, b, kSizeM, 0.0, c, kSizeM);
 }
 template <>
 void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
     double const *a, double const *b, double *c) {
+  std::cout << "Running BLAS...\n" << std::flush;
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSizeN, kSizeM, kSizeK,
               1.0, a, kSizeK, b, kSizeM, 0.0, c, kSizeM);
 }
@@ -81,7 +87,5 @@ void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
 
 inline void ReferenceImplementation(Data_t const *a, Data_t const *b,
                                     Data_t *c) {
-  std::cout << "Running host implementation..." << std::flush;
   CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c);
-  std::cout << " Done.\n";
 }
