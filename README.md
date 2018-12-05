@@ -5,8 +5,7 @@ Scalable matrix matrix multiplication on FPGA
 
 This repository includes a pure Vivado HLS implementation of matrix-matrix
 multiplication (A\*B=C) for Xilinx FPGAs, using Xilinx SDx to instantiate memory
-and PCIe controllers and interface with the host. The code was developed at the
-[Scalable Parallel Computing Lab](https://spcl.inf.ethz.ch/) at ETH Zurich. 
+and PCIe controllers and interface with the host. 
 
 Experiments run on a [TUL KU115](http://www.tul.com.tw/ProductsFPGA.html)
 achieved 263 GFLOP/s, 184 GFLOP/s and 81 GFLOP/s for half, single, and double
@@ -20,13 +19,12 @@ through all elements. Both rows and columns are tiled to allow arbitrarily large
 matrices. 
 
 For a detailed description of the optimization techniques used here, we refer to
-[this article](https://arxiv.org/abs/1805.08288). We have also given [tutorials
-on optimizing HLS programs](https://spcl.inf.ethz.ch/Teaching/2018-hls/) for HPC
-at [PPoPP'18](https://ppopp18.sigplan.org/) and [at
-ETH](https://twitter.com/spcl_eth/status/996474416925167619).
+[this article](https://arxiv.org/abs/1805.08288). We also gave [a tutorial on
+HLS](https://spcl.inf.ethz.ch/Teaching/2018-sc/) for HPC at SC'18, PPoPP'18, and
+at ETH Zurich. 
 
-The compute kernel is in `kernel/MatrixMatrix.cpp`, and the modules accessing
-memory are in `kernel/Memory.cpp`.
+The compute kernel is in `kernel/Compute.cpp`, and the modules accessing memory
+are in `kernel/Memory.cpp`.
 
 Downloading the code
 --------------------
@@ -35,8 +33,8 @@ This project uses the open source Vivado HLS extension library
 [hlslib](https://github.com/definelicht/hlslib) for simulation, vectorization,
 finding Xilinx tools, host-side integration and more.
 
-Since hlslib is included as a submodule, make sure you initialize it before
-building the code:
+Since hlslib is included as a submodule, make sure you clone with `--recursive`
+or grab it after cloning with:
 
 ```
 git submodule update --init 
@@ -47,8 +45,7 @@ Prerequisites
 
 To build and run kernels in hardware, [Xilinx
 SDAccel](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/sdaccel-development-environment.html)
-must be installed and available on the PATH (tested with version 2017.1 and
-2017.2).
+must be installed and available on the PATH (tested with version 2018.2).
 
 Configuration and running
 -------------------------
@@ -62,16 +59,18 @@ is shown below (starting from the source directory):
 ```cpp
 mkdir build
 cd build
-cmake ../ -DMM_DATA_TYPE=float -DMM_SIZE_N=8192 -DMM_SIZE_M=8192 -DMM_SIZE_P=8192 -DMM_TILE_SIZE_N=32 -DMM_KERNEL_WIDTH=8 -DMM_TILE_SIZE_P=2048
+cmake ../ -DMM_DATA_TYPE=float -DMM_SIZE_N=8192 -DMM_SIZE_M=8192 -DMM_SIZE_P=8192 -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
 make
 make synthesis
-make build_kernel
+make compile_kernel 
+make link_kernel
 ./RunHardware
 ```
 
-Per default the build targets the [TUL
-KU115](http://www.tul.com.tw/ProductsFPGA.html) board, but this can be
-configured using the `MM_DSA_NAME` CMake parameter.
+Per default the build targets the
+[VCU1525](https://www.xilinx.com/products/boards-and-kits/vcu1525-a.html)
+acceleration board, but this can be configured using the `MM_DSA_NAME` CMake
+parameter.
 
 The implementation is not restricted to use multiplication and addition as
 operators. To use other operators, for example addition and minimum to implement
@@ -84,20 +83,19 @@ operators,  see `hlslib/include/hlslib/Operators.h`.
 Parallel performance
 --------------------
 
-The amount of parallelism in the code is determined by the `MM_TILE_SIZE_N` and
-`MM_KERNEL_WIDTH` configuration variables. The former determines how many values
-of A are buffered and applies to every value of B streamed in, and the latter is
-the vectorization factor. While vectorization consumes bandwidth, the tile size
-doesn't, thus allowing the kernel to scale arbitrarily with logic and fast
-memory on the chip.
+The amount of parallelism in the code is determined by the `MM_PARALLELISM_N`
+and `MM_PARALLELISM_M` configuration variables. The former determines the number
+of processing element instantiated, and the latter regulates the vector
+width/granularity of each processing element. `MM_PARALLELISM_M` should be set
+to a maximum of 8 to avoid performance and routing issues.
 
 The expected performance in Op/s (FLOP/s in the case of floating point types) of
 a given configuration can be computed as:
 
-`2 * TileSizeN * KernelWidth * Frequency`
+`2 * MM_PARALLELISM_N * MM_PARALLELISM_M * Frequency`
 
-I.e., Every cycle, `TileSizeN` buffered values of A are applied to `KernelWidth`
-streamed in values of B. 
+In practice, `MM_PARALLELISM_N` buffered values of A are applied to
+`MM_PARALLELISM_M` values of B. 
 
 Bugs
 ----
