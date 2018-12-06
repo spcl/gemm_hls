@@ -61,8 +61,8 @@ cd build
 cmake ../ -DMM_DATA_TYPE=float -DMM_SIZE_N=8192 -DMM_SIZE_M=8192 -DMM_SIZE_P=8192 -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
 make
 make synthesis
-make compile_kernel 
-make link_kernel
+make compile_hardware 
+make link_hardware
 ./RunHardware
 ```
 
