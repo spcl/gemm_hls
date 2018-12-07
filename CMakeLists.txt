@@ -38,8 +38,16 @@ set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
 set(MM_ENTRY_FUNCTION MatrixMultiplication)
 include(CheckTypeSize)
-check_type_size(${MM_DATA_TYPE} MM_KERNEL_WIDTH_N)
-math(EXPR MM_KERNEL_WIDTH_M "${MM_KERNEL_WIDTH_N} * ${MM_PARALLELISM_M}")
+check_type_size(${MM_DATA_TYPE} MM_DATA_WIDTH)
+if(NOT MM_DATA_WIDTH) # Non-primitive data type
+  if(MM_DATA_TYPE STREQUAL "half")
+    set(MM_DATA_WIDTH 2)
+  else()
+    message(FATAL_ERROR "Could not get size of data type ${MM_DATA_TYPE}.") 
+  endif()
+endif()
+math(EXPR MM_KERNEL_WIDTH_N "${MM_DATA_WIDTH} * ${MM_PARALLELISM_N}")
+math(EXPR MM_KERNEL_WIDTH_M "${MM_DATA_WIDTH} * ${MM_PARALLELISM_M}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
@@ -88,7 +96,7 @@ add_executable(Stats src/Stats.cpp)
 
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
-target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} mmkernel)
+target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} ${SDAccel_LIBRARIES} mmkernel)
 add_test(TestSimulation TestSimulation)
 enable_testing()
 
@@ -172,8 +180,11 @@ else()
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw_emu
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
     MatrixMultiplication_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
+  add_custom_target(build_hardware DEPENDS compile_hardware link_hardware)
+  add_custom_target(build_hardware_emulation DEPENDS
+                    compile_hardware_emulation link_hardware_emulation)
 endif()
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
-target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)
+target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} mmkernel)

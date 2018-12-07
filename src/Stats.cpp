@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
       (kSizeK * kInnerTilesN * kInnerTilesM +
        kInnerTilesN * (kComputeTileSizeM * kInnerTilesM +
                        kComputeTilesN * kComputeTileSizeN * kInnerTilesM)) /
-      (1e6 * kFrequency);
+      (1e6 * frequency);
   const auto expected_perf = 1e-9 * nOps / expected_runtime;
   const auto peak_perf = 2e-3 * kInnerTileSizeN * kComputeTileSizeM * frequency;
   std::cout << "Expected runtime:     " << expected_runtime << " seconds\n";
@@ -27,7 +27,9 @@ int main(int argc, char **argv) {
             << " seconds\n";
   std::cout << "Expected performance: " << expected_perf << " GOp/s\n";
   std::cout << "Peak performance:     " << peak_perf << " GOp/s\n";
-  std::cout << "Tiles in N: " << kOuterTilesN << " / " << kInnerTilesN << "\n";
-  std::cout << "Tiles in M: " << kOuterTilesM << " / " << kInnerTilesM << "\n";
+  std::cout << "Tiles in N (outer/inner): " << kOuterTilesN << " / "
+            << kInnerTilesN << "\n";
+  std::cout << "Tiles in M (outer/inner): " << kOuterTilesM << " / "
+            << kInnerTilesM << "\n";
   return 0;
 }
