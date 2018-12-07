@@ -73,7 +73,7 @@ OuterTile_N:
         Pipeline_M:
           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
 
-            // Begin compute tile --------------------------------------------
+            // Begin compute tile ---------------------------------------------
             #pragma HLS PIPELINE II=1
             #pragma HLS LOOP_FLATTEN
 
@@ -135,46 +135,87 @@ OuterTile_N:
               cBuffer[n1 * kInnerTilesM + m1][n2] = cStore;
             }
 
-            // End compute tile ----------------------------------------------
+            // End compute tile -----------------------------------------------
           }
         }
 
         // End outer tile -----------------------------------------------------
       }
 
-      // Write back tile of C --------------------------------------------------
-    WriteC_N1:
-      for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
-
-      WriteC_N2:
-        for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
-        WriteC_M1:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-            #pragma HLS PIPELINE II=1
-            #pragma HLS LOOP_FLATTEN
-            cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
-          }
-        }
-
-        // Forward other tiles of C ----------------------------------------------
-        // We send values upwards, so first tile forwards N-1 times, and the
-        // last tile forwards 0 times.
-        if (locationN < kComputeTilesN - 1) {
-        ForwardC_Others:
-          for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
-          ForwardC_N2:
-            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
-            ForwardC_M1:
-              for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
-                #pragma HLS PIPELINE II=1
-                #pragma HLS LOOP_FLATTEN
-                cOut.Push(cIn.Pop());
-              }
+      // Write back tile of C -------------------------------------------------
+      // 
+      // This uses a flattened implementation of the loops, as we otherwise
+      // introduce a lot of pipeline drains, which can have a small performance
+      // impact for large designs.
+      //
+      const unsigned writeFlattenedInner =
+          (kComputeTileSizeN * kInnerTilesM +
+           (kComputeTilesN - locationN - 1) * kComputeTileSizeN * kInnerTilesM);
+      const unsigned writeFlattened = kInnerTilesN * writeFlattenedInner;
+      ap_uint<hlslib::ConstLog2(kInnerTilesN)> n1 = 0;
+      ap_uint<hlslib::ConstLog2(kComputeTileSizeN)> n2 = 0;
+      ap_uint<hlslib::ConstLog2(kInnerTilesM)> m1 = 0;
+      unsigned inner = 0;
+    WriteC_Flattened:
+      for (unsigned i = 0; i < writeFlattened; ++i) {
+        #pragma HLS PIPELINE II=1
+        if (inner < kComputeTileSizeN * kInnerTilesM) {
+          cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
+          if (m1 == kInnerTilesM - 1) {
+            m1 = 0;
+            if (n2 == kComputeTileSizeN - 1) {
+              n2 = 0;
+            } else {
+              ++n2;
             }
+          } else {
+            ++m1;
+          }
+        } else {
+          if (locationN < kComputeTilesN - 1) {
+            cOut.Push(cIn.Pop());
           }
         }
-
+        if (inner == writeFlattenedInner - 1) {
+          inner = 0;
+          ++n1;
+        } else {
+          ++inner;
+        }
       }
+
+      // Non-flattened implementation below
+    // WriteC_N1:
+    //   for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+    //   WriteC_N2:
+    //     for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+    //     WriteC_M1:
+    //       for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+    //         #pragma HLS PIPELINE II=1
+    //         #pragma HLS LOOP_FLATTEN
+    //         cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
+    //       }
+    //     }
+    //
+    //     // Forward other tiles of C
+    //     // ----------------------------------------------
+    //     // We send values upwards, so first tile forwards N-1 times, and the
+    //     // last tile forwards 0 times.
+    //     if (locationN < kComputeTilesN - 1) {
+    //     ForwardC_Others:
+    //       for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+    //       ForwardC_N2:
+    //         for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+    //         ForwardC_M1:
+    //           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+    //             #pragma HLS PIPELINE II=1
+    //             #pragma HLS LOOP_FLATTEN
+    //             cOut.Push(cIn.Pop());
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
 
       // -----------------------------------------------------------------------
     }
