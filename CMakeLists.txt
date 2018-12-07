@@ -28,6 +28,7 @@ set(MM_PARALLELISM_N 32 CACHE STRING "Number of parallel compute in N.")
 set(MM_PARALLELISM_M 8 CACHE STRING "Number of parallel compute in M.")
 set(MM_GRANULARITY_N 1 CACHE STRING "Granularity of processing elements in N.")
 set(MM_TRANSPOSE_WIDTH 64 CACHE STRING "Burst width when transposing reads from A.")
+set(MM_TWO_DIMMS OFF CACHE STRING "Use two DDR DIMMs instead of one")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
@@ -133,16 +134,18 @@ if(MM_TARGET_CLOCK GREATER 0)
   set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
-if(NOT (MM_DSA_NAME MATCHES "dynamic"))
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
-    --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM2.core.OCL_REGION_0.M01_AXI)
-else()
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
+if(MM_TWO_DIMMS)
+  if(NOT (MM_DSA_NAME MATCHES "dynamic"))
+    set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
+      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
+      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM2.core.OCL_REGION_0.M01_AXI)
+  else()
+    set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
+      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
+      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
+  endif()
 endif()
 
 if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
