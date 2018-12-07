@@ -13,68 +13,78 @@ import sys
 import time
 
 PROJECT_CONFIG = {
-  "kernelName": "MatrixMatrix",
-  "kernelFile": "MatrixMatrix",
-  "makeSynthesis": "synthesis",
-  "makeKernel": "build_kernel",
-  "executeKernel": ["./RunMatrixMatrix"],
-  "buildDir": "scan",
-  "benchmarkDir": "benchmark",
+  "kernel_name": "MatrixMultiplication",
+  "kernel_file": "MatrixMultiplication_hw",
+  "make_synthesis": "synthesis",
+  "make_kernel": "build_hardware",
+  "execute_kernel": ["./RunHardware.exe"],
+  "build_dir": "scan",
+  "benchmark_dir": "benchmark",
   "options": OrderedDict([
-    ("dataType", {
+    ("data_type", {
         "cmake": "MM_DATA_TYPE",
         "type": str,
         "default": None
     }),
-    ("mapOp", {
+    ("map_op", {
         "cmake": "MM_MAP_OP",
         "type": str,
         "default": None
     }),
-    ("reduceOp", {
+    ("reduce_op", {
         "cmake": "MM_REDUCE_OP",
         "type": str,
         "default": None
     }),
-    ("kernelWidth", {
-        "cmake": "MM_KERNEL_WIDTH",
+    ("parallelism_n", {
+        "cmake": "MM_PARALLELISM_N",
         "type": int,
         "default": None
     }),
-    ("sizeN", {
+    ("parallelism_m", {
+        "cmake": "MM_PARALLELISM_M",
+        "type": int,
+        "default": None
+    }),
+    ("memory_width_m", {
+        "cmake": "MM_MEMORY_BUS_WIDTH_M",
+        "type": int,
+        "default": None
+    }),
+    ("size_n", {
         "cmake": "MM_SIZE_N",
         "type": int,
         "default": None
     }),
-    ("sizeM", {
+    ("size_K", {
+        "cmake": "MM_SIZE_K",
+        "type": int,
+        "default": None
+    }),
+    ("size_m", {
         "cmake": "MM_SIZE_M",
         "type": int,
         "default": None
     }),
-    ("sizeP", {
-        "cmake": "MM_SIZE_P",
+    ("tile_size_n", {
+        "cmake": "MM_MEMORY_TILE_SIZE_N",
         "type": int,
         "default": None
     }),
-    ("tileSizeP", {
-        "cmake": "MM_TILE_SIZE_P",
-        "type": int,
-        "default": None
-    }),
-    ("tileSizeN", {
-        "cmake": "MM_TILE_SIZE_N",
+    ("tile_size_m", {
+        "cmake": "MM_MEMORY_TILE_SIZE_M",
         "type": int,
         "default": None
     }),
     ("targetClock", {
         "cmake": "MM_TARGET_CLOCK",
         "type": int,
-        "default": 250
+        "default": 200
     }),
     ("target", {
         "cmake": "MM_DSA_NAME",
         "type": str,
-        "default": "xilinx:xil-accel-rd-ku115:4ddr-xpr:4.0"
+        "default": "xilinx_vcu1525_dynamic_5_1"
     }),
   ]),
 }
@@ -190,7 +200,7 @@ class Consumption(object):
 def do_build(conf, cmakeOpts):
   cmakeCommand = conf.cmake_command("$1", cmakeOpts)
   confStr = conf.to_string()
-  confDir = os.path.join(PROJECT_CONFIG["buildDir"], conf.build_folder())
+  confDir = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
   try:
     os.makedirs(confDir)
   except:
@@ -219,7 +229,7 @@ def print_status(conf, status):
 
 def run_build(conf, clean=True, hardware=True):
   confStr = conf.to_string()
-  confDir = os.path.join(PROJECT_CONFIG["buildDir"], conf.build_folder())
+  confDir = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
   print_status(conf, "Configuring...")
   if run_process(["sh", "configure.sh",
                   os.path.dirname(os.path.dirname(os.path.realpath(__file__)))],
@@ -237,13 +247,13 @@ def run_build(conf, clean=True, hardware=True):
   if hardware:
     # timeStart = datetime.datetime.now()
     # print_status(conf, "Running HLS...")
-    # if run_process(["make", PROJECT_CONFIG["makeSynthesis"]], confDir) != 0:
+    # if run_process(["make", PROJECT_CONFIG["make_synthesis"]], confDir) != 0:
     #   raise Exception(confStr + ": HLS failed.")
     # print_status(conf, "Finished HLS after {}.".format(
     #     time_only(datetime.datetime.now() - timeStart)))
     timeStart = datetime.datetime.now()
     print_status(conf, "Starting kernel build...")
-    if run_process(["make", PROJECT_CONFIG["makeKernel"]], confDir) != 0:
+    if run_process(["make", PROJECT_CONFIG["make_kernel"]], confDir) != 0:
       try:
         with open(os.path.join(confDir, "log.out")) as logFile:
           m = re.search("auto frequency scaling failed", logFile.read())
@@ -261,18 +271,18 @@ def run_build(conf, clean=True, hardware=True):
           time_only(datetime.datetime.now() - timeStart)))
 
 def extract_result_build(conf):
-  buildFolder = os.path.join(PROJECT_CONFIG["buildDir"], conf.build_folder())
-  xoccFolder = ("_xocc_" + PROJECT_CONFIG["kernelName"] + "_" +
-                PROJECT_CONFIG["kernelFile"] + ".dir")
+  buildFolder = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
+  xoccFolder = ("_xocc_" + PROJECT_CONFIG["kernel_name"] + "_" +
+                PROJECT_CONFIG["kernel_file"] + ".dir")
   if not os.path.exists(os.path.join(buildFolder, xoccFolder)):
     conf.consumption = Consumption(conf, "no_intermediate", None, None, None,
                                    None, None, None)
     return
   kernelFolder = os.path.join(
       buildFolder, xoccFolder,
-      "impl", "build", "system", PROJECT_CONFIG["kernelFile"], "bitstream")
+      "impl", "build", "system", PROJECT_CONFIG["kernel_file"], "bitstream")
   implFolder = os.path.join(
-      kernelFolder, PROJECT_CONFIG["kernelFile"] + "_ipi", "ipiimpl",
+      kernelFolder, PROJECT_CONFIG["kernel_file"] + "_ipi", "ipiimpl",
       "ipiimpl.runs", "impl_1")
   if not os.path.exists(implFolder):
     conf.consumption = Consumption(conf, "no_build", None, None, None, None,
@@ -308,7 +318,7 @@ def extract_result_build(conf):
     power = float(re.search(
         "Total On-Chip Power \(W\)[ \t]*\|[ \t]*([0-9\.]+)", report).group(1))
   try:
-    with open(os.path.join(kernelFolder, PROJECT_CONFIG["kernelFile"] + "_ipi",
+    with open(os.path.join(kernelFolder, PROJECT_CONFIG["kernel_file"] + "_ipi",
                            "vivado_warning.txt"), "r") as clockFile:
       warningText = clockFile.read()
       m = re.search("automatically changed to ([0-9]+) MHz", warningText)
@@ -322,11 +332,11 @@ def extract_result_build(conf):
       conf, status, luts, ff, dsp, bram, power, clock)
 
 def check_build_status(conf):
-  buildFolder = os.path.join(PROJECT_CONFIG["buildDir"], conf.build_folder())
+  buildFolder = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
   kernelFolder = os.path.join(
-      buildFolder, ("_xocc_" + PROJECT_CONFIG["kernelFile"] + "_" +
-                    PROJECT_CONFIG["kernelFile"] + ".dir"),
-      "impl", "build", "system", PROJECT_CONFIG["kernelName"], "bitstream")
+      buildFolder, ("_xocc_" + PROJECT_CONFIG["kernel_file"] + "_" +
+                    PROJECT_CONFIG["kernel_file"] + ".dir"),
+      "impl", "build", "system", PROJECT_CONFIG["kernel_name"], "bitstream")
   try:
     log = open(
         os.path.join(buildFolder, "log.out"), "r").read()
@@ -334,7 +344,7 @@ def check_build_status(conf):
     return "no_build"
   try:
     report = open(
-        os.path.join(kernelFolder, PROJECT_CONFIG["kernelName"] + "_ipi",
+        os.path.join(kernelFolder, PROJECT_CONFIG["kernel_name"] + "_ipi",
                      "vivado.log")).read()
   except FileNotFoundError:
     return "no_build"
@@ -380,7 +390,7 @@ def get_build_result(buildDir):
     print("Extracting {}...".format(fileName))
     extract_result_build(conf)
     confs.append(conf)
-  with open(os.path.join(PROJECT_CONFIG["buildDir"],
+  with open(os.path.join(PROJECT_CONFIG["build_dir"],
                          "build_status.csv"), "w") as resultFile:
     resultFile.write(Consumption.csv_cols() + "\n")
     for conf in confs:
@@ -388,7 +398,7 @@ def get_build_result(buildDir):
 
 def scan_configurations(numProcs, configurations, cmakeOpts):
   try:
-    os.makedirs(PROJECT_CONFIG["buildDir"])
+    os.makedirs(PROJECT_CONFIG["build_dir"])
   except FileExistsError:
     pass
   pool = mp.Pool(processes=numProcs)
@@ -401,12 +411,12 @@ def scan_configurations(numProcs, configurations, cmakeOpts):
     print("All configurations finished running.")
 
 def files_to_copy(conf):
-  filesToCopy = ["configure.sh", PROJECT_CONFIG["kernelName"] + ".xclbin"]
-  kernelString = PROJECT_CONFIG["kernelName"]
-  xoccFolder = ("_xocc_" + PROJECT_CONFIG["kernelFile"] + "_" +
-                PROJECT_CONFIG["kernelName"] + ".dir")
+  filesToCopy = ["configure.sh", PROJECT_CONFIG["kernel_name"] + ".xclbin"]
+  kernelString = PROJECT_CONFIG["kernel_name"]
+  xoccFolder = ("_xocc_" + PROJECT_CONFIG["kernel_file"] + "_" +
+                PROJECT_CONFIG["kernel_name"] + ".dir")
   hlsFolder = os.path.join(
-      xoccFolder, "impl", "kernels", PROJECT_CONFIG["kernelName"])
+      xoccFolder, "impl", "kernels", PROJECT_CONFIG["kernel_name"])
   kernelFolder = os.path.join(
       xoccFolder, "impl", "build",
       "system", kernelString, "bitstream", kernelString + "_ipi")
@@ -423,14 +433,14 @@ def files_to_copy(conf):
 
 def package_configurations(target):
   kernelsPackaged = 0
-  for fileName in os.listdir(PROJECT_CONFIG["buildDir"]):
+  for fileName in os.listdir(PROJECT_CONFIG["build_dir"]):
     try:
       conf = Configuration.get_conf(fileName)
     except ValueError:
       continue
     if conf.target != target:
       continue
-    sourceDir = os.path.join(PROJECT_CONFIG["buildDir"], fileName)
+    sourceDir = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
     packageFolder = os.path.join(target, fileName)
     kernelName = None
     kernelPath = None
@@ -467,14 +477,14 @@ def package_configurations(target):
            " kernels and configuration files into \"{}\".").format(target))
   else:
     print("No kernels for target \"{}\" found in \"{}\".".format(
-        target, PROJECT_CONFIG["buildDir"]))
+        target, PROJECT_CONFIG["build_dir"]))
 
 def unpackage_configuration(conf):
   confStr = conf.to_string()
   fileName = conf.build_folder()
   print("Unpackaging {}...".format(confStr))
   sourceDir = os.path.join(conf.target, fileName)
-  targetDir = os.path.join(PROJECT_CONFIG["buildDir"], fileName)
+  targetDir = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
   implFolder, hlsFolder, filesToCopy = files_to_copy(conf)
   try:
     os.makedirs(os.path.join(targetDir, implFolder))
@@ -510,20 +520,20 @@ def unpackage_configurations(target):
     pool.terminate()
   if unpackagedSomething:
     print("Successfully unpackaged kernels into \"{}\".".format(
-        PROJECT_CONFIG["buildDir"]))
+        PROJECT_CONFIG["build_dir"]))
   else:
     print("No kernels found in \"{}\".".format(target))
 
 def benchmark(repetitions, timeout):
-  for fileName in os.listdir(PROJECT_CONFIG["buildDir"]):
+  for fileName in os.listdir(PROJECT_CONFIG["build_dir"]):
     try:
       conf = Configuration.get_conf(fileName)
     except ValueError:
       continue
     confStr = conf.to_string()
     folderName = conf.benchmark_folder()
-    kernelFolder = os.path.join(PROJECT_CONFIG["buildDir"], fileName)
-    kernelString = PROJECT_CONFIG["kernelName"]
+    kernelFolder = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
+    kernelString = PROJECT_CONFIG["kernel_name"]
     kernelPath = os.path.join(kernelFolder, kernelString + ".xclbin")
     if not os.path.exists(kernelPath):
       continue
@@ -606,7 +616,7 @@ if __name__ == "__main__":
 
   elif sys.argv[1] == "extract":
 
-    get_build_result(PROJECT_CONFIG["buildDir"])
+    get_build_result(PROJECT_CONFIG["build_dir"])
 
   elif sys.argv[1] == "package":
 
