@@ -38,16 +38,16 @@ set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
 set(MM_ENTRY_FUNCTION MatrixMultiplication)
 include(CheckTypeSize)
-check_type_size(${MM_DATA_TYPE} MM_DATA_WIDTH)
-if(NOT MM_DATA_WIDTH) # Non-primitive data type
+check_type_size(${MM_DATA_TYPE} MM_DATA_WIDTH_${MM_DATA_TYPE})
+if(NOT MM_DATA_WIDTH_${MM_DATA_TYPE}) # Non-primitive data type
   if(MM_DATA_TYPE STREQUAL "half")
-    set(MM_DATA_WIDTH 2)
+    set(MM_DATA_WIDTH_${MM_DATA_TYPE} 2)
   else()
     message(FATAL_ERROR "Could not get size of data type ${MM_DATA_TYPE}.") 
   endif()
 endif()
-math(EXPR MM_KERNEL_WIDTH_N "${MM_DATA_WIDTH} * ${MM_PARALLELISM_N}")
-math(EXPR MM_KERNEL_WIDTH_M "${MM_DATA_WIDTH} * ${MM_PARALLELISM_M}")
+math(EXPR MM_KERNEL_WIDTH_N "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM_N}")
+math(EXPR MM_KERNEL_WIDTH_M "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM_M}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
