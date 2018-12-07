@@ -4,6 +4,7 @@
 
 #include "hlslib/Stream.h"
 #include "hlslib/Simulation.h"
+#include "hlslib/Utility.h"
 #include "MatrixMultiplication.h"
 #include "Memory.h"
 
