@@ -168,6 +168,9 @@ else()
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw_emu
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
     MatrixMultiplication_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
+  add_custom_target(build_hardware DEPENDS compile_hardware link_hardware)
+  add_custom_target(build_hardware_emulation DEPENDS
+                    compile_hardware_emulation link_hardware_emulation)
 endif()
 
 # Host code to launch kernel
