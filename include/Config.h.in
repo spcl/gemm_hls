@@ -10,7 +10,8 @@
 #include "hls_half.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
-constexpr int kMemoryWidthBytes = ${MM_MEMORY_BUS_WIDTH};
+constexpr int kMemoryWidthBytesK = ${MM_MEMORY_BUS_WIDTH_K};
+constexpr int kMemoryWidthBytesM = ${MM_MEMORY_BUS_WIDTH_M};
 constexpr int kSizeN = ${MM_SIZE_N};
 constexpr int kSizeK = ${MM_SIZE_K};
 constexpr int kSizeM = ${MM_SIZE_M};
@@ -26,7 +27,7 @@ constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}";
 using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;
 using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
 
-#if ${MM_MEMORY_BUS_WIDTH} != ${MM_KERNEL_WIDTH_M} 
+#if ${MM_MEMORY_BUS_WIDTH_M} != ${MM_KERNEL_WIDTH_M} 
   #define MM_CONVERT_B
 #endif
 

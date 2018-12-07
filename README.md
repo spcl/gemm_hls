@@ -14,9 +14,8 @@ bottleneck preventing further scaling. The code is not device-specific, and can
 be configured for any Xilinx FPGA supported by the SDAccel environment. 
 
 The implementation uses a systolic array approach, where linearly connected
-processing elements buffer distinct elements of the A-matrix, and B is streamed
-through all elements. Both rows and columns are tiled to allow arbitrarily large
-matrices. 
+processing elements compute distinct contributions to the outer product of tiles
+of the output matrix. 
 
 For a detailed description of the optimization techniques used here, we refer to
 [this article](https://arxiv.org/abs/1805.08288). We also gave [a tutorial on
@@ -62,8 +61,8 @@ cd build
 cmake ../ -DMM_DATA_TYPE=float -DMM_SIZE_N=8192 -DMM_SIZE_M=8192 -DMM_SIZE_P=8192 -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
 make
 make synthesis
-make compile_kernel 
-make link_kernel
+make compile_hardware 
+make link_hardware
 ./RunHardware
 ```
 

@@ -20,8 +20,8 @@ using hlslib::Stream;
 
 // Read wide bursts from memory, then distribute it into separate column
 // buffers, which will be read out in column-major order and sent to the kernel
-void ReadA(MemoryPack_t const a[],
-           Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kMemoryWidth]);
+void ReadA(MemoryPackK_t const a[],
+           Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth]);
 
 // We pop from the column buffers in column-major order, funneling the
 // transposed data to the kernel
@@ -36,16 +36,16 @@ void TransposeA(Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
 void ConvertWidthA(Stream<Data_t, kPipeDepth> &narrow,
                    Stream<ComputePackN_t, kPipeDepth> &wide);
 
-void ReadB(MemoryPack_t const memory[],
-           Stream<MemoryPack_t, 2 * kOuterTileSizeM> &pipe);
+void ReadB(MemoryPackM_t const memory[],
+           Stream<MemoryPackM_t, 2 * kOuterTileSizeM> &pipe);
 
-void ConvertWidthB(Stream<MemoryPack_t, 2 * kOuterTileSizeM> &wide,
+void ConvertWidthB(Stream<MemoryPackM_t, 2 * kOuterTileSizeM> &wide,
                    Stream<ComputePackM_t> &narrow);
 
 void ConvertWidthC(Stream<OutputPack_t> &narrow,
-                   Stream<MemoryPack_t> &wide);
+                   Stream<MemoryPackM_t> &wide);
 
-void WriteC(Stream<MemoryPack_t> &pipe, MemoryPack_t memory[]);
+void WriteC(Stream<MemoryPackM_t> &pipe, MemoryPackM_t memory[]);
 
 #ifndef MM_CONVERT_B
 void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeM> &fromMemory,
