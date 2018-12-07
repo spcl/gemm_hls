@@ -87,7 +87,7 @@ add_executable(Stats src/Stats.cpp)
 
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
-target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} mmkernel)
+target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} ${SDAccel_LIBRARIES} mmkernel)
 add_test(TestSimulation TestSimulation)
 enable_testing()
 
@@ -176,4 +176,4 @@ endif()
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
-target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)
+target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} mmkernel)
