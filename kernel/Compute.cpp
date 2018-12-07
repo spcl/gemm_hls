@@ -181,8 +181,8 @@ OuterTile_N:
   }
 }
 
-void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
-                                MemoryPack_t c[]) {
+void MatrixMultiplicationKernel(MemoryPackK_t const a[], MemoryPackM_t const b[],
+                                MemoryPackM_t c[]) {
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
@@ -200,7 +200,7 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
   Stream<Data_t> aConvert("aConvert");
   Stream<ComputePackN_t, kPipeDepth> aPipes[kComputeTilesN + 1];
 
-  Stream<MemoryPack_t, 2 * kOuterTileSizeM> bMemory("bMemory");
+  Stream<MemoryPackM_t, 2 * kOuterTileSizeM> bMemory("bMemory");
   Stream<ComputePackM_t, kPipeDepth> bPipes[kComputeTilesN + 1];
 
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];
@@ -258,7 +258,7 @@ void MatrixMultiplicationKernel(MemoryPack_t const a[], MemoryPack_t const b[],
 
   // Only convert memory width if necessary
 #ifdef MM_CONVERT_B
-    Stream<MemoryPack_t> cMemory("cMemory");
+    Stream<MemoryPackM_t> cMemory("cMemory");
     HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cPipes[0], cMemory);
     HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c);
 #else

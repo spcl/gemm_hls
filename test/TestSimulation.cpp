@@ -26,9 +26,9 @@ int main() {
   std::for_each(b.begin(), b.end(),
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
 
-  const auto aKernel = Pack(a);
-  const auto bKernel = Pack(b);
-  auto cKernel = Pack(cReference);
+  const auto aKernel = Pack<kMemoryWidthK>(a);
+  const auto bKernel = Pack<kMemoryWidthM>(b);
+  auto cKernel = Pack<kMemoryWidthM>(cReference);
 
   ReferenceImplementation(a.data(), b.data(), cReference.data());
 
@@ -36,7 +36,7 @@ int main() {
   MatrixMultiplicationKernel(aKernel.data(), bKernel.data(), cKernel.data());
   std::cout << "Verifying results...\n" << std::flush;
 
-  const auto cTest = Unpack(cKernel);
+  const auto cTest = Unpack<kMemoryWidthM>(cKernel);
 
   for (int i = 0; i < kSizeN; ++i) {
     for (int j = 0; j < kSizeM; ++j) {

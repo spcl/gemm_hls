@@ -17,7 +17,8 @@ set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
-set(MM_MEMORY_BUS_WIDTH 32 CACHE STRING "Width of memory bus in bytes.")
+set(MM_MEMORY_BUS_WIDTH_K 64 CACHE STRING "Width of memory bus in bytes in K.")
+set(MM_MEMORY_BUS_WIDTH_M 32 CACHE STRING "Width of memory bus in bytes in M.")
 set(MM_SIZE_N 512 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_K 512 CACHE STRING "Size of matrix dimension.")
 set(MM_SIZE_M 512 CACHE STRING "Size of matrix dimension.")

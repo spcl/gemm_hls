@@ -56,8 +56,10 @@ int main(int argc, char **argv) {
   }
 
   std::vector<Data_t> a, b, cRef;
-  std::vector<MemoryPack_t, hlslib::ocl::AlignedAllocator<MemoryPack_t, 4096>>
-      aMem, bMem, cMem;
+  std::vector<MemoryPackK_t, hlslib::ocl::AlignedAllocator<MemoryPackK_t, 4096>>
+      aMem;
+  std::vector<MemoryPackM_t, hlslib::ocl::AlignedAllocator<MemoryPackM_t, 4096>>
+       bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
     a = decltype(a)(kSizeN * kSizeK);
@@ -68,9 +70,9 @@ int main(int argc, char **argv) {
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
     cRef = decltype(cRef)(kSizeN * kSizeM, 0);
 
-    aMem = Pack(a);
-    bMem = Pack(b);
-    cMem = Pack(cRef);
+    aMem = Pack<kMemoryWidthK>(a);
+    bMem = Pack<kMemoryWidthM>(b);
+    cMem = Pack<kMemoryWidthM>(cRef);
   }
   std::cout << " Done.\n";
 
@@ -82,12 +84,13 @@ int main(int argc, char **argv) {
     auto program = context.MakeProgram(path);
 
     std::cout << "Initializing device memory...\n" << std::flush;
-    auto aDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeK / kMemoryWidth);
-    auto bDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeM / kMemoryWidth);
-    auto cDevice = context.MakeBuffer<MemoryPack_t, hlslib::ocl::Access::write>(
-        hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeM / kMemoryWidth);
+    auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
+        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeK / kMemoryWidthK);
+    auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
+        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeM / kMemoryWidthM);
+    auto cDevice =
+        context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
+            hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeM / kMemoryWidthM);
 
     if (verify) {
       std::cout << "Copying memory to device...\n" << std::flush;
@@ -129,7 +132,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Verifying result...\n" << std::flush;
     // Convert to single element vector
-    const auto cTest = Unpack(cMem);
+    const auto cTest = Unpack<kMemoryWidthM>(cMem);
 
     for (int i = 0; i < kSizeN; ++i) {
       for (int j = 0; j < kSizeM; ++j) {
