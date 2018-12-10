@@ -56,7 +56,7 @@ PROJECT_CONFIG = {
         "type": int,
         "default": None
     }),
-    ("size_K", {
+    ("size_k", {
         "cmake": "MM_SIZE_K",
         "type": int,
         "default": None
@@ -76,7 +76,7 @@ PROJECT_CONFIG = {
         "type": int,
         "default": None
     }),
-    ("targetClock", {
+    ("frequency", {
         "cmake": "MM_TARGET_CLOCK",
         "type": int,
         "default": 200
