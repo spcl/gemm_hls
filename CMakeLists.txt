@@ -58,8 +58,16 @@ math(EXPR MM_MEMORY_WIDTH_M "${MM_MEMORY_BUS_WIDTH_M} / ${MM_DATA_WIDTH_${MM_DAT
 if(MM_MEMORY_WIDTH_M GREATER MM_PARALLELISM_M)
   message(FATAL_ERROR "Bus width in M too narrow (${MM_MEMORY_BUS_WIDTH_M}). Must be greater than or equal to the parallelism in M.")
 endif()
-math(EXPR MM_OUTER_REM "${MM_MEMORY_TILE_SIZE_M} % ${MM_MEMORY_WIDTH_M}")
-if(MM_OUTER_REM GREATER 0)
+math(EXPR MM_REM "${MM_SIZE_N} % ${MM_MEMORY_TILE_SIZE_N}")
+if(MM_REM GREATER 0)
+  message(FATAL_ERROR "Size in N (${MM_SIZE_M}) must be divisible by memory tile size in N (${MM_MEMORY_TILE_SIZE_N}).")
+endif()
+math(EXPR MM_REM "${MM_SIZE_M} % ${MM_MEMORY_TILE_SIZE_M}")
+if(MM_REM GREATER 0)
+  message(FATAL_ERROR "Size in M (${MM_SIZE_M}) must be divisible by memory tile size in M (${MM_MEMORY_TILE_SIZE_M}).")
+endif()
+math(EXPR MM_REM "${MM_MEMORY_TILE_SIZE_M} % ${MM_MEMORY_WIDTH_M}")
+if(MM_REM GREATER 0)
   message(FATAL_ERROR "Outer memory tile size must be divisible by element width of memory bus.")
 endif()
 
@@ -194,9 +202,6 @@ else()
     COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw_emu
     ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
     MatrixMultiplication_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
-  add_custom_target(build_hardware DEPENDS compile_hardware link_hardware)
-  add_custom_target(build_hardware_emulation DEPENDS
-                    compile_hardware_emulation link_hardware_emulation)
 endif()
 
 # Host code to launch kernel

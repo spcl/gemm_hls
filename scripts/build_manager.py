@@ -16,7 +16,8 @@ PROJECT_CONFIG = {
   "kernel_name": "MatrixMultiplication",
   "kernel_file": "MatrixMultiplication_hw",
   "make_synthesis": "synthesis",
-  "make_kernel": "build_hardware",
+  "make_compile": "compile_hardware",
+  "make_link": "link_hardware",
   "execute_kernel": ["./RunHardware.exe"],
   "build_dir": "scan",
   "benchmark_dir": "benchmark",
@@ -245,15 +246,16 @@ def run_build(conf, clean=True, hardware=True):
     raise Exception(confStr + ": Software build failed.")
   print_status(conf, "Finished building software.")
   if hardware:
-    # timeStart = datetime.datetime.now()
-    # print_status(conf, "Running HLS...")
-    # if run_process(["make", PROJECT_CONFIG["make_synthesis"]], confDir) != 0:
-    #   raise Exception(confStr + ": HLS failed.")
-    # print_status(conf, "Finished HLS after {}.".format(
-    #     time_only(datetime.datetime.now() - timeStart)))
     timeStart = datetime.datetime.now()
+    print_status(conf, "Starting kernel compilation (HLS)...")
+    if run_process(["make", PROJECT_CONFIG["make_compile"]], confDir) != 0:
+        print_status(conf, "FAILED after {}.".format(
+            time_only(datetime.datetime.now() - timeStart)))
+    else:
+        print_status(conf, "Finished compilation stage in {}.".format(
+            time_only(datetime.datetime.now() - timeStart)))
     print_status(conf, "Starting kernel build...")
-    if run_process(["make", PROJECT_CONFIG["make_kernel"]], confDir) != 0:
+    if run_process(["make", PROJECT_CONFIG["make_link"]], confDir) != 0:
       try:
         with open(os.path.join(confDir, "log.out")) as logFile:
           m = re.search("auto frequency scaling failed", logFile.read())
@@ -591,18 +593,18 @@ if __name__ == "__main__":
       else:
         default = None
       argParser.add_argument(key, default=str(default))
-    argParser.add_argument("--cmakeOpts", default="")
+    argParser.add_argument("--cmake_opts", default="")
     args = argParser.parse_args(sys.argv[2:])
 
     argDict = vars(args)
 
     procs = int(argDict["procs"])
-    if "cmakeOpts" in argDict and argDict["cmakeOpts"]:
-      cmakeOpts = ["-D" + arg for arg in argDict["cmakeOpts"].split(" ")]
+    if "cmake_opts" in argDict and argDict["cmake_opts"]:
+      cmakeOpts = argDict["cmake_opts"].split(" ")
     else:
       cmakeOpts = []
     del argDict["procs"]
-    del argDict["cmakeOpts"]
+    del argDict["cmake_opts"]
 
     orderedArgs = OrderedDict()
     for key in argDict:
