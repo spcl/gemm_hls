@@ -34,12 +34,6 @@ set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
 set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")  
 
-# Validation checks
-math(EXPR MM_INNER_TILES "(${MM_MEMORY_TILE_SIZE_N} / ${MM_PARALLELISM_N}) * (${MM_MEMORY_TILE_SIZE_M} / ${MM_PARALLELISM_M})")
-if(MM_MEMORY_TILE_SIZE_N GREATER MM_INNER_TILES)
-  message(FATAL_ERROR "In-memory transposition for A cannot keep up with the instantiated number of compute units. The number of inner tiles (currently ${MM_INNER_TILES}) must be greater than or equal to the outer tile size in N (currently ${MM_MEMORY_TILE_SIZE_N}).")
-endif()
-
 # Internal
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
 set(MM_ENTRY_FUNCTION MatrixMultiplication)
@@ -54,6 +48,20 @@ if(NOT MM_DATA_WIDTH_${MM_DATA_TYPE}) # Non-primitive data type
 endif()
 math(EXPR MM_KERNEL_WIDTH_N "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM_N}")
 math(EXPR MM_KERNEL_WIDTH_M "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM_M}")
+
+# Validation checks
+math(EXPR MM_INNER_TILES "(${MM_MEMORY_TILE_SIZE_N} / ${MM_PARALLELISM_N}) * (${MM_MEMORY_TILE_SIZE_M} / ${MM_PARALLELISM_M})")
+if(MM_MEMORY_TILE_SIZE_N GREATER MM_INNER_TILES)
+  message(FATAL_ERROR "In-memory transposition for A cannot keep up with the instantiated number of compute units. The number of inner tiles (currently ${MM_INNER_TILES}) must be greater than or equal to the outer tile size in N (currently ${MM_MEMORY_TILE_SIZE_N}).")
+endif()
+math(EXPR MM_MEMORY_WIDTH_M "${MM_MEMORY_BUS_WIDTH_M} / ${MM_DATA_WIDTH_${MM_DATA_TYPE}}")
+if(MM_MEMORY_WIDTH_M GREATER MM_PARALLELISM_M)
+  message(FATAL_ERROR "Bus width in M too narrow (${MM_MEMORY_BUS_WIDTH_M}). Must be greater than or equal to the parallelism in M.")
+endif()
+math(EXPR MM_OUTER_REM "${MM_MEMORY_TILE_SIZE_M} % ${MM_MEMORY_WIDTH_M}")
+if(MM_OUTER_REM GREATER 0)
+  message(FATAL_ERROR "Outer memory tile size must be divisible by element width of memory bus.")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
