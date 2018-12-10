@@ -34,6 +34,12 @@ set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
 set(MM_MULTIPLY_RESOURCE OFF CACHE STRING "")  
 
+# Validation checks
+math(EXPR MM_INNER_TILES "(${MM_MEMORY_TILE_SIZE_N} / ${MM_PARALLELISM_N}) * (${MM_MEMORY_TILE_SIZE_M} / ${MM_PARALLELISM_M})")
+if(MM_MEMORY_TILE_SIZE_N GREATER MM_INNER_TILES)
+  message(FATAL_ERROR "In-memory transposition for A cannot keep up with the instantiated number of compute units. The number of inner tiles (currently ${MM_INNER_TILES}) must be greater than or equal to the outer tile size in N (currently ${MM_MEMORY_TILE_SIZE_N}).")
+endif()
+
 # Internal
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
 set(MM_ENTRY_FUNCTION MatrixMultiplication)

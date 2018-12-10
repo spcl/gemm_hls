@@ -138,12 +138,6 @@ void _TransposeAInner<1>(
 // transposed data to the kernel
 void TransposeA(Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
                 Stream<ComputePackN_t, kPipeDepth> &toKernel) {
-                
-  static_assert(
-      kOuterTileSizeN <= kInnerTilesN * kInnerTilesM,
-      "In-memory transposition for A cannot keep up with the instantiated "
-      "number of compute units. The number of inner tiles must be larger than "
-      "the outer tile size in N.");
 
   static_assert((static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM *
                  kSizeK * kOuterTileSizeN) == kTotalReadsFromA,
