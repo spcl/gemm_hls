@@ -555,47 +555,50 @@ def benchmark(repetitions, timeout):
         kernelPath = os.path.join(kernelFolder, kernelString + ".xclbin")
         if not os.path.exists(kernelPath):
             continue
-        benchmarkFolder = os.path.join("benchmark", conf.benchmark_folder())
-        try:
-            os.makedirs(benchmarkFolder)
-        except FileExistsError:
-            pass
-        shutil.copy(
-            os.path.join(kernelFolder, "configure.sh"), benchmarkFolder)
+        benchmarkFile = "benchmark.csv"
         print("Running {}...".format(confStr))
         if run_process(["make"], kernelFolder, pipe=False) != 0:
             raise Exception(confStr + ": software build failed.")
         repsDone = 0
         timeouts = 0
-        while repsDone < repetitions:
-            time.sleep(0.5)
-            profilePath = os.path.join("benchmark_" + str(
-                datetime.datetime.now()).replace(" ", "_").replace(":", "-"))
-            print("Running iteration {} / {}...".format(
-                repsDone + 1, repetitions))
-            try:
-                ret = run_process(
-                    PROJECT_CONFIG["execute_kernel"],
-                    kernelFolder,
-                    pipe=True,
-                    logPath=profilePath,
-                    timeout=timeout)
-            except sp.TimeoutExpired as err:
-                timeouts += 1
-                if timeouts > 10:
-                    print("\n" + confStr +
-                          ": exceeded maximum number of timeouts. Skipping.")
-                    break
-                else:
-                    print(confStr + ": timeout occurred. Retrying...")
-                    continue
-            if ret != 0:
-                raise Exception(confStr + ": kernel execution failed.")
-            repsDone += 1
-            timeouts = 0
-            shutil.copy(
-                os.path.join(kernelFolder, profilePath + ".out"),
-                benchmarkFolder)
+        with open(benchmarkFile, "a") as outFile:
+            outFile.write(conf.csv_header() + "time,performance\n")
+            while repsDone < repetitions:
+                time.sleep(0.5)
+                profilePath = os.path.join("benchmark_" +
+                                           str(datetime.datetime.now()).
+                                           replace(" ", "_").replace(":", "-"))
+                print("Running iteration {} / {}...".format(
+                    repsDone + 1, repetitions))
+                try:
+                    ret = run_process(
+                        PROJECT_CONFIG["execute_kernel"],
+                        kernelFolder,
+                        pipe=True,
+                        logPath=profilePath,
+                        timeout=timeout)
+                except sp.TimeoutExpired as err:
+                    timeouts += 1
+                    if timeouts > 10:
+                        print(
+                            "\n" + confStr +
+                            ": exceeded maximum number of timeouts. Skipping.")
+                        break
+                    else:
+                        print(confStr + ": timeout occurred. Retrying...")
+                        continue
+                if ret != 0:
+                    raise Exception(confStr + ": kernel execution failed.")
+                repsDone += 1
+                timeouts = 0
+                with open(
+                        os.path.join(kernelFolder, profilePath + ".out"),
+                        "r") as profileFile:
+                    m = re.search("([\d\.]+) seconds[^\d]+([\d\.]+) GOp/s",
+                                  profileFile.read())
+                    outFile.write("{},{},{}\n".format(conf.to_csv(),
+                                                      m.group(1), m.group(2)))
+                    outFile.flush()
 
 
 if __name__ == "__main__":
