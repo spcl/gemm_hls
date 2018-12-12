@@ -13,94 +13,103 @@ import sys
 import time
 
 PROJECT_CONFIG = {
-  "kernel_name": "MatrixMultiplicationKernel",
-  "kernel_file": "MatrixMultiplication_hw",
-  "make_synthesis": "synthesis",
-  "make_compile": "compile_hardware",
-  "make_link": "link_hardware",
-  "execute_kernel": ["./RunHardware.exe"],
-  "build_dir": "scan",
-  "benchmark_dir": "benchmark",
-  "options": OrderedDict([
-    ("data_type", {
-        "cmake": "MM_DATA_TYPE",
-        "type": str,
-        "default": None
-    }),
-    ("map_op", {
-        "cmake": "MM_MAP_OP",
-        "type": str,
-        "default": None
-    }),
-    ("reduce_op", {
-        "cmake": "MM_REDUCE_OP",
-        "type": str,
-        "default": None
-    }),
-    ("parallelism_n", {
-        "cmake": "MM_PARALLELISM_N",
-        "type": int,
-        "default": None
-    }),
-    ("parallelism_m", {
-        "cmake": "MM_PARALLELISM_M",
-        "type": int,
-        "default": None
-    }),
-    ("memory_width_m", {
-        "cmake": "MM_MEMORY_BUS_WIDTH_M",
-        "type": int,
-        "default": None
-    }),
-    ("size_n", {
-        "cmake": "MM_SIZE_N",
-        "type": int,
-        "default": None
-    }),
-    ("size_k", {
-        "cmake": "MM_SIZE_K",
-        "type": int,
-        "default": None
-    }),
-    ("size_m", {
-        "cmake": "MM_SIZE_M",
-        "type": int,
-        "default": None
-    }),
-    ("tile_size_n", {
-        "cmake": "MM_MEMORY_TILE_SIZE_N",
-        "type": int,
-        "default": None
-    }),
-    ("tile_size_m", {
-        "cmake": "MM_MEMORY_TILE_SIZE_M",
-        "type": int,
-        "default": None
-    }),
-    ("frequency", {
-        "cmake": "MM_TARGET_CLOCK",
-        "type": int,
-        "default": 200
-    }),
-    ("target", {
-        "cmake": "MM_DSA_NAME",
-        "type": str,
-        "default": "xilinx_vcu1525_dynamic_5_1"
-    }),
-  ]),
+    "kernel_name":
+    "MatrixMultiplicationKernel",
+    "kernel_file":
+    "MatrixMultiplication_hw",
+    "make_synthesis":
+    "synthesis",
+    "make_compile":
+    "compile_hardware",
+    "make_link":
+    "link_hardware",
+    "execute_kernel": ["./RunHardware.exe"],
+    "build_dir":
+    "scan",
+    "benchmark_dir":
+    "benchmark",
+    "options":
+    OrderedDict([
+        ("data_type", {
+            "cmake": "MM_DATA_TYPE",
+            "type": str,
+            "default": None
+        }),
+        ("map_op", {
+            "cmake": "MM_MAP_OP",
+            "type": str,
+            "default": None
+        }),
+        ("reduce_op", {
+            "cmake": "MM_REDUCE_OP",
+            "type": str,
+            "default": None
+        }),
+        ("parallelism_n", {
+            "cmake": "MM_PARALLELISM_N",
+            "type": int,
+            "default": None
+        }),
+        ("parallelism_m", {
+            "cmake": "MM_PARALLELISM_M",
+            "type": int,
+            "default": None
+        }),
+        ("memory_width_m", {
+            "cmake": "MM_MEMORY_BUS_WIDTH_M",
+            "type": int,
+            "default": None
+        }),
+        ("size_n", {
+            "cmake": "MM_SIZE_N",
+            "type": int,
+            "default": None
+        }),
+        ("size_k", {
+            "cmake": "MM_SIZE_K",
+            "type": int,
+            "default": None
+        }),
+        ("size_m", {
+            "cmake": "MM_SIZE_M",
+            "type": int,
+            "default": None
+        }),
+        ("tile_size_n", {
+            "cmake": "MM_MEMORY_TILE_SIZE_N",
+            "type": int,
+            "default": None
+        }),
+        ("tile_size_m", {
+            "cmake": "MM_MEMORY_TILE_SIZE_M",
+            "type": int,
+            "default": None
+        }),
+        ("frequency", {
+            "cmake": "MM_TARGET_CLOCK",
+            "type": int,
+            "default": 200
+        }),
+        ("target", {
+            "cmake": "MM_DSA_NAME",
+            "type": str,
+            "default": "xilinx_vcu1525_dynamic_5_1"
+        }),
+    ]),
 }
 
-class Configuration(object):
 
+class Configuration(object):
     def __init__(self, *args, **kwargs):
         for opt, val in zip(
-            list(PROJECT_CONFIG["options"].keys())[:len(args)], args):
+                list(PROJECT_CONFIG["options"].keys())[:len(args)], args):
             setattr(self, opt, PROJECT_CONFIG["options"][opt]["type"](val))
         for opt, val in kwargs.items():
             if opt not in PROJECT_CONFIG["options"]:
                 raise KeyError("\"" + opt + "\" is not a valid option.")
             if opt in self.__dict__:
-                raise KeyError("Option \"" + opt + "\" set both as arg and kwarg")
+                raise KeyError("Option \"" + opt +
+                               "\" set both as arg and kwarg")
             setattr(self, opt, PROJECT_CONFIG["options"][opt]["type"](val))
         unsetArgs = PROJECT_CONFIG["options"].keys() - self.__dict__.keys()
         for arg in unsetArgs:
@@ -109,19 +118,23 @@ class Configuration(object):
                 setattr(self, opt, default)
                 unsetArgs.remove(arg)
         if len(unsetArgs) > 0:
-            raise TypeError("Missing arguments: {}".format(", ".join(unsetArgs)))
+            raise TypeError("Missing arguments: {}".format(
+                ", ".join(unsetArgs)))
 
     @staticmethod
     def csv_header():
         return ",".join(PROJECT_CONFIG["options"].keys())
 
     def to_string(self):
-        return "_".join([str(getattr(self, opt)).replace(":", "-").replace("_", "-")
-                         for opt in PROJECT_CONFIG["options"]])
+        return "_".join([
+            str(getattr(self, opt)).replace(":", "-").replace("_", "-")
+            for opt in PROJECT_CONFIG["options"]
+        ])
 
     def to_csv(self):
         return ",".join(
-            map(str, [getattr(self, opt) for opt in PROJECT_CONFIG["options"]]))
+            map(str,
+                [getattr(self, opt) for opt in PROJECT_CONFIG["options"]]))
 
     def build_folder(self):
         return "build_" + self.to_string()
@@ -136,9 +149,10 @@ class Configuration(object):
         return self.to_string()
 
     def cmake_command(self, sourceDir, extra=[]):
-        return (["cmake", sourceDir] +
-                ["-D{}={}".format(val["cmake"], getattr(self, key))
-                 for key, val in PROJECT_CONFIG["options"].items()] + extra)
+        return (["cmake", sourceDir] + [
+            "-D{}={}".format(val["cmake"], getattr(self, key))
+            for key, val in PROJECT_CONFIG["options"].items()
+        ] + extra)
 
     @staticmethod
     def get_conf(s):
@@ -149,8 +163,9 @@ class Configuration(object):
             elif opt["type"] == int:
                 pattern += "([0-9]+)_"
             else:
-                raise TypeError("Unsupported type \"{}\".".format(str(opt["type"])))
-        m = re.search(pattern[:-1], s) # Removing trailing underscore
+                raise TypeError("Unsupported type \"{}\".".format(
+                    str(opt["type"])))
+        m = re.search(pattern[:-1], s)  # Removing trailing underscore
         if not m:
             raise ValueError("Not a valid configuration string: " + s)
         return Configuration(*m.groups())
@@ -158,16 +173,19 @@ class Configuration(object):
 
 def run_process(command, directory, pipe=True, logPath="log", timeout=None):
     if pipe:
-        proc = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE,
-                        universal_newlines=True, cwd=directory)
+        proc = sp.Popen(
+            command,
+            stdout=sp.PIPE,
+            stderr=sp.PIPE,
+            universal_newlines=True,
+            cwd=directory)
         stdout, stderr = proc.communicate()
         with open(os.path.join(directory, logPath + ".out"), "a") as outFile:
             outFile.write(stdout)
         with open(os.path.join(directory, logPath + ".err"), "a") as outFile:
             outFile.write(stderr)
     else:
-        proc = sp.Popen(command,
-                        universal_newlines=True, cwd=directory)
+        proc = sp.Popen(command, universal_newlines=True, cwd=directory)
         try:
             proc.communicate(timeout=timeout)
         except sp.TimeoutExpired as err:
@@ -175,8 +193,8 @@ def run_process(command, directory, pipe=True, logPath="log", timeout=None):
             raise err
     return proc.returncode
 
-class Consumption(object):
 
+class Consumption(object):
     def __init__(self, conf, status, lut, ff, dsp, bram, power, clock):
         self.conf = conf
         self.status = status
@@ -193,9 +211,12 @@ class Consumption(object):
                 ",clock,dsp,lut,ff,bram,power")
 
     def __repr__(self):
-        return ",".join(map(str, [
-            self.status, self.conf.to_csv(), self.clock,
-            self.dsp, self.lut, self.ff, self.bram, self.power]))
+        return ",".join(
+            map(str, [
+                self.status,
+                self.conf.to_csv(), self.clock, self.dsp, self.lut, self.ff,
+                self.bram, self.power
+            ]))
 
 
 def do_build(conf, cmakeOpts):
@@ -224,17 +245,18 @@ def time_only(t):
 
 
 def print_status(conf, status):
-    print("[{}] {}: {}".format(time_only(datetime.datetime.now()),
-                               str(conf.to_string()), status))
+    print("[{}] {}: {}".format(
+        time_only(datetime.datetime.now()), str(conf.to_string()), status))
 
 
 def run_build(conf, clean=True, hardware=True):
     confStr = conf.to_string()
     confDir = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
     print_status(conf, "Configuring...")
-    if run_process(["sh", "configure.sh",
-                    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))],
-                   confDir) != 0:
+    if run_process([
+            "sh", "configure.sh",
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    ], confDir) != 0:
         raise Exception(confStr + ": Configuration failed.")
     print_status(conf, "Finished configuration.")
     if clean:
@@ -249,78 +271,91 @@ def run_build(conf, clean=True, hardware=True):
         timeStart = datetime.datetime.now()
         print_status(conf, "Starting kernel compilation (HLS)...")
         if run_process(["make", PROJECT_CONFIG["make_compile"]], confDir) != 0:
-            print_status(conf, "FAILED after {}.".format(
-                time_only(datetime.datetime.now() - timeStart)))
+            print_status(
+                conf, "FAILED after {}.".format(
+                    time_only(datetime.datetime.now() - timeStart)))
         else:
-            print_status(conf, "Finished compilation stage in {}.".format(
-                time_only(datetime.datetime.now() - timeStart)))
+            print_status(
+                conf, "Finished compilation stage in {}.".format(
+                    time_only(datetime.datetime.now() - timeStart)))
         print_status(conf, "Starting kernel build...")
         if run_process(["make", PROJECT_CONFIG["make_link"]], confDir) != 0:
             try:
                 with open(os.path.join(confDir, "log.out")) as logFile:
-                    m = re.search("auto frequency scaling failed", logFile.read())
+                    m = re.search("auto frequency scaling failed",
+                                  logFile.read())
                     if not m:
-                        print_status(conf, "FAILED after {}.".format(
-                            time_only(datetime.datetime.now() - timeStart)))
+                        print_status(
+                            conf, "FAILED after {}.".format(
+                                time_only(datetime.datetime.now() -
+                                          timeStart)))
                     else:
                         print(conf, "TIMING failed after {}.".format(
                             time_only(datetime.datetime.now() - timeStart)))
             except FileNotFoundError:
-                print_status(conf, "FAILED after {}.".format(
-                    time_only(datetime.datetime.now() - timeStart)))
+                print_status(
+                    conf, "FAILED after {}.".format(
+                        time_only(datetime.datetime.now() - timeStart)))
         else:
-            print_status(conf, "SUCCESS in {}.".format(
-                time_only(datetime.datetime.now() - timeStart)))
+            print_status(
+                conf, "SUCCESS in {}.".format(
+                    time_only(datetime.datetime.now() - timeStart)))
+
 
 def extract_result_build(conf):
-    buildFolder = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
+    buildFolder = os.path.join(PROJECT_CONFIG["build_dir"],
+                               conf.build_folder())
     xoccFolder = "_x"
     if not os.path.exists(os.path.join(buildFolder, xoccFolder)):
-        conf.consumption = Consumption(conf, "no_intermediate", None, None, None,
+        conf.consumption = Consumption(conf, "no_intermediate", None, None,
+                                       None, None, None, None)
+        return
+    kernelFolder = os.path.join(buildFolder, xoccFolder, "impl", "build",
+                                "system", PROJECT_CONFIG["kernel_file"],
+                                "bitstream")
+    implFolder = os.path.join(kernelFolder,
+                              PROJECT_CONFIG["kernel_file"] + "_ipi",
+                              "ipiimpl", "ipiimpl.runs", "impl_1")
+    if not os.path.exists(implFolder):
+        conf.consumption = Consumption(conf, "no_build", None, None, None,
                                        None, None, None)
         return
-    kernelFolder = os.path.join(
-        buildFolder, xoccFolder,
-        "impl", "build", "system", PROJECT_CONFIG["kernel_file"], "bitstream")
-    implFolder = os.path.join(
-        kernelFolder, PROJECT_CONFIG["kernel_file"] + "_ipi", "ipiimpl",
-        "ipiimpl.runs", "impl_1")
-    if not os.path.exists(implFolder):
-        conf.consumption = Consumption(conf, "no_build", None, None, None, None,
-                                       None, None)
-        return
     status = check_build_status(conf)
-    reportPath = os.path.join(
-        implFolder, "xcl_design_wrapper_utilization_placed.rpt")
+    reportPath = os.path.join(implFolder,
+                              "xcl_design_wrapper_utilization_placed.rpt")
     if not os.path.isfile(reportPath):
-        conf.consumption = Consumption(conf, status, None, None, None, None, None,
-                                       None)
+        conf.consumption = Consumption(conf, status, None, None, None, None,
+                                       None, None)
         return
     report = open(reportPath).read()
     try:
-        luts = int(re.search(
-            "CLB LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-        ff = int(re.search(
-            "CLB Registers[ \t]*\|[ \t]*([0-9]+)", report).group(1))
+        luts = int(
+            re.search("CLB LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
+        ff = int(
+            re.search("CLB Registers[ \t]*\|[ \t]*([0-9]+)", report).group(1))
     except AttributeError:
-        luts = int(re.search(
-            "Slice LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-        ff = int(re.search(
-            "Slice Registers[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    bram = int(re.search(
-        "Block RAM Tile[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    dsp = int(re.search(
-        "DSPs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    reportPath = os.path.join(implFolder, "xcl_design_wrapper_power_routed.rpt")
+        luts = int(
+            re.search("Slice LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
+        ff = int(
+            re.search("Slice Registers[ \t]*\|[ \t]*([0-9]+)",
+                      report).group(1))
+    bram = int(
+        re.search("Block RAM Tile[ \t]*\|[ \t]*([0-9]+)", report).group(1))
+    dsp = int(re.search("DSPs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
+    reportPath = os.path.join(implFolder,
+                              "xcl_design_wrapper_power_routed.rpt")
     if not os.path.isfile(reportPath):
         power = 0
     else:
         report = open(reportPath).read()
-        power = float(re.search(
-            "Total On-Chip Power \(W\)[ \t]*\|[ \t]*([0-9\.]+)", report).group(1))
+        power = float(
+            re.search("Total On-Chip Power \(W\)[ \t]*\|[ \t]*([0-9\.]+)",
+                      report).group(1))
     try:
-        with open(os.path.join(kernelFolder, PROJECT_CONFIG["kernel_file"] + "_ipi",
-                               "vivado_warning.txt"), "r") as clockFile:
+        with open(
+                os.path.join(kernelFolder,
+                             PROJECT_CONFIG["kernel_file"] + "_ipi",
+                             "vivado_warning.txt"), "r") as clockFile:
             warningText = clockFile.read()
             m = re.search("automatically changed to ([0-9]+) MHz", warningText)
             if m:
@@ -329,18 +364,19 @@ def extract_result_build(conf):
                 clock = conf.targetClock
     except FileNotFoundError:
         clock = conf.targetClock
-    conf.consumption = Consumption(
-        conf, status, luts, ff, dsp, bram, power, clock)
+    conf.consumption = Consumption(conf, status, luts, ff, dsp, bram, power,
+                                   clock)
+
 
 def check_build_status(conf):
-    buildFolder = os.path.join(PROJECT_CONFIG["build_dir"], conf.build_folder())
+    buildFolder = os.path.join(PROJECT_CONFIG["build_dir"],
+                               conf.build_folder())
     kernelFolder = os.path.join(
         buildFolder, ("_xocc_" + PROJECT_CONFIG["kernel_file"] + "_" +
-                      PROJECT_CONFIG["kernel_file"] + ".dir"),
-        "impl", "build", "system", PROJECT_CONFIG["kernel_name"], "bitstream")
+                      PROJECT_CONFIG["kernel_file"] + ".dir"), "impl", "build",
+        "system", PROJECT_CONFIG["kernel_name"], "bitstream")
     try:
-        log = open(
-            os.path.join(buildFolder, "log.out"), "r").read()
+        log = open(os.path.join(buildFolder, "log.out"), "r").read()
     except:
         return "no_build"
     try:
@@ -358,7 +394,9 @@ def check_build_status(conf):
     m = re.search("Placer could not place all instances", report)
     if m:
         return "failed_placement"
-    m = re.search("Routing results verification failed due to partially-conflicted nets", report)
+    m = re.search(
+        "Routing results verification failed due to partially-conflicted nets",
+        report)
     if m:
         return "failed_routing"
     m = re.search("route_design ERROR", log)
@@ -373,13 +411,15 @@ def check_build_status(conf):
     m = re.search("auto frequency scaling failed", report)
     if m:
         return "failed_timing"
-    m = re.search("Unable to write message .+ as it exceeds maximum size", report)
+    m = re.search("Unable to write message .+ as it exceeds maximum size",
+                  report)
     if m:
         return "failed_report"
     for fileName in os.listdir(kernelFolder):
         if len(fileName) >= 7 and fileName.endswith(".xclbin"):
             return "success"
     return "failed_unknown"
+
 
 def get_build_result(buildDir):
     confs = []
@@ -391,11 +431,13 @@ def get_build_result(buildDir):
         print("Extracting {}...".format(fileName))
         extract_result_build(conf)
         confs.append(conf)
-    with open(os.path.join(PROJECT_CONFIG["build_dir"],
-                           "build_status.csv"), "w") as resultFile:
+    with open(
+            os.path.join(PROJECT_CONFIG["build_dir"], "build_status.csv"),
+            "w") as resultFile:
         resultFile.write(Consumption.csv_cols() + "\n")
         for conf in confs:
             resultFile.write(str(conf.consumption) + "\n")
+
 
 def scan_configurations(numProcs, configurations, cmakeOpts):
     try:
@@ -404,12 +446,15 @@ def scan_configurations(numProcs, configurations, cmakeOpts):
         pass
     pool = mp.Pool(processes=numProcs)
     try:
-        pool.starmap(do_build, zip(configurations, len(configurations)*[cmakeOpts]))
+        pool.starmap(do_build,
+                     zip(configurations,
+                         len(configurations) * [cmakeOpts]))
     except KeyboardInterrupt:
         pool.terminate()
         print("Builds successfully aborted.")
     else:
         print("All configurations finished running.")
+
 
 def files_to_copy(conf):
     filesToCopy = ["configure.sh", PROJECT_CONFIG["kernel_file"] + ".xclbin"]
@@ -421,13 +466,12 @@ def files_to_copy(conf):
     filesToCopy.append(os.path.join(hlsFolder, "vivado_hls.log"))
     filesToCopy.append(os.path.join(kernelFolder, "vivado.log"))
     filesToCopy.append(os.path.join(kernelFolder, "vivado_warning.txt"))
-    implFolder = os.path.join(
-        kernelFolder, "prj", "prj.runs", "impl_1")
-    filesToCopy.append(os.path.join(
-        implFolder, "kernel_util_routed.rpt"))
+    implFolder = os.path.join(kernelFolder, "prj", "prj.runs", "impl_1")
+    filesToCopy.append(os.path.join(implFolder, "kernel_util_routed.rpt"))
     # filesToCopy.append(os.path.join(
     #     implFolder, "xcl_design_wrapper_power_routed.rpt"))
     return implFolder, hlsFolder, filesToCopy
+
 
 def package_configurations(target):
     kernelsPackaged = 0
@@ -461,11 +505,13 @@ def package_configurations(target):
             pass
         for path in filesToCopy:
             try:
-                shutil.copy(os.path.join(sourceDir, path),
-                            os.path.join(packageFolder, path))
+                shutil.copy(
+                    os.path.join(sourceDir, path),
+                    os.path.join(packageFolder, path))
             except FileNotFoundError as err:
                 if path.endswith("vivado_warning.txt"):
-                    with open(os.path.join(packageFolder, path), "w") as outFile:
+                    with open(os.path.join(packageFolder, path),
+                              "w") as outFile:
                         pass
                 else:
                     raise err
@@ -476,6 +522,7 @@ def package_configurations(target):
     else:
         print("No kernels for target \"{}\" found in \"{}\".".format(
             target, PROJECT_CONFIG["build_dir"]))
+
 
 def unpackage_configuration(conf):
     confStr = conf.to_string()
@@ -493,7 +540,8 @@ def unpackage_configuration(conf):
     except FileExistsError:
         pass
     for path in filesToCopy:
-        shutil.copy(os.path.join(sourceDir, path), os.path.join(targetDir, path))
+        shutil.copy(
+            os.path.join(sourceDir, path), os.path.join(targetDir, path))
     with open(os.path.join(targetDir, "configure.sh"), "r") as inFile:
         confStr = inFile.read()
     with open(os.path.join(targetDir, "configure.sh"), "w") as outFile:
@@ -501,6 +549,7 @@ def unpackage_configuration(conf):
         fixed = re.sub(" -DCMAKE_C(XX)?_COMPILER=[^ ]*", "", confStr)
         outFile.write(fixed)
     run_build(conf, clean=False, hardware=False)
+
 
 def unpackage_configurations(target):
     unpackagedSomething = False
@@ -522,6 +571,7 @@ def unpackage_configurations(target):
     else:
         print("No kernels found in \"{}\".".format(target))
 
+
 def benchmark(repetitions, timeout):
     for fileName in os.listdir(PROJECT_CONFIG["build_dir"]):
         try:
@@ -540,7 +590,8 @@ def benchmark(repetitions, timeout):
             os.makedirs(benchmarkFolder)
         except FileExistsError:
             pass
-        shutil.copy(os.path.join(kernelFolder, "configure.sh"), benchmarkFolder)
+        shutil.copy(
+            os.path.join(kernelFolder, "configure.sh"), benchmarkFolder)
         print("Running {}...".format(confStr))
         if run_process(["make"], kernelFolder, pipe=False) != 0:
             raise Exception(confStr + ": software build failed.")
@@ -548,14 +599,19 @@ def benchmark(repetitions, timeout):
         timeouts = 0
         while repsDone < repetitions:
             time.sleep(0.5)
-            print("Running iteration {} / {}...".format(repsDone + 1, repetitions))
+            print("Running iteration {} / {}...".format(
+                repsDone + 1, repetitions))
             try:
-                ret = run_process("./RunMatrixMatrix.exe".split(),
-                                  kernelFolder, pipe=False, timeout=timeout)
+                ret = run_process(
+                    "./RunMatrixMatrix.exe".split(),
+                    kernelFolder,
+                    pipe=False,
+                    timeout=timeout)
             except sp.TimeoutExpired as err:
                 timeouts += 1
                 if timeouts > 10:
-                    print("\n" + confStr + ": exceeded maximum number of timeouts. Skipping.")
+                    print("\n" + confStr +
+                          ": exceeded maximum number of timeouts. Skipping.")
                     break
                 else:
                     print(confStr + ": timeout occurred. Retrying...")
@@ -564,11 +620,13 @@ def benchmark(repetitions, timeout):
                 raise Exception(confStr + ": kernel execution failed.")
             repsDone += 1
             timeouts = 0
-            profilePath = os.path.join(kernelFolder, "sdaccel_profile_summary.csv")
-            shutil.copy(profilePath,
-                        os.path.join(benchmarkFolder,
-                                     str(datetime.datetime.now()).replace(" ", "_")
-                                     + ".csv"))
+            profilePath = os.path.join(kernelFolder,
+                                       "sdaccel_profile_summary.csv")
+            shutil.copy(
+                profilePath,
+                os.path.join(
+                    benchmarkFolder,
+                    str(datetime.datetime.now()).replace(" ", "_") + ".csv"))
 
 
 if __name__ == "__main__":
@@ -604,11 +662,15 @@ if __name__ == "__main__":
 
         orderedArgs = OrderedDict()
         for key in argDict:
-            orderedArgs[key] = [PROJECT_CONFIG["options"][key]["type"](val) for val in
-                                argDict[key].split(",")]
+            orderedArgs[key] = [
+                PROJECT_CONFIG["options"][key]["type"](val)
+                for val in argDict[key].split(",")
+            ]
 
         product = itertools.product(*orderedArgs.values())
-        configs = [Configuration(**dict(zip(orderedArgs.keys(), x))) for x in product]
+        configs = [
+            Configuration(**dict(zip(orderedArgs.keys(), x))) for x in product
+        ]
 
         scan_configurations(procs, configs, cmakeOpts)
 
