@@ -195,27 +195,26 @@ def run_process(command, directory, pipe=True, logPath="log", timeout=None):
 
 
 class Consumption(object):
-    def __init__(self, conf, status, lut, ff, dsp, bram, power, clock):
+    def __init__(self, conf, status, lut, reg, dsp, bram, clock):
         self.conf = conf
         self.status = status
         self.lut = lut
-        self.ff = ff
+        self.reg = reg
         self.dsp = dsp
         self.bram = bram
-        self.power = power
         self.clock = clock
 
     @staticmethod
     def csv_cols():
         return ("status," + Configuration.csv_header() +
-                ",clock,dsp,lut,ff,bram,power")
+                ",clock,dsp,lut,reg,bram")
 
     def __repr__(self):
         return ",".join(
             map(str, [
                 self.status,
-                self.conf.to_csv(), self.clock, self.dsp, self.lut, self.ff,
-                self.bram, self.power
+                self.conf.to_csv(), self.clock, self.dsp, self.lut, self.reg,
+                self.bram
             ]))
 
 
@@ -308,82 +307,52 @@ def extract_result_build(conf):
     xoccFolder = "_x"
     if not os.path.exists(os.path.join(buildFolder, xoccFolder)):
         conf.consumption = Consumption(conf, "no_intermediate", None, None,
-                                       None, None, None, None)
-        return
-    kernelFolder = os.path.join(buildFolder, xoccFolder, "impl", "build",
-                                "system", PROJECT_CONFIG["kernel_file"],
-                                "bitstream")
-    implFolder = os.path.join(kernelFolder,
-                              PROJECT_CONFIG["kernel_file"] + "_ipi",
-                              "ipiimpl", "ipiimpl.runs", "impl_1")
-    if not os.path.exists(implFolder):
-        conf.consumption = Consumption(conf, "no_build", None, None, None,
                                        None, None, None)
         return
-    status = check_build_status(conf)
-    reportPath = os.path.join(implFolder,
-                              "xcl_design_wrapper_utilization_placed.rpt")
-    if not os.path.isfile(reportPath):
-        conf.consumption = Consumption(conf, status, None, None, None, None,
+    kernelFolder = os.path.join(buildFolder, xoccFolder, "link", "vivado")
+    implFolder = os.path.join(kernelFolder, "prj", "prj.runs", "impl_1")
+    if not os.path.exists(implFolder):
+        conf.consumption = Consumption(conf, "no_build", None, None, None,
                                        None, None)
         return
-    report = open(reportPath).read()
-    try:
-        luts = int(
-            re.search("CLB LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-        ff = int(
-            re.search("CLB Registers[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    except AttributeError:
-        luts = int(
-            re.search("Slice LUTs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-        ff = int(
-            re.search("Slice Registers[ \t]*\|[ \t]*([0-9]+)",
-                      report).group(1))
-    bram = int(
-        re.search("Block RAM Tile[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    dsp = int(re.search("DSPs[ \t]*\|[ \t]*([0-9]+)", report).group(1))
-    reportPath = os.path.join(implFolder,
-                              "xcl_design_wrapper_power_routed.rpt")
+    status = check_build_status(conf)
+    reportPath = os.path.join(implFolder, "kernel_util_routed.rpt")
     if not os.path.isfile(reportPath):
-        power = 0
-    else:
-        report = open(reportPath).read()
-        power = float(
-            re.search("Total On-Chip Power \(W\)[ \t]*\|[ \t]*([0-9\.]+)",
-                      report).group(1))
+        conf.consumption = Consumption(conf, status, None, None, None, None,
+                                       None)
+        return
+    report = open(reportPath).read()
+    pattern = ("Used Resources\s*\|\s*(\d+)[^\|]+\|\s*\d+[^\|]+\|\s*(\d+)"
+               "[^\|]+\|\s*(\d+)[^\|]+\|\s*\d+[^\|]+\|\s*(\d+)[^\|]+\|")
+    matches = re.search(pattern, report)
+    luts = matches.group(1)
+    regs = matches.group(2)
+    bram = matches.group(3)
+    dsp = matches.group(4)
     try:
-        with open(
-                os.path.join(kernelFolder,
-                             PROJECT_CONFIG["kernel_file"] + "_ipi",
-                             "vivado_warning.txt"), "r") as clockFile:
+        with open(os.path.join(kernelFolder, "vivado_warning.txt"),
+                  "r") as clockFile:
             warningText = clockFile.read()
             m = re.search("automatically changed to ([0-9]+) MHz", warningText)
             if m:
                 clock = int(m.group(1))
             else:
-                clock = conf.targetClock
+                clock = conf.frequency
     except FileNotFoundError:
-        clock = conf.targetClock
-    conf.consumption = Consumption(conf, status, luts, ff, dsp, bram, power,
-                                   clock)
+        clock = conf.frequency
+    conf.consumption = Consumption(conf, status, luts, regs, dsp, bram, clock)
 
 
 def check_build_status(conf):
     buildFolder = os.path.join(PROJECT_CONFIG["build_dir"],
                                conf.build_folder())
     kernelFolder = os.path.join(
-        buildFolder, ("_xocc_" + PROJECT_CONFIG["kernel_file"] + "_" +
-                      PROJECT_CONFIG["kernel_file"] + ".dir"), "impl", "build",
-        "system", PROJECT_CONFIG["kernel_name"], "bitstream")
+        buildFolder, "_x", "link", "vivado")
+    logPath = os.path.join(kernelFolder, "vivado.log")
     try:
-        log = open(os.path.join(buildFolder, "log.out"), "r").read()
+        log = open(logPath, "r").read()
     except:
-        return "no_build"
-    try:
-        report = open(
-            os.path.join(kernelFolder, PROJECT_CONFIG["kernel_name"] + "_ipi",
-                         "vivado.log")).read()
-    except FileNotFoundError:
+        print("No build found for {}.".format(conf))
         return "no_build"
     m = re.search("Implementation Feasibility check failed", log)
     if m:
@@ -391,12 +360,12 @@ def check_build_status(conf):
     m = re.search("Detail Placement failed", log)
     if m:
         return "failed_placement"
-    m = re.search("Placer could not place all instances", report)
+    m = re.search("Placer could not place all instances", log)
     if m:
         return "failed_placement"
     m = re.search(
         "Routing results verification failed due to partially-conflicted nets",
-        report)
+        log)
     if m:
         return "failed_routing"
     m = re.search("route_design ERROR", log)
@@ -405,19 +374,20 @@ def check_build_status(conf):
     m = re.search("Internal Data Exception", log)
     if m:
         return "crashed"
-    m = re.search("Design failed to meet timing - hold violation.", report)
+    m = re.search("Design failed to meet timing - hold violation.", log)
     if m:
         return "failed_hold"
-    m = re.search("auto frequency scaling failed", report)
+    m = re.search("auto frequency scaling failed", log)
     if m:
         return "failed_timing"
-    m = re.search("Unable to write message .+ as it exceeds maximum size",
-                  report)
+    m = re.search("Unable to write message .+ as it exceeds maximum size", log)
     if m:
         return "failed_report"
-    for fileName in os.listdir(kernelFolder):
+    for fileName in os.listdir(buildFolder):
         if len(fileName) >= 7 and fileName.endswith(".xclbin"):
             return "success"
+    print("Unfinished build or unknown error for {} [{}].".format(
+        conf, logPath))
     return "failed_unknown"
 
 
