@@ -27,9 +27,20 @@ int main(int argc, char **argv) {
             << " seconds\n";
   std::cout << "Expected performance: " << expected_perf << " GOp/s\n";
   std::cout << "Peak performance:     " << peak_perf << " GOp/s\n";
+  std::cout << "Compute tiles: " << kInnerTileSizeN << "x" << kComputeTileSizeM
+            << " (" << kInnerTileSizeN * kComputeTileSizeM
+            << " parallel adders/multipliers)\n";
+  std::cout << "Memory tile size: " << kOuterTileSizeN << "x" << kOuterTileSizeM
+            << "\n";
   std::cout << "Tiles in N (outer/inner): " << kOuterTilesN << " / "
             << kInnerTilesN << "\n";
   std::cout << "Tiles in M (outer/inner): " << kOuterTilesM << " / "
             << kInnerTilesM << "\n";
+  const unsigned long long communicationVolume = kSizeN * kSizeM *
+                   (1 + kSizeK / kOuterTileSizeN + kSizeK / kOuterTileSizeM);
+  std::cout << "Communication volume: " << communicationVolume << "\n";
+  const double ioAccesses =
+      communicationVolume / (3 * static_cast<double>(kSizeN) * kSizeM * kSizeK);
+  std::cout << "I/O access fraction: " << ioAccesses << "\n";
   return 0;
 }
