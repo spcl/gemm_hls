@@ -106,7 +106,7 @@ add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
 # Executables 
-add_executable(Stats src/Stats.cpp)
+add_executable(PrintSpecifications src/PrintSpecifications.cpp)
 
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
