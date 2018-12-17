@@ -127,9 +127,12 @@ OuterTile_N:
                 #pragma HLS UNROLL
 
                 const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
+                MM_MULT_RESOURCE_PRAGMA(mapped);
                 const auto prev = cPrev[m2];
 
-                cStore[m2] = OperatorReduce::Apply(prev, mapped);
+                const auto reduced = OperatorReduce::Apply(prev, mapped);
+                MM_ADD_RESOURCE_PRAGMA(reduced);
+                cStore[m2] = reduced; 
                 #pragma HLS DEPENDENCE variable=cBuffer false
               }
 

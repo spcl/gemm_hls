@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <type_traits>
 #include "Config.h"
 #include "hlslib/DataPack.h"
-#include <type_traits>
+#include "hlslib/Resource.h"
 
 constexpr int kSeed = 5; // For initializing matrices for testing
 constexpr int kFifoDepth = 8;
@@ -67,6 +68,20 @@ template <typename T,
 constexpr T PowerOfTwo(T number, unsigned char power) {
   return (number > 0) ? PowerOfTwo(number >> 1, power + 1) : (1 << (power - 1));
 }
+
+#ifdef MM_ADD_RESOURCE
+#define MM_ADD_RESOURCE_PRAGMA(var)                                 \
+  HLSLIB_RESOURCE_PRAGMA(var, MM_ADD_RESOURCE)
+#else
+#define MM_ADD_RESOURCE_PRAGMA(var)
+#endif
+
+#ifdef MM_MULT_RESOURCE
+#define MM_MULT_RESOURCE_PRAGMA(var)                                 \
+  HLSLIB_RESOURCE_PRAGMA(var, MM_MULT_RESOURCE)
+#else
+#define MM_MULT_RESOURCE_PRAGMA(var)
+#endif
 
 extern "C" {
 
