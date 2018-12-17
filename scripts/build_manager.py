@@ -23,7 +23,7 @@ PROJECT_CONFIG = {
     "compile_hardware",
     "make_link":
     "link_hardware",
-    "execute_kernel": ["./RunHardware.exe"],
+    "execute_kernel": ["./RunHardware.exe", "hw", "off"],
     "build_dir":
     "scan",
     "benchmark_dir":
@@ -551,52 +551,54 @@ def benchmark(repetitions, timeout):
         confStr = conf.to_string()
         folderName = conf.benchmark_folder()
         kernelFolder = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
-        kernelString = PROJECT_CONFIG["kernel_name"]
+        kernelString = PROJECT_CONFIG["kernel_file"]
         kernelPath = os.path.join(kernelFolder, kernelString + ".xclbin")
         if not os.path.exists(kernelPath):
             continue
-        benchmarkFolder = os.path.join("benchmark", conf.benchmark_folder())
-        try:
-            os.makedirs(benchmarkFolder)
-        except FileExistsError:
-            pass
-        shutil.copy(
-            os.path.join(kernelFolder, "configure.sh"), benchmarkFolder)
+        benchmarkFile = "benchmark.csv"
         print("Running {}...".format(confStr))
         if run_process(["make"], kernelFolder, pipe=False) != 0:
             raise Exception(confStr + ": software build failed.")
         repsDone = 0
         timeouts = 0
-        while repsDone < repetitions:
-            time.sleep(0.5)
-            print("Running iteration {} / {}...".format(
-                repsDone + 1, repetitions))
-            try:
-                ret = run_process(
-                    "./RunMatrixMatrix.exe".split(),
-                    kernelFolder,
-                    pipe=False,
-                    timeout=timeout)
-            except sp.TimeoutExpired as err:
-                timeouts += 1
-                if timeouts > 10:
-                    print("\n" + confStr +
-                          ": exceeded maximum number of timeouts. Skipping.")
-                    break
-                else:
-                    print(confStr + ": timeout occurred. Retrying...")
-                    continue
-            if ret != 0:
-                raise Exception(confStr + ": kernel execution failed.")
-            repsDone += 1
-            timeouts = 0
-            profilePath = os.path.join(kernelFolder,
-                                       "sdaccel_profile_summary.csv")
-            shutil.copy(
-                profilePath,
-                os.path.join(
-                    benchmarkFolder,
-                    str(datetime.datetime.now()).replace(" ", "_") + ".csv"))
+        with open(benchmarkFile, "a") as outFile:
+            outFile.write(conf.csv_header() + "time,performance\n")
+            while repsDone < repetitions:
+                time.sleep(0.5)
+                profilePath = os.path.join("benchmark_" +
+                                           str(datetime.datetime.now()).
+                                           replace(" ", "_").replace(":", "-"))
+                print("Running iteration {} / {}...".format(
+                    repsDone + 1, repetitions))
+                try:
+                    ret = run_process(
+                        PROJECT_CONFIG["execute_kernel"],
+                        kernelFolder,
+                        pipe=True,
+                        logPath=profilePath,
+                        timeout=timeout)
+                except sp.TimeoutExpired as err:
+                    timeouts += 1
+                    if timeouts > 10:
+                        print(
+                            "\n" + confStr +
+                            ": exceeded maximum number of timeouts. Skipping.")
+                        break
+                    else:
+                        print(confStr + ": timeout occurred. Retrying...")
+                        continue
+                if ret != 0:
+                    raise Exception(confStr + ": kernel execution failed.")
+                repsDone += 1
+                timeouts = 0
+                with open(
+                        os.path.join(kernelFolder, profilePath + ".out"),
+                        "r") as profileFile:
+                    m = re.search("([\d\.]+) seconds[^\d]+([\d\.]+) GOp/s",
+                                  profileFile.read())
+                    outFile.write("{},{},{}\n".format(conf.to_csv(),
+                                                      m.group(1), m.group(2)))
+                    outFile.flush()
 
 
 if __name__ == "__main__":
