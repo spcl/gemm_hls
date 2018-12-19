@@ -426,21 +426,40 @@ def scan_configurations(numProcs, configurations, cmakeOpts):
         print("All configurations finished running.")
 
 
-def files_to_copy(conf):
+def files_to_copy(conf, target):
     filesToCopy = ["configure.sh", PROJECT_CONFIG["kernel_file"] + ".xclbin"]
     kernelString = PROJECT_CONFIG["kernel_name"]
     xoccFolder = "_x"
     hlsFolder = os.path.join(xoccFolder, PROJECT_CONFIG["kernel_file"],
                              PROJECT_CONFIG["kernel_name"])
+    hlsReportFolder = os.path.join(hlsFolder, PROJECT_CONFIG["kernel_name"],
+                                   "solution", "syn", "report")
     kernelFolder = os.path.join(xoccFolder, "link", "vivado")
+    runsFolder = os.path.join(
+        kernelFolder, "prj", "prj.runs",
+        "pfm_dynamic_{}_1_0_synth_1".format(PROJECT_CONFIG["kernel_name"]))
+    filesToCopy.append("log.out")
+    filesToCopy.append("log.err")
+    filesToCopy.append("xocc_{}.log".format(PROJECT_CONFIG["kernel_file"]))
     filesToCopy.append(os.path.join(hlsFolder, "vivado_hls.log"))
+    filesToCopy.append(
+        os.path.join(hlsReportFolder,
+                     "{}_csynth.rpt".format(PROJECT_CONFIG["kernel_name"])))
     filesToCopy.append(os.path.join(kernelFolder, "vivado.log"))
     filesToCopy.append(os.path.join(kernelFolder, "vivado_warning.txt"))
     implFolder = os.path.join(kernelFolder, "prj", "prj.runs", "impl_1")
+    filesToCopy.append(os.path.join(implFolder, "runme.log"))
     filesToCopy.append(os.path.join(implFolder, "kernel_util_routed.rpt"))
-    # filesToCopy.append(os.path.join(
-    #     implFolder, "xcl_design_wrapper_power_routed.rpt"))
-    return implFolder, hlsFolder, filesToCopy
+    filesToCopy.append(
+        os.path.join(
+            implFolder, "{}_bb_locked_timing_summary_routed.rpt".format(
+                target.replace("-", "_"))))
+    filesToCopy.append(os.path.join(runsFolder, "runme.log"))
+    filesToCopy.append(
+        os.path.join(
+            runsFolder, "pfm_dynamic_{}_1_0_utilization_synth.rpt".format(
+                PROJECT_CONFIG["kernel_name"])))
+    return [runsFolder, implFolder, hlsReportFolder], filesToCopy
 
 
 def package_configurations(target):
@@ -464,15 +483,12 @@ def package_configurations(target):
         if kernelPath == None or not os.path.exists(kernelPath):
             continue
         print("Packaging {}...".format(fileName))
-        implFolder, hlsFolder, filesToCopy = files_to_copy(conf)
-        try:
-            os.makedirs(os.path.join(packageFolder, implFolder))
-        except FileExistsError:
-            pass
-        try:
-            os.makedirs(os.path.join(packageFolder, hlsFolder))
-        except FileExistsError:
-            pass
+        folders, filesToCopy = files_to_copy(conf, target)
+        for folder in folders:
+            try:
+                os.makedirs(os.path.join(packageFolder, folder))
+            except FileExistsError:
+                pass
         for path in filesToCopy:
             try:
                 shutil.copy(
@@ -500,18 +516,26 @@ def unpackage_configuration(conf):
     print("Unpackaging {}...".format(confStr))
     sourceDir = os.path.join(conf.target, fileName)
     targetDir = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
-    implFolder, hlsFolder, filesToCopy = files_to_copy(conf)
-    try:
-        os.makedirs(os.path.join(targetDir, implFolder))
-    except FileExistsError:
-        pass
-    try:
-        os.makedirs(os.path.join(targetDir, hlsFolder))
-    except FileExistsError:
-        pass
+    folders, filesToCopy = files_to_copy(conf, conf.target)
+    for folder in folders:
+        try:
+            os.makedirs(os.path.join(targetDir, folder))
+        except FileExistsError:
+            pass
+    filesCopied = 0
+    filesMissing = 0
     for path in filesToCopy:
-        shutil.copy(
-            os.path.join(sourceDir, path), os.path.join(targetDir, path))
+        try:
+            shutil.copy(
+                os.path.join(sourceDir, path), os.path.join(targetDir, path))
+            filesCopied += 1
+        except FileNotFoundError:
+            filesMissing += 1
+    if filesCopied == 0:
+        raise FileNotFoundError("Files not found!")
+    if filesMissing > 0:
+        print("WARNING: only {} / {} files copied ({} files missing).".format(
+            filesCopied, filesCopied + filesMissing, filesMissing))
     with open(os.path.join(targetDir, "configure.sh"), "r") as inFile:
         confStr = inFile.read()
     with open(os.path.join(targetDir, "configure.sh"), "w") as outFile:
