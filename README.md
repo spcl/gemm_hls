@@ -8,7 +8,7 @@ multiplication (A\*B=C) for Xilinx FPGAs, using Xilinx SDx to instantiate memory
 and PCIe controllers and interface with the host. 
 
 Experiments run on a [TUL KU115](http://www.tul.com.tw/ProductsFPGA.html)
-achieved 263 GFLOP/s, 184 GFLOP/s and 81 GFLOP/s for half, single, and double
+achieved 462 GFLOP/s, 301 GFLOP/s and 132 GFLOP/s for half, single, and double
 precision, respectively, with routing across the two SLRs being the primary
 bottleneck preventing further scaling. The code is not device-specific, and can
 be configured for any Xilinx FPGA supported by the SDAccel environment. 
