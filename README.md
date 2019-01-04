@@ -63,7 +63,7 @@ make
 make synthesis
 make compile_hardware 
 make link_hardware
-./RunHardware
+./RunHardware.exe hw
 ```
 
 Per default the build targets the
