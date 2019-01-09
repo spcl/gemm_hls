@@ -256,7 +256,9 @@ def run_build(conf, clean=True, hardware=True):
             "sh", "configure.sh",
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ], confDir) != 0:
-        raise Exception(confStr + ": Configuration failed.")
+        print_status(conf, "Configuration failed.")
+        return
+        # raise Exception(confStr + ": Configuration failed.")
     print_status(conf, "Finished configuration.")
     if clean:
         print_status(conf, "cleaning folder...")
@@ -489,18 +491,21 @@ def package_configurations(target):
                 os.makedirs(os.path.join(packageFolder, folder))
             except FileExistsError:
                 pass
+        filesCopied = 0
+        filesMissing = 0
         for path in filesToCopy:
             try:
                 shutil.copy(
                     os.path.join(sourceDir, path),
                     os.path.join(packageFolder, path))
-            except FileNotFoundError as err:
-                if path.endswith("vivado_warning.txt"):
-                    with open(os.path.join(packageFolder, path),
-                              "w") as outFile:
-                        pass
-                else:
-                    raise err
+                filesCopied += 1
+            except FileNotFoundError:
+                filesMissing += 1
+        if filesCopied == 0:
+            raise FileNotFoundError("Files not found!")
+        if filesMissing > 0:
+            print("WARNING: only {} / {} files copied ({} files missing).".format(
+                filesCopied, filesCopied + filesMissing, filesMissing))
         kernelsPackaged += 1
     if kernelsPackaged > 0:
         print(("Successfully packaged " + str(kernelsPackaged) +
