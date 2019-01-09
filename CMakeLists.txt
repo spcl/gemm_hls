@@ -95,7 +95,6 @@ else()
 endif()
 
 # Hardware configuration header for HLS
-set(MM_GOLDEN_DIR ${CMAKE_SOURCE_DIR}/golden/)
 configure_file(include/Config.h.in Config.h)
 
 # C++ source code 
