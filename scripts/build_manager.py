@@ -93,7 +93,7 @@ PROJECT_CONFIG = {
         ("target", {
             "cmake": "MM_DSA_NAME",
             "type": str,
-            "default": "xilinx_vcu1525_dynamic_5_1"
+            "default": "xilinx_vcu1525_xdma_201830_1"
         }),
     ]),
 }
@@ -442,6 +442,7 @@ def files_to_copy(conf, target):
         "pfm_dynamic_{}_1_0_synth_1".format(PROJECT_CONFIG["kernel_name"]))
     filesToCopy.append("log.out")
     filesToCopy.append("log.err")
+    filesToCopy.append(PROJECT_CONFIG["kernel_file"] + ".xclbin.info")
     filesToCopy.append("xocc_{}.log".format(PROJECT_CONFIG["kernel_file"]))
     filesToCopy.append(os.path.join(hlsFolder, "vivado_hls.log"))
     filesToCopy.append(
