@@ -404,7 +404,7 @@ def get_build_result(buildDir):
         extract_result_build(conf)
         confs.append(conf)
     with open(
-            os.path.join(PROJECT_CONFIG["build_dir"], "build_status.csv"),
+            os.path.join(PROJECT_CONFIG["build_dir"], "status.csv"),
             "w") as resultFile:
         resultFile.write(Consumption.csv_cols() + "\n")
         for conf in confs:
