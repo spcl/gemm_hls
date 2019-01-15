@@ -6,7 +6,7 @@ project(sdaccel_mm)
 
 # Target options 
 set(MM_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_vcu1525_xdma_201830_1" CACHE STRING "DSA string for xocc.")
+set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_1" CACHE STRING "DSA string for xocc.")
 set(MM_TARGET_CLOCK 200 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
@@ -52,7 +52,7 @@ math(EXPR MM_KERNEL_WIDTH_M "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM
 # Validation checks
 math(EXPR MM_INNER_TILES "(${MM_MEMORY_TILE_SIZE_N} / ${MM_PARALLELISM_N}) * (${MM_MEMORY_TILE_SIZE_M} / ${MM_PARALLELISM_M})")
 if(MM_MEMORY_TILE_SIZE_N GREATER MM_INNER_TILES)
-  message(FATAL_ERROR "In-memory transposition for A cannot keep up with the instantiated number of compute units. The number of inner tiles (currently ${MM_INNER_TILES}) must be greater than or equal to the outer tile size in N (currently ${MM_MEMORY_TILE_SIZE_N}).")
+  message(WARNING "In-memory transposition for A cannot keep up with the instantiated number of compute units. The number of inner tiles (currently ${MM_INNER_TILES}) must be greater than or equal to the outer tile size in N (currently ${MM_MEMORY_TILE_SIZE_N}).")
 endif()
 math(EXPR MM_MEMORY_WIDTH_M "${MM_MEMORY_BUS_WIDTH_M} / ${MM_DATA_WIDTH_${MM_DATA_TYPE}}")
 if(MM_MEMORY_WIDTH_M GREATER MM_PARALLELISM_M)
