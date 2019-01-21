@@ -16,7 +16,7 @@ void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
                        Stream<ComputePackM_t, kPipeDepth> &bIn,
                        Stream<ComputePackM_t, kPipeDepth> &bOut,
                        Stream<ComputePackM_t> &cOut,
-                       Stream<ComputePackM_t> &cIn, const int locationN,
+                       Stream<ComputePackM_t> &cIn, const unsigned locationN,
                        const unsigned size_n, const unsigned size_k,
                        const unsigned size_m) {
 
@@ -38,11 +38,11 @@ void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
 
   // Populate the buffer for the first outer product 
 InitializeABuffer_Inner:
-  for (int n2 = 0; n2 < kInnerTilesN; ++n2) {
+  for (unsigned n2 = 0; n2 < kInnerTilesN; ++n2) {
     if (locationN < kComputeTilesN - 1) {
       // All but the last processing element 
     InitializeABuffer_Outer:
-      for (int n1 = 0; n1 < kComputeTilesN - locationN; ++n1) {
+      for (unsigned n1 = 0; n1 < kComputeTilesN - locationN; ++n1) {
         #pragma HLS PIPELINE II=1
         #pragma HLS LOOP_FLATTEN
         const auto read = aIn.Pop();
@@ -61,20 +61,20 @@ InitializeABuffer_Inner:
   }
 
 OuterTile_N:
-  for (int n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
+  for (unsigned n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
   OuterTile_M:
-    for (int m0 = 0; m0 < OuterTilesM(size_m); ++m0) {
+    for (unsigned m0 = 0; m0 < OuterTilesM(size_m); ++m0) {
 
       // We do not tile K further, but loop over the entire outer tile here
     Collapse_K:
-      for (int k = 0; k < size_k; ++k) {
+      for (unsigned k = 0; k < size_k; ++k) {
         // Begin outer tile ---------------------------------------------------
 
       Pipeline_N:
-        for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+        for (unsigned n1 = 0; n1 < kInnerTilesN; ++n1) {
 
         Pipeline_M:
-          for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+          for (unsigned m1 = 0; m1 < kInnerTilesM; ++m1) {
 
             // Begin compute tile ---------------------------------------------
             #pragma HLS PIPELINE II=1
@@ -116,7 +116,7 @@ OuterTile_N:
             }
 
           Unroll_N:
-            for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+            for (unsigned n2 = 0; n2 < kComputeTileSizeN; ++n2) {
               #pragma HLS UNROLL
 
               ComputePackM_t cStore;
@@ -125,7 +125,7 @@ OuterTile_N:
                                      : ComputePackM_t(static_cast<Data_t>(0));
 
             Unroll_M:
-              for (int m2 = 0; m2 < kComputeTileSizeM; ++m2) {
+              for (unsigned m2 = 0; m2 < kComputeTileSizeM; ++m2) {
                 #pragma HLS UNROLL
 
                 const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
@@ -192,11 +192,11 @@ OuterTile_N:
 
       // Non-flattened implementation below
     // WriteC_N1:
-    //   for (int n1 = 0; n1 < kInnerTilesN; ++n1) {
+    //   for (unsigned n1 = 0; n1 < kInnerTilesN; ++n1) {
     //   WriteC_N2:
-    //     for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+    //     for (unsigned n2 = 0; n2 < kComputeTileSizeN; ++n2) {
     //     WriteC_M1:
-    //       for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+    //       for (unsigned m1 = 0; m1 < kInnerTilesM; ++m1) {
     //         #pragma HLS PIPELINE II=1
     //         #pragma HLS LOOP_FLATTEN
     //         cOut.Push(cBuffer[n1 * kInnerTilesM + m1][n2]);
@@ -209,11 +209,11 @@ OuterTile_N:
     //     // last tile forwards 0 times.
     //     if (locationN < kComputeTilesN - 1) {
     //     ForwardC_Others:
-    //       for (int l = 0; l < kComputeTilesN - locationN - 1; ++l) {
+    //       for (unsigned l = 0; l < kComputeTilesN - locationN - 1; ++l) {
     //       ForwardC_N2:
-    //         for (int n2 = 0; n2 < kComputeTileSizeN; ++n2) {
+    //         for (unsigned n2 = 0; n2 < kComputeTileSizeN; ++n2) {
     //         ForwardC_M1:
-    //           for (int m1 = 0; m1 < kInnerTilesM; ++m1) {
+    //           for (unsigned m1 = 0; m1 < kInnerTilesM; ++m1) {
     //             #pragma HLS PIPELINE II=1
     //             #pragma HLS LOOP_FLATTEN
     //             cOut.Push(cIn.Pop());
@@ -272,16 +272,16 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
 
 #ifndef HLSLIB_SYNTHESIS
   // Name the arrays of channels for debugging purposes
-  for (int i = 0; i < kTransposeWidth; ++i) {
+  for (unsigned i = 0; i < kTransposeWidth; ++i) {
     aSplit[i].set_name(("aSplit[" + std::to_string(i) + "]").c_str());
   }
-  for (int n = 0; n < kComputeTilesN; ++n) {
+  for (unsigned n = 0; n < kComputeTilesN; ++n) {
     aPipes[n].set_name(("aPipes[" + std::to_string(n) + "]").c_str());
   }
-  for (int n = 0; n < kComputeTilesN + 1; ++n) {
+  for (unsigned n = 0; n < kComputeTilesN + 1; ++n) {
     bPipes[n].set_name(("bPipes[" + std::to_string(n) + "]").c_str());
   }
-  for (int n = 0; n < kComputeTilesN + 1; ++n) {
+  for (unsigned n = 0; n < kComputeTilesN + 1; ++n) {
     cPipes[n].set_name(("cPipes[" + std::to_string(n) + "]").c_str());
   }
 #endif
@@ -311,7 +311,7 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
   HLSLIB_DATAFLOW_FUNCTION(FeedB, bMemory, bPipes[0], size_n, size_k, size_m);
 #endif
 
-  for (int pe = 0; pe < kComputeTilesN; ++pe) {
+  for (unsigned pe = 0; pe < kComputeTilesN; ++pe) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(ProcessingElement,
                              aPipes[pe],

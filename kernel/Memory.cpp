@@ -323,10 +323,13 @@ void FeedB(Stream<ComputePackM_t> &fromMemory,
              size_k * kInnerTilesM * ComputePackM_t::kWidth ==
          TotalReadsFromB(size_n, size_k, size_m));
 
+  const unsigned bound_n = OuterTilesN(size_n);
+  const unsigned bound_m = OuterTilesM(size_m);
+
 FeedB_OuterTile_N:
-  for (unsigned n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
+  for (unsigned n0 = 0; n0 < bound_n; ++n0) {
   FeedB_OuterTile_M:
-    for (unsigned m0 = 0; m0 < OuterTilesM(size_m); ++m0) {
+    for (unsigned m0 = 0; m0 < bound_m; ++m0) {
     FeedB_K:
       for (unsigned k = 0; k < size_k; ++k) {
 
