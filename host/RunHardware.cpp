@@ -13,9 +13,15 @@
 #include "hlslib/Utility.h"
 
 void PrintUsage() {
-  std::cout
+#ifndef MM_DYNAMIC_SIZES
+  std::cerr
       << "Usage: ./RunHardware.exe <mode [hw/hw_emu]> [<verify [on/off]>]\n"
       << std::flush;
+#else
+  std::cerr << "Usage: ./RunHardware.exe N K M [<mode [hw/hw_emu]>] [<verify "
+               "[on/off]>]\n"
+            << std::flush;
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -30,12 +36,27 @@ int main(int argc, char **argv) {
   bool verify = true;
   hlslib::UnsetEnvironmentVariable("XCL_EMULATION_MODE");
   std::string path = "MatrixMultiplication_hw.xclbin";
+#ifdef MM_DYNAMIC_SIZES
+  if (argc > 6 || argc < 4) {
+    PrintUsage();
+    return 1;
+  }
+  const unsigned size_n = std::stoul(argv[1]);
+  const unsigned size_k = std::stoul(argv[2]);
+  const unsigned size_m = std::stoul(argv[3]);
+  int next_arg = 4;
+#else
   if (argc > 3) {
     PrintUsage();
     return 1;
   }
-  if (argc > 1) {
-    const std::string emulation_arg(argv[1]);
+  constexpr auto size_n = kSizeN;
+  constexpr auto size_k = kSizeK;
+  constexpr auto size_m = kSizeM;
+  int next_arg = 1;
+#endif
+  if (next_arg < argc) {
+    const std::string emulation_arg(argv[next_arg++]);
     if (emulation_arg == "hw_emu") {
       emulation = true;
       hlslib::SetEnvironmentVariable("XCL_EMULATION_MODE", "hw_emu");
@@ -45,8 +66,8 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  if (argc > 2) {
-    const std::string verify_arg(argv[2]);
+  if (next_arg < argc) {
+    const std::string verify_arg(argv[next_arg++]);
     if (verify_arg == "off") {
       verify = false;
     } else if (verify_arg != "on") {
@@ -62,13 +83,13 @@ int main(int argc, char **argv) {
        bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
-    a = decltype(a)(kSizeN * kSizeK);
+    a = decltype(a)(size_n * size_k);
     std::for_each(a.begin(), a.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    b = decltype(b)(kSizeK * kSizeM);
+    b = decltype(b)(size_k * size_m);
     std::for_each(b.begin(), b.end(),
                   [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
-    cRef = decltype(cRef)(kSizeN * kSizeM, 0);
+    cRef = decltype(cRef)(size_n * size_m, 0);
 
     aMem = Pack<kMemoryWidthK>(a);
     bMem = Pack<kMemoryWidthM>(b);
@@ -85,12 +106,12 @@ int main(int argc, char **argv) {
 
     std::cout << "Initializing device memory...\n" << std::flush;
     auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, kSizeN * kSizeK / kMemoryWidthK);
+        hlslib::ocl::MemoryBank::bank0, size_n * size_k / kMemoryWidthK);
     auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, kSizeK * kSizeM / kMemoryWidthM);
+        hlslib::ocl::MemoryBank::bank1, size_k * size_m / kMemoryWidthM);
     auto cDevice =
         context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
-            hlslib::ocl::MemoryBank::bank1, kSizeN * kSizeM / kMemoryWidthM);
+            hlslib::ocl::MemoryBank::bank1, size_n * size_m / kMemoryWidthM);
 
     if (verify) {
       std::cout << "Copying memory to device...\n" << std::flush;
@@ -100,14 +121,19 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Creating kernel...\n" << std::flush;
+#ifndef MM_DYNAMIC_SIZES
     auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
                                      bDevice, cDevice);
+#else
+    auto kernel = program.MakeKernel("MatrixMultiplicationKernel", aDevice,
+                                     bDevice, cDevice, size_n, size_k, size_m);
+#endif
 
     std::cout << "Executing kernel...\n" << std::flush;
     const auto elapsed = kernel.ExecuteTask();
 
     const auto perf = 1e-9 *
-                      (2 * static_cast<float>(kSizeN) * kSizeK * kSizeM) /
+                      (2 * static_cast<float>(size_n) * size_k * size_m) /
                       elapsed.first;
 
     std::cout << "Kernel executed in " << elapsed.first
@@ -128,16 +154,17 @@ int main(int argc, char **argv) {
   // Run reference implementation
   if (verify) {
     std::cout << "Running reference implementation...\n" << std::flush;
-    ReferenceImplementation(a.data(), b.data(), cRef.data());
+    ReferenceImplementation(a.data(), b.data(), cRef.data(), size_n, size_k,
+                            size_m);
 
     std::cout << "Verifying result...\n" << std::flush;
     // Convert to single element vector
     const auto cTest = Unpack<kMemoryWidthM>(cMem);
 
-    for (int i = 0; i < kSizeN; ++i) {
-      for (int j = 0; j < kSizeM; ++j) {
-        const auto testVal = cTest[i * kSizeM + j];
-        const auto refVal = cRef[i * kSizeM + j];
+    for (int i = 0; i < size_n; ++i) {
+      for (int j = 0; j < size_m; ++j) {
+        const auto testVal = cTest[i * size_m + j];
+        const auto refVal = cRef[i * size_m + j];
         const auto diff = std::abs(testVal - refVal);
         if (diff > static_cast<Data_t>(1e-3)) {
           std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal

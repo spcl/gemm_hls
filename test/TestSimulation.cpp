@@ -10,11 +10,25 @@
 #include <type_traits>
 #include <vector>
 
-int main() {
+int main(int argc, char **argv) {
 
-  std::vector<Data_t> a(kSizeN * kSizeK);
-  std::vector<Data_t> b(kSizeK * kSizeM);
-  std::vector<Data_t> cReference(kSizeN * kSizeM, 0);
+#ifdef MM_DYNAMIC_SIZES
+  if (argc < 4 || argc > 4) {
+    std::cerr << "Usage: ./TestSimulation N K M" << std::endl;
+    return 1;
+  }
+  const unsigned size_n = std::stoul(argv[1]);
+  const unsigned size_k = std::stoul(argv[2]);
+  const unsigned size_m = std::stoul(argv[3]);
+#else
+  constexpr auto size_n = kSizeN;
+  constexpr auto size_k = kSizeK;
+  constexpr auto size_m = kSizeM;
+#endif
+
+  std::vector<Data_t> a(size_n * size_k);
+  std::vector<Data_t> b(size_k * size_m);
+  std::vector<Data_t> cReference(size_n * size_m, 0);
 
   std::default_random_engine rng(kSeed);
   typename std::conditional<
@@ -30,18 +44,24 @@ int main() {
   const auto bKernel = Pack<kMemoryWidthM>(b);
   auto cKernel = Pack<kMemoryWidthM>(cReference);
 
-  ReferenceImplementation(a.data(), b.data(), cReference.data());
+  ReferenceImplementation(a.data(), b.data(), cReference.data(), size_n, size_k,
+                          size_m);
 
   std::cout << "Running simulation...\n" << std::flush;
+#ifdef MM_DYNAMIC_SIZES
+  MatrixMultiplicationKernel(aKernel.data(), bKernel.data(), cKernel.data(),
+                             size_n, size_k, size_m);
+#else
   MatrixMultiplicationKernel(aKernel.data(), bKernel.data(), cKernel.data());
+#endif
   std::cout << "Verifying results...\n" << std::flush;
 
   const auto cTest = Unpack<kMemoryWidthM>(cKernel);
 
-  for (int i = 0; i < kSizeN; ++i) {
-    for (int j = 0; j < kSizeM; ++j) {
-      const auto testVal = cTest[i * kSizeM + j];
-      const auto refVal = cReference[i * kSizeM + j];
+  for (unsigned i = 0; i < size_n; ++i) {
+    for (unsigned j = 0; j < size_m; ++j) {
+      const auto testVal = cTest[i * size_m + j];
+      const auto refVal = cReference[i * size_m + j];
       const auto diff = std::abs(testVal - refVal);
       if (diff > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j

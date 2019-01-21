@@ -12,9 +12,11 @@
 using Data_t = ${MM_DATA_TYPE}; 
 constexpr int kMemoryWidthBytesK = ${MM_MEMORY_BUS_WIDTH_K};
 constexpr int kMemoryWidthBytesM = ${MM_MEMORY_BUS_WIDTH_M};
+#ifndef MM_DYNAMIC_SIZES
 constexpr unsigned long kSizeN = ${MM_SIZE_N};
 constexpr unsigned long kSizeK = ${MM_SIZE_K};
 constexpr unsigned long kSizeM = ${MM_SIZE_M};
+#endif
 constexpr unsigned long kOuterTileSizeN = ${MM_MEMORY_TILE_SIZE_N};
 constexpr unsigned long kOuterTileSizeM = ${MM_MEMORY_TILE_SIZE_M};
 constexpr unsigned long kInnerTileSizeN = ${MM_PARALLELISM_N};

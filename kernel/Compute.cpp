@@ -7,6 +7,7 @@
 #include "hlslib/Utility.h"
 #include "MatrixMultiplication.h"
 #include "Memory.h"
+#include <cassert>
 
 using hlslib::Stream;
 
@@ -15,14 +16,15 @@ void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
                        Stream<ComputePackM_t, kPipeDepth> &bIn,
                        Stream<ComputePackM_t, kPipeDepth> &bOut,
                        Stream<ComputePackM_t> &cOut,
-                       Stream<ComputePackM_t> &cIn,
-                       const int locationN) {
-  static_assert(
-      (static_cast<unsigned long>(kOuterTilesN) * kOuterTilesM * kSizeK *
-       kInnerTilesN * kInnerTilesM * kComputeTileSizeN * kComputeTileSizeM) ==
-          ((static_cast<unsigned long>(kSizeN) * kSizeK * kSizeM) /
-           kComputeTilesN),
-      "Sanity check for ProcessingElement failed");
+                       Stream<ComputePackM_t> &cIn, const int locationN,
+                       const unsigned size_n, const unsigned size_k,
+                       const unsigned size_m) {
+
+  assert((static_cast<unsigned long>(OuterTilesN(size_n)) * OuterTilesM(size_m) * size_k *
+          kInnerTilesN * kInnerTilesM * kComputeTileSizeN *
+          kComputeTileSizeM) ==
+         ((static_cast<unsigned long>(size_n) * size_k * size_m) /
+          kComputeTilesN));
 
   // A is double-buffered, such that new values can be read while the 
   // previous outer product is being computed. This is required to achieve
@@ -59,13 +61,13 @@ InitializeABuffer_Inner:
   }
 
 OuterTile_N:
-  for (int n0 = 0; n0 < kOuterTilesN; ++n0) {
+  for (int n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
   OuterTile_M:
-    for (int m0 = 0; m0 < kOuterTilesM; ++m0) {
+    for (int m0 = 0; m0 < OuterTilesM(size_m); ++m0) {
 
       // We do not tile K further, but loop over the entire outer tile here
     Collapse_K:
-      for (int k = 0; k < kSizeK; ++k) {
+      for (int k = 0; k < size_k; ++k) {
         // Begin outer tile ---------------------------------------------------
 
       Pipeline_N:
@@ -85,8 +87,8 @@ OuterTile_N:
             // Double-buffering scheme. This hijacks the m1-index to perform
             // the buffering and forwarding of values for the following outer
             // product, required to flatten the K-loop.
-            if ((n0 < kOuterTilesN - 1 || m0 < kOuterTilesM - 1 ||
-                 k < kSizeK - 1) &&
+            if ((n0 < OuterTilesN(size_n) - 1 || m0 < OuterTilesM(size_m) - 1 ||
+                 k < size_k - 1) &&
                 m1 >= locationN            // Start at own index.
                 && m1 < kComputeTilesN) {  // Number of PEs in front.
               const auto read = aIn.Pop();
@@ -226,8 +228,15 @@ OuterTile_N:
   }
 }
 
-void MatrixMultiplicationKernel(MemoryPackK_t const a[], MemoryPackM_t const b[],
-                                MemoryPackM_t c[]) {
+#ifndef MM_DYNAMIC_SIZES
+void MatrixMultiplicationKernel(MemoryPackK_t const a[],
+                                MemoryPackM_t const b[], MemoryPackM_t c[]) {
+#else
+void MatrixMultiplicationKernel(MemoryPackK_t const a[],
+                                MemoryPackM_t const b[], MemoryPackM_t c[],
+                                const unsigned size_n, const unsigned size_k,
+                                const unsigned size_m) {
+#endif
 
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
@@ -235,9 +244,20 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[], MemoryPackM_t const b[]
   #pragma HLS INTERFACE s_axilite port=a bundle=control
   #pragma HLS INTERFACE s_axilite port=b bundle=control
   #pragma HLS INTERFACE s_axilite port=c bundle=control
+#ifdef MM_DYNAMIC_SIZES
+  #pragma HLS INTERFACE s_axilite port=size_n bundle=control
+  #pragma HLS INTERFACE s_axilite port=size_k bundle=control
+  #pragma HLS INTERFACE s_axilite port=size_m bundle=control
+#endif
   #pragma HLS INTERFACE s_axilite port=return bundle=control
 
   #pragma HLS DATAFLOW
+
+#ifndef MM_DYNAMIC_SIZES
+  const unsigned size_n = kSizeN;
+  const unsigned size_k = kSizeK;
+  const unsigned size_m = kSizeM;
+#endif
 
   // TODO: does this need to be kOuterTileSizeN?
   Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth];
@@ -268,46 +288,49 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[], MemoryPackM_t const b[]
 
   HLSLIB_DATAFLOW_INIT();
 
-  HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aSplit);
+  HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aSplit, size_n, size_k, size_m);
 
   // Only convert memory width if necessary
 #ifdef MM_CONVERT_A
-    HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert);
-    HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aPipes[0]);
 #else
-    HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aPipes[0], size_n, size_k,
+                           size_m);
 #endif
 
-  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bMemory);
+  HLSLIB_DATAFLOW_FUNCTION(ReadB, b, bMemory, size_n, size_k, size_m);
 
-  // Only convert memory width if necessary
+    // Only convert memory width if necessary
 #ifdef MM_CONVERT_B
-    Stream<ComputePackM_t> bFeed("bFeed");
-    HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bFeed);
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, bFeed, bPipes[0]);
+  Stream<ComputePackM_t> bFeed("bFeed");
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthB, bMemory, bFeed, size_n, size_k,
+                           size_m);
+  HLSLIB_DATAFLOW_FUNCTION(FeedB, bFeed, bPipes[0], size_n, size_k, size_m);
 #else
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, bMemory, bPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(FeedB, bMemory, bPipes[0], size_n, size_k, size_m);
 #endif
 
-  for (int n = 0; n < kComputeTilesN; ++n) {
+  for (int pe = 0; pe < kComputeTilesN; ++pe) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(ProcessingElement,
-                             aPipes[n],
-                             aPipes[n + 1],
-                             bPipes[n],
-                             bPipes[n + 1],
-                             cPipes[n],
-                             cPipes[n + 1],
-                             n);
+                             aPipes[pe],
+                             aPipes[pe + 1],
+                             bPipes[pe],
+                             bPipes[pe + 1],
+                             cPipes[pe],
+                             cPipes[pe + 1],
+                             pe, size_n, size_k, size_m);
   }
 
   // Only convert memory width if necessary
 #ifdef MM_CONVERT_B
-    Stream<MemoryPackM_t> cMemory("cMemory");
-    HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cPipes[0], cMemory);
-    HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c);
+  Stream<MemoryPackM_t> cMemory("cMemory");
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cPipes[0], cMemory, size_n, size_k,
+                           size_m);
+  HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c, size_n, size_k, size_m);
 #else
-    HLSLIB_DATAFLOW_FUNCTION(WriteC, cPipes[0], c);
+  HLSLIB_DATAFLOW_FUNCTION(WriteC, cPipes[0], c, size_n, size_k, size_m);
 #endif
 
   HLSLIB_DATAFLOW_FINALIZE();

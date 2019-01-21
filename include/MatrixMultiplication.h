@@ -30,26 +30,10 @@ static_assert(kTransposeWidthBytes % sizeof(Data_t) == 0,
 static_assert(kTransposeWidthBytes % kMemoryWidthBytesK == 0,
               "Transpose width must be divisable by memory port width.");
 
-constexpr unsigned long kSizeKMemory = kSizeK / kMemoryWidthK;
-static_assert(kSizeK % kMemoryWidthK == 0,
-              "K must be divisable by memory width.");
-
-constexpr unsigned long kSizeMMemory = kSizeM / kMemoryWidthM;
-static_assert(kSizeM % kMemoryWidthM == 0,
-              "M must be divisable by memory width.");
-
 constexpr unsigned long kOuterTileSizeMMemory = kOuterTileSizeM / kMemoryWidthM;
 static_assert(
     kOuterTileSizeM % kMemoryWidthM == 0,
     "Outer memory tile size in M must be divisable by memory port width.");
-
-constexpr unsigned long kOuterTilesN = kSizeN / kOuterTileSizeN;
-static_assert(kSizeN % kOuterTileSizeN == 0,
-              "N must be divisable by the outer tile size in N.");
-
-constexpr unsigned long kOuterTilesM = kSizeM / kOuterTileSizeM;
-static_assert(kSizeM % kOuterTileSizeM == 0,
-              "M must be divisable by the outer tile size in M.");
 
 constexpr unsigned long kInnerTilesN = kOuterTileSizeN / kInnerTileSizeN;
 static_assert(kOuterTileSizeN % kInnerTileSizeN == 0,
@@ -62,6 +46,58 @@ static_assert(kOuterTileSizeM % kComputeTileSizeM == 0,
 constexpr unsigned long kComputeTilesN = kInnerTileSizeN / kComputeTileSizeN;
 static_assert(kInnerTileSizeN % kComputeTileSizeN == 0,
               "Inner tile size must be divisable by compute tile size.");
+
+#ifndef MM_DYNAMIC_SIZES
+
+static_assert(kSizeK % kMemoryWidthK == 0,
+              "K must be divisable by memory width.");
+
+static_assert(kSizeM % kMemoryWidthM == 0,
+              "M must be divisable by memory width.");
+
+static_assert(kSizeN % kOuterTileSizeN == 0,
+              "N must be divisable by the outer tile size in N.");
+
+static_assert(kSizeM % kOuterTileSizeM == 0,
+              "M must be divisable by the outer tile size in M.");
+
+#endif
+
+inline unsigned SizeKMemory(unsigned k) {
+  #pragma HLS INLINE
+  return k / kMemoryWidthK;
+}
+
+inline unsigned SizeMMemory(unsigned m) {
+  #pragma HLS INLINE
+  return m / kMemoryWidthM;
+}
+
+inline unsigned OuterTilesN(unsigned n) {
+  #pragma HLS INLINE
+  return n / kOuterTileSizeN;
+}
+
+inline unsigned OuterTilesM(unsigned m) {
+  #pragma HLS INLINE
+  return m / kOuterTileSizeM;
+}
+
+inline unsigned long TotalReadsFromA(const unsigned size_n,
+                                     const unsigned size_k,
+                                     const unsigned size_m) {
+  #pragma HLS INLINE
+  return static_cast<unsigned long>(OuterTilesN(size_n)) * OuterTilesM(size_m) *
+         kOuterTileSizeN * size_k;
+}
+
+inline unsigned long TotalReadsFromB(const unsigned size_n,
+                                     const unsigned size_k,
+                                     const unsigned size_m) {
+  #pragma HLS INLINE
+  return static_cast<unsigned long>(OuterTilesN(size_n)) * OuterTilesM(size_m) *
+         kOuterTileSizeM * size_k;
+}
 
 template <typename T,
           class = typename std::enable_if<std::is_integral<T>::value, T>::type>
@@ -85,6 +121,18 @@ constexpr T PowerOfTwo(T number, unsigned char power) {
 
 extern "C" {
 
+#ifndef MM_DYNAMIC_SIZES
+
 void MatrixMultiplicationKernel(MemoryPackK_t const *aMem,
                                 MemoryPackM_t const *bMem, MemoryPackM_t *cMem);
+
+#else
+
+void MatrixMultiplicationKernel(MemoryPackK_t const *aMem,
+                                MemoryPackM_t const *bMem, MemoryPackM_t *cMem,
+                                unsigned size_n, unsigned size_k,
+                                unsigned size_m);
+
+#endif
+
 }

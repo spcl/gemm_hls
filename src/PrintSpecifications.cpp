@@ -1,22 +1,52 @@
 #include "MatrixMultiplication.h"
 #include "Memory.h"
 
+void PrintUsage() {
+#ifndef MM_DYNAMIC_SIZES
+  std::cerr
+      << "Usage: ./PrintSpecifications [<routed frequency>]\n"
+      << std::flush;
+#else
+  std::cerr << "Usage: ./PrintSpecifications N K M [<routed_frequency>]\n"
+            << std::flush;
+#endif
+}
+
 // Prints the expected performance of the current configuration in hardware.
 // If a different frequency is achieved, it can be passed as the first argument
 // to the executable.
 int main(int argc, char **argv) {
+#ifdef MM_DYNAMIC_SIZES
+  if (argc > 5 || argc < 4) {
+    PrintUsage();
+    return 1;
+  }
+  const unsigned size_n = std::stoul(argv[1]);
+  const unsigned size_k = std::stoul(argv[2]);
+  const unsigned size_m = std::stoul(argv[3]);
+  int next_arg = 4;
+#else
+  if (argc > 2) {
+    PrintUsage();
+    return 1;
+  }
+  constexpr auto size_n = kSizeN;
+  constexpr auto size_k = kSizeK;
+  constexpr auto size_m = kSizeM;
+  int next_arg = 1;
+#endif
   float frequency = kFrequency;
-  if (argc > 1) {
+  if (argc > next_arg) {
     frequency = std::stof(argv[1]);
   }
   const unsigned long long nOps =
-      2 * static_cast<unsigned long long>(kSizeN) * kSizeK * kSizeM;
+      2 * static_cast<unsigned long long>(size_n) * size_k * size_m;
   std::cout << "Frequency:            " << frequency << " MHz\n";
   std::cout << "Number of operations: " << nOps << " ("
             << static_cast<float>(nOps) << ")\n";
   const auto expected_runtime =
-      static_cast<float>(kOuterTilesN) * kOuterTilesM *
-      (kSizeK * kInnerTilesN * kInnerTilesM +
+      static_cast<float>(OuterTilesN(size_n)) * OuterTilesM(size_m) *
+      (size_k * kInnerTilesN * kInnerTilesM +
        kInnerTilesN * (kComputeTileSizeM * kInnerTilesM +
                        kComputeTilesN * kComputeTileSizeN * kInnerTilesM)) /
       (1e6 * frequency);
@@ -32,15 +62,15 @@ int main(int argc, char **argv) {
             << " parallel adders/multipliers)\n";
   std::cout << "Memory tile size: " << kOuterTileSizeN << "x" << kOuterTileSizeM
             << "\n";
-  std::cout << "Tiles in N (outer/inner): " << kOuterTilesN << " / "
+  std::cout << "Tiles in N (outer/inner): " << OuterTilesN(size_n) << " / "
             << kInnerTilesN << "\n";
-  std::cout << "Tiles in M (outer/inner): " << kOuterTilesM << " / "
+  std::cout << "Tiles in M (outer/inner): " << OuterTilesM(size_m) << " / "
             << kInnerTilesM << "\n";
-  const unsigned long long communicationVolume = kSizeN * kSizeM *
-                   (1 + kSizeK / kOuterTileSizeN + kSizeK / kOuterTileSizeM);
+  const unsigned long long communicationVolume = size_n * size_m *
+                   (1 + size_k / kOuterTileSizeN + size_k / kOuterTileSizeM);
   std::cout << "Communication volume: " << communicationVolume << "\n";
   const double ioAccesses =
-      communicationVolume / (3 * static_cast<double>(kSizeN) * kSizeM * kSizeK);
+      communicationVolume / (3 * static_cast<double>(size_n) * size_m * size_k);
   std::cout << "I/O access fraction: " << ioAccesses << "\n";
   return 0;
 }
