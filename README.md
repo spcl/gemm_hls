@@ -66,6 +66,9 @@ make link_hardware
 ./RunHardware.exe hw
 ```
 
+Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`. For
+dynamic matrix sizes, see below.
+
 Per default the build targets the
 [VCU1525](https://www.xilinx.com/products/boards-and-kits/vcu1525-a.html)
 acceleration board, but this can be configured using the `MM_DSA_NAME` CMake
@@ -78,6 +81,19 @@ product](https://en.wikipedia.org/wiki/Min-plus_matrix_multiplication), specify
 them using the `MM_MAP_OP` and `MM_REDUCE_OP` CMake parameters, respectively. To
 see which operators are pre-implemented, and examples of how to implement new
 operators,  see `hlslib/include/hlslib/Operators.h`.
+
+Dynamic sizes
+-------------
+
+By default, all matrix sizes are fixed in hardware at compile time to save
+hardware resources. If dynamic/runtime sizes are required, set
+the `-DMM_DYNAMIC_SIZES=ON` option in CMake. This will require executables to
+take the matrix sizes as input. 
+
+Selecting tile sizes
+--------------------
+
+Coming soon...
 
 Parallel performance
 --------------------
