@@ -20,6 +20,23 @@ int main(int argc, char **argv) {
   const unsigned size_n = std::stoul(argv[1]);
   const unsigned size_k = std::stoul(argv[2]);
   const unsigned size_m = std::stoul(argv[3]);
+  if (size_k % kMemoryWidthK != 0) {
+    std::cerr << "K must be divisable by memory width." << std::endl;
+    return 1;
+  }
+  if (size_m % kMemoryWidthM != 0) {
+    std::cerr << "M must be divisable by memory width." << std::endl;
+    return 1;
+  }
+  if (size_n % kOuterTileSizeN != 0) {
+    std::cerr << "N must be divisable by the outer tile size in N."
+              << std::endl;
+    return 1;
+  }
+  if (size_m % kOuterTileSizeM != 0) {
+    std::cerr << "M must be divisable by the outer tile size in M" << std::endl;
+    return 1;
+  }
 #else
   constexpr auto size_n = kSizeN;
   constexpr auto size_k = kSizeK;

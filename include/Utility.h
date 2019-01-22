@@ -93,6 +93,6 @@ inline void ReferenceImplementation(Data_t const *a, Data_t const *b, Data_t *c,
                                     const unsigned size_n,
                                     const unsigned size_k,
                                     const unsigned size_m) {
-  CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c, size_n, size_m,
-                                                size_k);
+  CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c, size_n, size_k,
+                                                size_m);
 }
