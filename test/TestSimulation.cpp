@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
       const auto testVal = cTest[i * size_m + j];
       const auto refVal = cReference[i * size_m + j];
       const auto diff = std::abs(testVal - refVal);
-      if (diff > static_cast<Data_t>(1e-3)) {
+      if (diff / refVal > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j
                   << "): " << testVal << " vs. " << refVal << "\n";
         return 1;
