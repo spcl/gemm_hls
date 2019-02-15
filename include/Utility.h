@@ -19,21 +19,25 @@
 template <class OperatorMap, class OperatorReduce, class IteratorRead,
           class IteratorWrite>
 void Naive(IteratorRead aBegin, IteratorRead bBegin, IteratorWrite cBegin,
-           int sizeN, int sizeM, int sizeP) {
+           int sizeN, int sizeK, int sizeM) {
   using TIn = typename std::iterator_traits<IteratorRead>::value_type;
   using TOut = typename std::iterator_traits<IteratorWrite>::value_type;
   static_assert(std::is_same<TIn, TOut>::value,
                 "Input and output types must be identical.");
   // NxM * MxP = NxP
   for (int n = 0; n < sizeN; ++n) {
-    for (int p = 0; p < sizeP; ++p) {
+    for (int m = 0; m < sizeM; ++m) {
       TOut acc = OperatorReduce::identity();
-      for (int m = 0; m < sizeM; ++m) {
-        const auto elemA = aBegin[n * sizeM + m];
-        const auto elemB = bBegin[m * sizeP + p];
+      for (int k = 0; k < sizeK; ++k) {
+#ifndef MM_TRANSPOSED_A
+        const auto elemA = aBegin[n * sizeK + k];
+#else
+        const auto elemA = aBegin[k * sizeN + n];
+#endif
+        const auto elemB = bBegin[k * sizeM + m];
         acc = OperatorReduce::Apply(acc, OperatorMap::Apply(elemA, elemB));
       }
-      cBegin[n * sizeP + p] = acc; 
+      cBegin[n * sizeM + m] = acc; 
     }
   }
 }
@@ -76,16 +80,26 @@ void CallBLAS<float, hlslib::op::Multiply<float>, hlslib::op::Add<float>>(
     float const *a, float const *b, float *c, const unsigned size_n,
     const unsigned size_k, const unsigned size_m) {
   std::cout << "Running BLAS...\n" << std::flush;
+#ifndef MM_TRANSPOSED_A
   cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, size_n, size_m, size_k,
               1.0, a, size_k, b, size_m, 0.0, c, size_m);
+#else
+  cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, size_n, size_m, size_k,
+              1.0, a, size_k, b, size_m, 0.0, c, size_m);
+#endif
 }
 template <>
 void CallBLAS<double, hlslib::op::Multiply<double>, hlslib::op::Add<double>>(
     double const *a, double const *b, double *c, const unsigned size_n,
     const unsigned size_k, const unsigned size_m) {
   std::cout << "Running BLAS...\n" << std::flush;
+#ifndef MM_TRANSPOSED_A
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, size_n, size_m, size_k,
               1.0, a, size_k, b, size_m, 0.0, c, size_m);
+#else
+  cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, size_n, size_m, size_k,
+              1.0, a, size_k, b, size_m, 0.0, c, size_m);
+#endif
 }
 #endif
 
