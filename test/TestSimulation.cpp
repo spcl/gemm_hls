@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   std::for_each(b.begin(), b.end(),
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
 
-  const auto aKernel = Pack<kMemoryWidthK>(a);
+  const auto aKernel = Pack<kMemoryWidthA>(a);
   const auto bKernel = Pack<kMemoryWidthM>(b);
   auto cKernel = Pack<kMemoryWidthM>(cReference);
 

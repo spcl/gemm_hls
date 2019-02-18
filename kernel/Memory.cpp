@@ -7,6 +7,8 @@
 
 using hlslib::Stream;
 
+#ifndef MM_TRANSPOSED_A
+
 unsigned IndexA(const unsigned n0, const unsigned n1, const unsigned n2,
                 const unsigned k0, const unsigned k1, const unsigned size_n,
                 const unsigned size_k, const unsigned size_m) {
@@ -18,11 +20,26 @@ unsigned IndexA(const unsigned n0, const unsigned n1, const unsigned n2,
   return index;
 }
 
+#else // MM_TRANSPOSED_A
+
+unsigned IndexATransposed(const unsigned k, const unsigned n0,
+                         const unsigned n1m, const unsigned size_n,
+                         const unsigned size_k, const unsigned size_m) {
+  #pragma HLS INLINE
+  const auto index =
+      k * SizeNMemory(size_n) + (n0 * kOuterTileSizeNMemory + n1m);
+  assert(index < size_k * SizeNMemory(size_n));
+  return index;
+}
+
+#endif // MM_TRANSPOSED_A
+
 unsigned IndexB(const unsigned k, const unsigned m0, const unsigned m1m,
                 const unsigned size_n, const unsigned size_k,
                 const unsigned size_m) {
   #pragma HLS INLINE
-  const auto index = k * SizeMMemory(size_m) + (m0 * kOuterTileSizeMMemory + m1m);
+  const auto index =
+      k * SizeMMemory(size_m) + (m0 * kOuterTileSizeMMemory + m1m);
   assert(index < size_k * SizeMMemory(size_m));
   return index;
 }
@@ -36,6 +53,8 @@ unsigned IndexC(const unsigned n0, const unsigned n1, const unsigned m0,
   assert(index < size_n * SizeMMemory(size_m));
   return index;
 }
+
+#ifndef MM_TRANSPOSED_A
 
 void _ReadAInner(MemoryPackK_t const a[],
                  Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
@@ -187,8 +206,75 @@ ConvertWidthA_Outer:
 }
 #endif
 
+#else // MM_TRANSPOSED_A == true
+
+void ReadATransposed(MemoryPackN_t const memory[],
+                     Stream<MemoryPackN_t, 2 * kOuterTileSizeNMemory> &pipe,
+                     const unsigned size_n, const unsigned size_k,
+                     const unsigned size_m) {
+
+  assert((static_cast<unsigned long>(OuterTilesN(size_n)) *
+          OuterTilesM(size_m) * size_k * kOuterTileSizeNMemory *
+          MemoryPackN_t::kWidth) == TotalReadsFromA(size_n, size_k, size_m));
+
+ReadA_OuterTile_N:
+  for (unsigned n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
+  ReadA_OuterTile_M:
+    for (unsigned m0 = 0; m0 < OuterTilesM(size_m); ++m0) {
+    ReadA_K:
+      for (unsigned k = 0; k < size_k; ++k) {
+
+      ReadA_BufferA_N1:
+        for (unsigned n1m = 0; n1m < kOuterTileSizeNMemory; ++n1m) {
+          #pragma HLS PIPELINE II=1
+          #pragma HLS LOOP_FLATTEN
+          pipe.Push(
+              memory[IndexATransposed(k, n0, n1m, size_n, size_k, size_m)]);
+        }
+
+      }
+    }
+  }
+}
+
+void ConvertWidthATransposed(
+    Stream<MemoryPackN_t, 2 * kOuterTileSizeNMemory> &wide,
+    Stream<ComputePackN_t, kPipeDepth> &narrow, const unsigned size_n,
+    const unsigned size_k, const unsigned size_m) {
+
+  static_assert(kMemoryWidthN % kComputeTileSizeN == 0,
+                "Tile size must be a multiple of memory width.");
+
+#ifdef MM_CONVERT_A
+ConvertWidthA_Outer:
+  for (unsigned i = 0;
+       i < TotalReadsFromA(size_n, size_k, size_m) / kMemoryWidthN; ++i) {
+    MemoryPackN_t memoryPack;
+  ConvertWidthA_Memory:
+    for (unsigned j = 0; j < kMemoryWidthN / kComputeTileSizeN; ++j) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      if (j == 0) {
+        memoryPack = wide.Pop();
+      }
+      ComputePackN_t computePack;
+    ConvertWidthA_Compute:
+      for (unsigned w = 0; w < kComputeTileSizeN; ++w) {
+        #pragma HLS UNROLL
+        computePack[w] = memoryPack[j * kComputeTileSizeN + w];
+      }
+      narrow.Push(computePack);
+    }
+#else
+    narrow.Push(wide.Pop());
+#endif
+  }
+}
+
+#endif // MM_TRANSPOSED_A == true
+
 void ReadB(MemoryPackM_t const memory[],
-           Stream<MemoryPackM_t, 2 * kOuterTileSizeM> &pipe,
+           Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &pipe,
            const unsigned size_n, const unsigned size_k,
            const unsigned size_m) {
 
@@ -215,7 +301,7 @@ ReadB_OuterTile_N:
   }
 }
 
-void ConvertWidthB(Stream<MemoryPackM_t, 2 * kOuterTileSizeM> &wide,
+void ConvertWidthB(Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &wide,
                    Stream<ComputePackM_t> &narrow, const unsigned size_n,
                    const unsigned size_k, const unsigned size_m) {
 
@@ -250,7 +336,8 @@ ConvertWidthB_Outer:
   }
 }
 
-void ConvertWidthC(Stream<ComputePackM_t> &narrow, Stream<MemoryPackM_t> &wide,
+void ConvertWidthC(Stream<ComputePackM_t> &narrow,
+                   Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &wide,
                    const unsigned size_n, const unsigned size_k,
                    const unsigned size_m) {
 
@@ -262,6 +349,7 @@ void ConvertWidthC(Stream<ComputePackM_t> &narrow, Stream<MemoryPackM_t> &wide,
 
 ConvertWidthC_Outer:
   for (unsigned i = 0; i < (size_n * size_m) / MemoryPackM_t::kWidth; ++i) {
+#ifdef MM_CONVERT_B
   ConvertWidthB_Memory:
     MemoryPackM_t memoryPack;
     for (unsigned j = 0; j < kMemoryWidthM / ComputePackM_t::kWidth; ++j) {
@@ -277,12 +365,15 @@ ConvertWidthC_Outer:
         wide.Push(memoryPack);
       }
     }
+#else
+    wide.Push(narrow.Pop());
+#endif
   }
 }
 
-void WriteC(Stream<MemoryPackM_t> &pipe, MemoryPackM_t memory[],
-            const unsigned size_n, const unsigned size_k,
-            const unsigned size_m) {
+void WriteC(Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &pipe,
+            MemoryPackM_t memory[], const unsigned size_n,
+            const unsigned size_k, const unsigned size_m) {
 
   assert((OuterTilesN(size_n) * OuterTilesM(size_m) * kOuterTileSizeN *
           kOuterTileSizeMMemory * MemoryPackM_t::kWidth) == size_n * size_m);
@@ -310,7 +401,7 @@ WriteC_OuterTile_N:
 }
 
 #ifndef MM_CONVERT_B
-void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeM> &fromMemory,
+void FeedB(Stream<ComputePackM_t, 2 * kOuterTileSizeMMemory> &fromMemory,
            Stream<ComputePackM_t, kPipeDepth> &toKernel, const unsigned size_n,
            const unsigned size_k, const unsigned size_m) {
 #else

@@ -10,6 +10,7 @@
 #include "hls_half.h"
 
 using Data_t = ${MM_DATA_TYPE}; 
+constexpr int kMemoryWidthBytesN = ${MM_MEMORY_BUS_WIDTH_N};
 constexpr int kMemoryWidthBytesK = ${MM_MEMORY_BUS_WIDTH_K};
 constexpr int kMemoryWidthBytesM = ${MM_MEMORY_BUS_WIDTH_M};
 #ifndef MM_DYNAMIC_SIZES
@@ -33,6 +34,9 @@ using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
   #define MM_CONVERT_B
 #endif
 
-#if ${MM_GRANULARITY_N} != 1
+// When A is not transposed, the data width must be converted if a PE buffers
+// more than one row of A. When A is transposed, the data width must be
+// converted if the memory bus is wider than the number of rows buffered per PE.
+#if (!defined(MM_TRANSPOSED_A) && ${MM_GRANULARITY_N} != 1) || (defined(MM_TRANSPOSED_A) && (${MM_DATA_WIDTH_${MM_DATA_TYPE}}*${MM_GRANULARITY_N} != ${MM_MEMORY_BUS_WIDTH_N}))
   #define MM_CONVERT_A
 #endif

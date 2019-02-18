@@ -12,23 +12,56 @@
 constexpr int kSeed = 5; // For initializing matrices for testing
 constexpr int kFifoDepth = 8;
 
+// Memory bus in K-dimension
 constexpr int kMemoryWidthK = kMemoryWidthBytesK / sizeof(Data_t);
 static_assert(kMemoryWidthBytesK % sizeof(Data_t) == 0,
               "Memory width in K not divisable by size of data type.");
 using MemoryPackK_t = hlslib::DataPack<Data_t, kMemoryWidthK>;
+
+// Memory bus in M-dimension
 constexpr int kMemoryWidthM = kMemoryWidthBytesM / sizeof(Data_t);
 static_assert(kMemoryWidthBytesM % sizeof(Data_t) == 0,
               "Memory width in M not divisable by size of data type.");
 using MemoryPackM_t = hlslib::DataPack<Data_t, kMemoryWidthM>;
+
+// Internal compute buses
 using ComputePackN_t = hlslib::DataPack<Data_t, kComputeTileSizeN>;
 using ComputePackM_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
 using OutputPack_t = hlslib::DataPack<Data_t, kComputeTileSizeM>;
 
+#ifndef MM_TRANSPOSED_A
+
+// On-chip transpose of A
 constexpr int kTransposeWidth = kTransposeWidthBytes / sizeof(Data_t);
 static_assert(kTransposeWidthBytes % sizeof(Data_t) == 0,
               "Transpose width must be divisable by data size.");
 static_assert(kTransposeWidthBytes % kMemoryWidthBytesK == 0,
               "Transpose width must be divisable by memory port width.");
+
+using MemoryPackA_t = MemoryPackK_t;
+constexpr decltype(kMemoryWidthK) kMemoryWidthA = kMemoryWidthK;
+
+#else // MM_TRANSPOSED_A
+
+// Memory bus in N-dimension (for transposed A)
+constexpr int kMemoryWidthN = kMemoryWidthBytesN / sizeof(Data_t);
+static_assert(kMemoryWidthBytesN % sizeof(Data_t) == 0,
+              "Memory width in N not divisable by size of data type.");
+using MemoryPackN_t = hlslib::DataPack<Data_t, kMemoryWidthN>;
+using MemoryPackA_t = MemoryPackN_t;
+constexpr decltype(kMemoryWidthN) kMemoryWidthA = kMemoryWidthN;
+
+constexpr unsigned long kOuterTileSizeNMemory = kOuterTileSizeN / kMemoryWidthN;
+static_assert(
+    kOuterTileSizeN % kMemoryWidthN == 0,
+    "Outer memory tile size in N must be divisable by memory port width.");
+
+inline unsigned SizeNMemory(unsigned n) {
+  #pragma HLS INLINE
+  return n / kMemoryWidthN;
+}
+
+#endif // MM_TRANSPOSED_A
 
 constexpr unsigned long kOuterTileSizeMMemory = kOuterTileSizeM / kMemoryWidthM;
 static_assert(
@@ -121,18 +154,18 @@ constexpr T PowerOfTwo(T number, unsigned char power) {
 
 extern "C" {
 
-#ifndef MM_DYNAMIC_SIZES
-
-void MatrixMultiplicationKernel(MemoryPackK_t const *aMem,
-                                MemoryPackM_t const *bMem, MemoryPackM_t *cMem);
-
+#ifdef MM_TRANSPOSED_A
+void MatrixMultiplicationKernel(MemoryPackN_t const a[],
+                                MemoryPackM_t const b[], MemoryPackM_t c[]
 #else
-
-void MatrixMultiplicationKernel(MemoryPackK_t const *aMem,
-                                MemoryPackM_t const *bMem, MemoryPackM_t *cMem,
-                                unsigned size_n, unsigned size_k,
-                                unsigned size_m);
-
+void MatrixMultiplicationKernel(MemoryPackK_t const a[],
+                                MemoryPackM_t const b[], MemoryPackM_t c[]
 #endif
+#ifdef MM_DYNAMIC_SIZES
+                                ,
+                                const unsigned size_n, const unsigned size_k,
+                                const unsigned size_m
+#endif
+);
 
 }
