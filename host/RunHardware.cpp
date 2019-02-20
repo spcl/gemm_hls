@@ -9,8 +9,8 @@
 #include <vector>
 #include "MatrixMultiplication.h"
 #include "Utility.h"
-#include "hlslib/SDAccel.h"
-#include "hlslib/Utility.h"
+#include "hlslib/xilinx/SDAccel.h"
+#include "hlslib/xilinx/Utility.h"
 
 void PrintUsage() {
 #ifndef MM_DYNAMIC_SIZES

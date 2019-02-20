@@ -5,7 +5,7 @@
 #pragma once
 
 #include "MatrixMultiplication.h"
-#include "hlslib/Stream.h"
+#include "hlslib/xilinx/Stream.h"
 
 constexpr unsigned kPipeDepth = 4;
 

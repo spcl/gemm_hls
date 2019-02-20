@@ -2,9 +2,9 @@
 /// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
-#include "hlslib/Stream.h"
-#include "hlslib/Simulation.h"
-#include "hlslib/Utility.h"
+#include "hlslib/xilinx/Stream.h"
+#include "hlslib/xilinx/Simulation.h"
+#include "hlslib/xilinx/Utility.h"
 #include "MatrixMultiplication.h"
 #include "Memory.h"
 #include <cassert>

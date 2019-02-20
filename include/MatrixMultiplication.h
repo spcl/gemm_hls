@@ -6,8 +6,8 @@
 
 #include <type_traits>
 #include "Config.h"
-#include "hlslib/DataPack.h"
-#include "hlslib/Resource.h"
+#include "hlslib/xilinx/DataPack.h"
+#include "hlslib/xilinx/Resource.h"
 
 constexpr int kSeed = 5; // For initializing matrices for testing
 constexpr int kFifoDepth = 8;
