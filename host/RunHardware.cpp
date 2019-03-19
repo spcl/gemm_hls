@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
   const unsigned size_m = std::stoul(argv[3]);
   int next_arg = 4;
   if (size_k % kMemoryWidthK != 0) {
-    std::cerr << "K (" << size_m
+    std::cerr << "K (" << size_k
               << ") must be divisable by the memory width in K ("
               << kMemoryWidthK << ")." << std::endl;
     return 1;
