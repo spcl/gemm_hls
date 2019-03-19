@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 #endif
   float frequency = kFrequency;
   if (argc > next_arg) {
-    frequency = std::stof(argv[1]);
+    frequency = std::stof(argv[next_arg]);
   }
   const unsigned long long nOps =
       2 * static_cast<unsigned long long>(size_n) * size_k * size_m;
