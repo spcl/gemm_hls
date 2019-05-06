@@ -5,6 +5,7 @@
 #include "Utility.h"
 #include "MatrixMultiplication.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <random>
 #include <type_traits>
@@ -77,9 +78,9 @@ int main(int argc, char **argv) {
 
   for (unsigned i = 0; i < size_n; ++i) {
     for (unsigned j = 0; j < size_m; ++j) {
-      const auto testVal = cTest[i * size_m + j];
-      const auto refVal = cReference[i * size_m + j];
-      const auto diff = std::abs(testVal - refVal);
+      const auto testVal = make_signed<Data_t>(cTest[i * size_m + j]);
+      const auto refVal = make_signed<Data_t>(cReference[i * size_m + j]);
+      const Data_t diff = std::abs(testVal - refVal);
       if (diff / refVal > static_cast<Data_t>(1e-3)) {
         std::cerr << "Mismatch detected at (" << i << ", " << j
                   << "): " << testVal << " vs. " << refVal << "\n";

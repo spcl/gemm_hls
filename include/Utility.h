@@ -110,3 +110,15 @@ inline void ReferenceImplementation(Data_t const *a, Data_t const *b, Data_t *c,
   CallBLAS<Data_t, OperatorMap, OperatorReduce>(a, b, c, size_n, size_k,
                                                 size_m);
 }
+
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, signed long>::type
+make_signed(T val) {
+  return static_cast<signed long>(val);
+}
+
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type make_signed(
+    T val) {
+  return val;
+}
