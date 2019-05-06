@@ -304,8 +304,10 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
 #ifndef MM_TRANSPOSED_A
   HLSLIB_DATAFLOW_FUNCTION(ReadA, a, aSplit, size_n, size_k, size_m);
 #ifdef MM_CONVERT_A
-  HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert);
-  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aPipes[0]);
+  HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aConvert, size_n, size_k,
+                           size_m);
+  HLSLIB_DATAFLOW_FUNCTION(ConvertWidthA, aConvert, aPipes[0], size_n, size_k,
+                           size_m);
 #else
   HLSLIB_DATAFLOW_FUNCTION(TransposeA, aSplit, aPipes[0], size_n, size_k,
                            size_m);

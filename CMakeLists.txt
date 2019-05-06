@@ -28,7 +28,7 @@ set(MM_MEMORY_TILE_SIZE_N 256 CACHE STRING "Tile size of outer memory tile in N.
 set(MM_MEMORY_TILE_SIZE_M 256 CACHE STRING "Tile size of outer memory tile in M.")
 set(MM_PARALLELISM_N 32 CACHE STRING "Number of parallel compute in N.")
 set(MM_PARALLELISM_M 8 CACHE STRING "Number of parallel compute in M.")
-set(MM_GRANULARITY_N 1 CACHE STRING "Granularity of processing elements in N.")
+# set(MM_GRANULARITY_N 1 CACHE STRING "Granularity of processing elements in N.")
 set(MM_TRANSPOSED_A OFF CACHE BOOL "Assume the input matrix A is transposed.")
 set(MM_TRANSPOSE_WIDTH 64 CACHE STRING "Burst width when transposing reads from A.")
 set(MM_TWO_DIMMS OFF CACHE BOOL "Use two DDR DIMMs instead of one")

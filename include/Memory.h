@@ -24,10 +24,12 @@ void ReadA(MemoryPackK_t const a[],
 #ifdef MM_CONVERT_A
 
 void TransposeA(Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth],
-                Stream<Data_t, kPipeDepth> &toKernel);
+                Stream<Data_t, kPipeDepth> &toKernel,
+                unsigned n, unsigned k, unsigned m);
 
 void ConvertWidthA(Stream<Data_t, kPipeDepth> &narrow,
-                   Stream<ComputePackN_t, kPipeDepth> &wide);
+                   Stream<ComputePackN_t, kPipeDepth> &wide,
+                   unsigned, unsigned k, unsigned m);
 
 #else
 

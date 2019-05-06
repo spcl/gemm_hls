@@ -22,7 +22,8 @@ constexpr unsigned long kOuterTileSizeN = ${MM_MEMORY_TILE_SIZE_N};
 constexpr unsigned long kOuterTileSizeM = ${MM_MEMORY_TILE_SIZE_M};
 constexpr unsigned long kInnerTileSizeN = ${MM_PARALLELISM_N};
 constexpr int kComputeTileSizeM = ${MM_PARALLELISM_M};
-constexpr int kComputeTileSizeN = ${MM_GRANULARITY_N};
+// constexpr int kComputeTileSizeN = ${MM_GRANULARITY_N}; // NYI
+constexpr int kComputeTileSizeN = 1;
 constexpr int kTransposeWidthBytes = ${MM_TRANSPOSE_WIDTH};
 constexpr float kFrequency = ${MM_TARGET_CLOCK};
 constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}"; 
@@ -35,8 +36,10 @@ using OperatorReduce = hlslib::op::${MM_REDUCE_OP}<Data_t>;
 #endif
 
 // When A is not transposed, the data width must be converted if a PE buffers
-// more than one row of A. When A is transposed, the data width must be
-// converted if the memory bus is wider than the number of rows buffered per PE.
-#if (!defined(MM_TRANSPOSED_A) && ${MM_GRANULARITY_N} != 1) || (defined(MM_TRANSPOSED_A) && (${MM_DATA_WIDTH_${MM_DATA_TYPE}}*${MM_GRANULARITY_N} != ${MM_MEMORY_BUS_WIDTH_N}))
-  #define MM_CONVERT_A
+// more than one row of A (currently unsupported). When A is transposed, the
+// data width must be converted if the memory bus is wider than the number of
+// rows buffered per PE.
+#if (defined(MM_TRANSPOSED_A) && \
+     (${MM_DATA_WIDTH_${MM_DATA_TYPE}} != ${MM_MEMORY_BUS_WIDTH_N}))
+#define MM_CONVERT_A
 #endif
