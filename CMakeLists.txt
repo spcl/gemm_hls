@@ -45,6 +45,8 @@ check_type_size(${MM_DATA_TYPE} MM_DATA_WIDTH_${MM_DATA_TYPE})
 if(NOT MM_DATA_WIDTH_${MM_DATA_TYPE}) # Non-primitive data type
   if(MM_DATA_TYPE STREQUAL "half")
     set(MM_DATA_WIDTH_${MM_DATA_TYPE} 2)
+  elseif(MM_DATA_TYPE STREQUAL "uint8_t")
+    set(MM_DATA_WIDTH_${MM_DATA_TYPE} 1)
   else()
     message(FATAL_ERROR "Could not get size of data type ${MM_DATA_TYPE}.") 
   endif()
