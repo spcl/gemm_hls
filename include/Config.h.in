@@ -9,6 +9,8 @@
 #include "hls_half.h"
 #include "hlslib/xilinx/Operators.h"
 
+using uint8_t = unsigned char;
+
 using Data_t = ${MM_DATA_TYPE}; 
 constexpr int kMemoryWidthBytesN = ${MM_MEMORY_BUS_WIDTH_N};
 constexpr int kMemoryWidthBytesK = ${MM_MEMORY_BUS_WIDTH_K};
