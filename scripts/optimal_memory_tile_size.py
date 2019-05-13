@@ -5,25 +5,31 @@ import numpy as np
 import argparse
 
 argparser = argparse.ArgumentParser()
+argparser.add_argument("data_size_bits")
 argparser.add_argument("parallelism_n")
 argparser.add_argument("parallelism_m")
-argparser.add_argument("bram_capacity")
+argparser.add_argument("bram_width_bits")
+argparser.add_argument("bram_depth")
 argparser.add_argument("bram_count")
 argparser.add_argument("size_n")
 argparser.add_argument("size_m")
 args = argparser.parse_args()
 
+sof = int(args.data_size_bits)
 pn = int(args.parallelism_n)
 pm = int(args.parallelism_m)
-sb = int(args.bram_capacity)
+wb = int(args.bram_width_bits)
+sb = int(args.bram_depth)
 nb = int(args.bram_count)
 n = int(args.size_n)
 m = int(args.size_m)
 
-if pn * pm > nb:
+bram_width = pn * np.ceil((pm * sof) / wb)
+
+if bram_width > nb:
     raise ValueError("Not enough BRAM to saturate compute")
 
-area = sb * np.floor(nb / (pn * pm)) * pn * pm
+area = sb * np.floor(nb / bram_width) * bram_width
 root = area**0.5
 
 tn = np.floor(root / pn) * pn
