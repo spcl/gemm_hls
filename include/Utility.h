@@ -122,3 +122,9 @@ typename std::enable_if<std::is_floating_point<T>::value, T>::type make_signed(
     T val) {
   return val;
 }
+
+template <typename T>
+typename std::enable_if<std::is_same<T, half>::value, half>::type make_signed(
+    half val) {
+  return val;
+}
