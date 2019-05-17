@@ -560,7 +560,7 @@ def unpackage_configurations(target):
             continue
         confs.append(conf)
         unpackagedSomething = True
-    pool = mp.Pool(processes=len(confs))
+    pool = mp.Pool(processes=multiprocessing.cpu_count())
     try:
         pool.map(unpackage_configuration, confs)
     except KeyboardInterrupt:
