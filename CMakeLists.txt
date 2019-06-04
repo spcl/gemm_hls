@@ -14,6 +14,7 @@ set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE BOOL "Inject debugging cores to design")
 set(MM_QUICK_BUILD OFF CACHE BOOL "Enable quick build option for xocc")
 set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
+set(MM_POWER_METER ON CACHE BOOL "Enable Corsair power meter for measuring power consumption with Corsair RMi power supplies.")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
@@ -89,6 +90,13 @@ if(BLAS_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMM_HAS_BLAS")
 else()
   set(BLAS_LIBRARIES)
+endif()
+
+# Include power meter
+if(MM_POWER_METER)
+  add_subdirectory(powermeter)
+  include_directories(SYSTEM powermeter/include powermeter/OpenCorsairLink/include ${LIBUSB_INCLUDE_DIR})
+  add_definitions("-DMM_POWER_METER")
 endif()
 
 include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
@@ -218,3 +226,6 @@ endif()
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
 target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} mmkernel)
+if(MM_POWER_METER)
+  target_link_libraries(RunHardware.exe powermeter)
+endif()

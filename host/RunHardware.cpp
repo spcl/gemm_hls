@@ -11,6 +11,9 @@
 #include "Utility.h"
 #include "hlslib/xilinx/SDAccel.h"
 #include "hlslib/xilinx/Utility.h"
+#ifdef MM_POWER_METER
+#include "PowerMeter.h"
+#endif
 
 void PrintUsage() {
 #ifndef MM_DYNAMIC_SIZES
@@ -153,8 +156,23 @@ int main(int argc, char **argv) {
                                      bDevice, cDevice, size_n, size_k, size_m);
 #endif
 
+#ifdef MM_POWER_METER
+    PowerMeter pm(10);  // 10 ms sampling rate
+    pm.Start();
+#endif
+
     std::cout << "Executing kernel...\n" << std::flush;
     const auto elapsed = kernel.ExecuteTask();
+    
+#ifdef MM_POWER_METER
+    pm.Stop();
+    const auto power = pm.GetSamples();
+    float average_power = 0;
+    for (auto &i : power) {
+      average_power += std::get<1>(i);
+    }
+    average_power /= power.size();
+#endif
 
     const auto perf = 1e-9 *
                       (2 * static_cast<float>(size_n) * size_k * size_m) /
@@ -163,6 +181,11 @@ int main(int argc, char **argv) {
     std::cout << "Kernel executed in " << elapsed.first
               << " seconds, corresponding to a performance of " << perf
               << " GOp/s.\n";
+
+#ifdef MM_POWER_METER
+    std::cout << "Measured an average power of " << average_power
+              << " W for the full system.\n";
+#endif
 
     if (verify) {
       std::cout << "Copying back result...\n" << std::flush;
