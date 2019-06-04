@@ -23,7 +23,6 @@ PROJECT_CONFIG = {
     "compile_hardware",
     "make_link":
     "link_hardware",
-    "execute_kernel": ["./RunHardware.exe", "hw", "off"],
     "build_dir":
     "scan",
     "benchmark_dir":
@@ -171,7 +170,11 @@ class Configuration(object):
         return Configuration(*m.groups())
 
 
-def run_process(command, directory, pipe=True, logPath="log", timeout=None):
+def run_process(command,
+                directory,
+                pipe=True,
+                logPath="log",
+                timeout=None):
     if pipe:
         proc = sp.Popen(
             command,
@@ -560,7 +563,7 @@ def unpackage_configurations(target):
             continue
         confs.append(conf)
         unpackagedSomething = True
-    pool = mp.Pool(processes=multiprocessing.cpu_count())
+    pool = mp.Pool(processes=mp.cpu_count())
     try:
         pool.map(unpackage_configuration, confs)
     except KeyboardInterrupt:
@@ -570,6 +573,39 @@ def unpackage_configurations(target):
             PROJECT_CONFIG["build_dir"]))
     else:
         print("No kernels found in \"{}\".".format(target))
+
+
+def extract_benchmarks():
+    benchmarkFile = "benchmark.csv"
+    wroteHeader = False
+    with open(benchmarkFile, "w") as outFile:
+        for fileName in os.listdir(PROJECT_CONFIG["build_dir"]):
+            try:
+                conf = Configuration.get_conf(fileName)
+            except ValueError:
+                continue
+            if not wroteHeader:
+                outFile.write(conf.csv_header() +
+                              ",time,performance,power,power_efficiency\n")
+            wroteHeader = True
+            confStr = conf.to_string()
+            folderName = conf.benchmark_folder()
+            kernelFolder = os.path.join(PROJECT_CONFIG["build_dir"], fileName)
+            for resultPath in os.listdir(kernelFolder):
+                if (not resultPath.endswith(".out")
+                        or not resultPath.startswith("benchmark")):
+                    continue
+                resultPath = os.path.join(kernelFolder, resultPath)
+                with open(resultPath, "r") as resultFile:
+                    txt = resultFile.read()
+                    m_perf = re.search(
+                        "([\d\.]+) seconds[^\d]+([\d\.]+) GOp/s", txt)
+                    m_power = re.search("([\d\.]+) W[^\d]+([\d\.]+) GOp/J",
+                                        txt)
+                    outFile.write("{},{},{},{},{}\n".format(
+                        conf.to_csv(), m_perf.group(1), m_perf.group(2),
+                        m_power.group(1), m_power.group(2)))
+                    outFile.flush()
 
 
 def benchmark(repetitions, timeout):
@@ -592,7 +628,8 @@ def benchmark(repetitions, timeout):
         repsDone = 0
         timeouts = 0
         with open(benchmarkFile, "a") as outFile:
-            outFile.write(conf.csv_header() + "time,performance\n")
+            outFile.write(conf.csv_header() +
+                          ",time,performance,power,power_efficiency\n")
             while repsDone < repetitions:
                 time.sleep(0.5)
                 profilePath = os.path.join("benchmark_" +
@@ -600,9 +637,18 @@ def benchmark(repetitions, timeout):
                                            replace(" ", "_").replace(":", "-"))
                 print("Running iteration {} / {}...".format(
                     repsDone + 1, repetitions))
+                cmd = ["./RunHardware.exe"]
+                if "DYNAMIC_SIZES=ON" in open(
+                        os.path.join(kernelFolder, "configure.sh")).read():
+                    cmd += [
+                        str(conf.size_n),
+                        str(conf.size_k),
+                        str(conf.size_m)
+                    ]
+                cmd += ["hw", "off"]
                 try:
                     ret = run_process(
-                        PROJECT_CONFIG["execute_kernel"],
+                        cmd,
                         kernelFolder,
                         pipe=True,
                         logPath=profilePath,
@@ -621,21 +667,30 @@ def benchmark(repetitions, timeout):
                     raise Exception(confStr + ": kernel execution failed.")
                 repsDone += 1
                 timeouts = 0
-                with open(
-                        os.path.join(kernelFolder, profilePath + ".out"),
-                        "r") as profileFile:
-                    m = re.search("([\d\.]+) seconds[^\d]+([\d\.]+) GOp/s",
-                                  profileFile.read())
-                    outFile.write("{},{},{}\n".format(conf.to_csv(),
-                                                      m.group(1), m.group(2)))
-                    outFile.flush()
+
+def merge_files(source, destination):
+
+    lines_out = OrderedDict()
+
+    with open(destination, "r") as in_file:
+        for line in in_file:
+            lines_out[line] = None
+
+    with open(source, "r") as in_file:
+        for line in in_file:
+            lines_out[line] = None
+
+    with open(destination, "w") as out_file:
+        for line in lines_out:
+            out_file.write(line)
 
 
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
 
-        print("Specify a command to run: build, extract, package, unpackage")
+        print("Specify a command to run: build, extract, "
+              "package, unpackage, benchmark, merge_files, extract_benchmarks")
         sys.exit(1)
 
     if sys.argv[1] == "build":
@@ -704,6 +759,19 @@ if __name__ == "__main__":
         args = vars(argParser.parse_args(sys.argv[2:]))
 
         benchmark(args["repetitions"], args["timeout"])
+
+    elif sys.argv[1] == "merge_files":
+
+        argParser = argparse.ArgumentParser()
+        argParser.add_argument("source")
+        argParser.add_argument("destination")
+        args = argParser.parse_args(sys.argv[2:])
+
+        merge_files(args.source, args.destination)
+
+    elif sys.argv[1] == "extract_benchmarks":
+
+        extract_benchmarks()
 
     else:
 
