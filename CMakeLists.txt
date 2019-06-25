@@ -14,7 +14,7 @@ set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE BOOL "Inject debugging cores to design")
 set(MM_QUICK_BUILD OFF CACHE BOOL "Enable quick build option for xocc")
 set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
-set(MM_POWER_METER ON CACHE BOOL "Enable Corsair power meter for measuring power consumption with Corsair RMi power supplies.")
+set(MM_POWER_METER OFF CACHE BOOL "Enable Corsair power meter for measuring power consumption with Corsair RMi power supplies.")
 
 # Domain options
 set(MM_DATA_TYPE "float" CACHE STRING "Matrix data type.")
