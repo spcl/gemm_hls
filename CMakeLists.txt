@@ -39,7 +39,6 @@ set(MM_MULT_RESOURCE OFF CACHE STRING "")
 
 # Internal
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
-set(MM_ENTRY_FUNCTION MatrixMultiplication)
 include(CheckTypeSize)
 check_type_size(${MM_DATA_TYPE} MM_DATA_WIDTH_${MM_DATA_TYPE})
 if(NOT MM_DATA_WIDTH_${MM_DATA_TYPE}) # Non-primitive data type
@@ -135,24 +134,25 @@ target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT
 add_test(TestSimulation TestSimulation)
 enable_testing()
 
-# Standalone synthesis target. Starting from Vitis 2019.2, this no longer works,
-# as the tool insists on inlining the processing elements so they're not
-# instantiated as dataflow functions.
-if((${Vitis_MAJOR_VERSION} GREATER 2018 AND ${Vitis_MINOR_VERSION} LESS 2) OR ${Vitis_MAJOR_VERSION} LESS 2019) 
-  set(MM_HLS_PROJECT_NAME "hls")
-  string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-  set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
+# Synthesis flags
+set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
   if(MM_ADD_RESOURCE)
     set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
   endif() 
   if(MM_MULT_RESOURCE) 
     set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
   endif() 
+# Standalone synthesis target. Starting from Vitis 2019.2, this no longer works,
+# as the tool insists on inlining the processing elements so they're not
+# instantiated as dataflow functions.
+if((${Vitis_MAJOR_VERSION} GREATER 2018 AND ${Vitis_MINOR_VERSION} LESS 2) OR ${Vitis_MAJOR_VERSION} LESS 2019) 
+  set(MM_HLS_PROJECT_NAME "hls")
+  string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
+  set(MM_KERNEL_NAME "MatrixMultiplicationKernel")
   configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
   add_custom_target(synthesis COMMAND ${Vitis_HLS} -f Synthesis.tcl) 
-  string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 endif()
+string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 
 # Hardware kernel
 string(REPLACE " " ";" MM_VPP_FLAGS "${MM_VPP_FLAGS}")
@@ -163,14 +163,20 @@ set(MM_VPP_COMMAND
   -I${CMAKE_SOURCE_DIR}/hlslib/include
   -I${CMAKE_BINARY_DIR}
   --kernel ${MM_KERNEL_NAME} 
-  --platform ${MM_DSA_NAME}
-  --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
-  --max_memory_ports all)
+  --platform ${MM_DSA_NAME})
 if(MM_ENABLE_PROFILING)
   set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
     --profile_kernel "data:all:all:all"
     --profile_kernel "stall:all:all"
     --profile_kernel "exec:all:all")
+endif()
+if(Vitis_IS_LEGACY)
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
+  --xp prop:kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
+  --max_memory_ports all)
+else()
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
+      --advanced.prop kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}")
 endif()
 if(MM_QUICK_BUILD)
   set(MM_VPP_COMMAND ${MM_VPP_COMMAND} -Oquick)
