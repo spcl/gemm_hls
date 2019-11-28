@@ -9,6 +9,17 @@
 #include "hlslib/xilinx/DataPack.h"
 #include "hlslib/xilinx/Resource.h"
 
+// Vitis broke hlslib::Stream, so we have to fall back on hls::stream
+#ifdef HLSLIB_SYNTHESIS
+#include <hls_stream.h>
+template <typename T>
+using Stream = hls::stream<T>;
+#else
+#include "hlslib/xilinx/Stream.h"
+template <typename T>
+using Stream = hlslib::Stream<T>;
+#endif
+
 constexpr int kSeed = 5; // For initializing matrices for testing
 constexpr int kFifoDepth = 8;
 

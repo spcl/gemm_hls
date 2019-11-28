@@ -1,19 +1,18 @@
 # Author:  Johannes de Fine Licht (definelicht@inf.ethz.ch)
-# Created: June 2017
 
 cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
 
 # Target options 
-set(MM_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_vcu1525_dynamic_5_1" CACHE STRING "DSA string for xocc.")
+set(MM_PART_NAME "xcu280-fsvh2892-2L-e" CACHE STRING "Part name for HLS.")
+set(MM_DSA_NAME "xilinx_u280_xdma_201920_1" CACHE STRING "DSA string for Vitis.")
 set(MM_TARGET_CLOCK 200 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
 set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information")
 set(MM_ENABLE_DEBUGGING OFF CACHE BOOL "Inject debugging cores to design")
-set(MM_QUICK_BUILD OFF CACHE BOOL "Enable quick build option for xocc")
-set(MM_XOCC_FLAGS "" CACHE STRING "Extra flags for xocc")
+set(MM_QUICK_BUILD OFF CACHE BOOL "Enable quick build option for Vitis")
+set(MM_VPP_FLAGS "" CACHE STRING "Extra flags for Vitis")
 set(MM_POWER_METER OFF CACHE BOOL "Enable Corsair power meter for measuring power consumption with Corsair RMi power supplies.")
 
 # Domain options
@@ -81,7 +80,7 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake)
 
-find_package(SDAccel REQUIRED)
+find_package(Vitis REQUIRED)
 find_package(Threads REQUIRED)
 
 # Check if BLAS is available
@@ -99,7 +98,7 @@ if(MM_POWER_METER)
   add_definitions("-DMM_POWER_METER")
 endif()
 
-include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${SDAccel_INCLUDE_DIRS})
+include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${Vitis_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 if(MM_DYNAMIC_SIZES)
   add_definitions("-DMM_DYNAMIC_SIZES")
@@ -110,7 +109,7 @@ if(MM_TRANSPOSED_A)
   set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_TRANSPOSED_A")
 endif()
 add_definitions("-DHLSLIB_STREAM_TIMEOUT=16")
-if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
+if(((${Vitis_MAJOR_VERSION} LESS 2018) AND (${Vitis_MINOR_VERSION} LESS 3)) OR ${Vitis_MAJOR_VERSION} LESS 2017)
   add_definitions(-DHLSLIB_LEGACY_SDX=1)
 else()
   add_definitions(-DHLSLIB_LEGACY_SDX=0)
@@ -122,7 +121,8 @@ configure_file(include/Config.h.in Config.h)
 # C++ source code 
 set(MM_KERNEL_SRC
     ${CMAKE_SOURCE_DIR}/kernel/Compute.cpp
-    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp)
+    ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp
+    ${CMAKE_SOURCE_DIR}/kernel/Top.cpp)
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
@@ -131,30 +131,34 @@ add_executable(PrintSpecifications src/PrintSpecifications.cpp)
 
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
-target_link_libraries(TestSimulation ${SDAccel_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} ${SDAccel_LIBRARIES} mmkernel)
+target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${Vitis_FLOATING_POINT_LIBRARY} ${Vitis_LIBRARIES} mmkernel)
 add_test(TestSimulation TestSimulation)
 enable_testing()
 
-# Synthesis
-set(MM_HLS_PROJECT_NAME "hls")
-string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
-set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
-if(MM_ADD_RESOURCE)
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
-endif() 
-if(MM_MULT_RESOURCE) 
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
-endif() 
-configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
-add_custom_target(synthesis COMMAND ${SDAccel_VIVADO_HLS} -f Synthesis.tcl) 
-string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
+# Standalone synthesis target. Starting from Vitis 2019.2, this no longer works,
+# as the tool insists on inlining the processing elements so they're not
+# instantiated as dataflow functions.
+if((${Vitis_MAJOR_VERSION} GREATER 2018 AND ${Vitis_MINOR_VERSION} LESS 2) OR ${Vitis_MAJOR_VERSION} LESS 2019) 
+  set(MM_HLS_PROJECT_NAME "hls")
+  string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
+  set(MM_ENTRY_FUNCTION "MatrixMultiplicationKernel")
+  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
+  if(MM_ADD_RESOURCE)
+    set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
+  endif() 
+  if(MM_MULT_RESOURCE) 
+    set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
+  endif() 
+  configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
+  add_custom_target(synthesis COMMAND ${Vitis_HLS} -f Synthesis.tcl) 
+  string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
+endif()
 
 # Hardware kernel
-string(REPLACE " " ";" MM_XOCC_FLAGS "${MM_XOCC_FLAGS}")
-set(MM_XOCC_COMMAND
+string(REPLACE " " ";" MM_VPP_FLAGS "${MM_VPP_FLAGS}")
+set(MM_VPP_COMMAND
   -s
-  ${MM_XOCC_FLAGS}
+  ${MM_VPP_FLAGS}
   -I${CMAKE_SOURCE_DIR}/include
   -I${CMAKE_SOURCE_DIR}/hlslib/include
   -I${CMAKE_BINARY_DIR}
@@ -163,69 +167,69 @@ set(MM_XOCC_COMMAND
   --xp prop:kernel.${MM_ENTRY_FUNCTION}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
   --max_memory_ports all)
 if(MM_ENABLE_PROFILING)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
     --profile_kernel "data:all:all:all"
     --profile_kernel "stall:all:all"
     --profile_kernel "exec:all:all")
 endif()
 if(MM_QUICK_BUILD)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -Oquick)
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND} -Oquick)
 else()
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -O3)
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND} -O3)
 endif()
 if(MM_ENABLE_DEBUGGING)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND} -g
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND} -g
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM0
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM1
     --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM2)
 endif()
 if(MM_TARGET_CLOCK GREATER 0)
-  set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+  set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
 if(MM_TWO_DIMMS)
   if(NOT (MM_DSA_NAME MATCHES "dynamic"))
-    set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
       --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
       --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
       --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM2.core.OCL_REGION_0.M01_AXI)
   else()
-    set(MM_XOCC_COMMAND ${MM_XOCC_COMMAND}
+    set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
       --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
       --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
       --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
   endif()
 endif()
 
-if(((${SDAccel_MAJOR_VERSION} LESS 2018) AND (${SDAccel_MINOR_VERSION} LESS 3)) OR ${SDAccel_MAJOR_VERSION} LESS 2017)
+if(((${Vitis_MAJOR_VERSION} LESS 2018) AND (${Vitis_MINOR_VERSION} LESS 3)) OR ${Vitis_MAJOR_VERSION} LESS 2017)
   add_custom_target(build_kernel
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -t hw
-    ${MM_XOCC_COMMAND} ${MM_XOCC_COMPILE_FLAGS} ${MM_XOCC_LINK_FLAGS}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -t hw
+    ${MM_VPP_COMMAND} ${MM_VPP_COMPILE_FLAGS} ${MM_VPP_LINK_FLAGS}
     ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xclbin) 
 else()
   # Hardware
   add_custom_target(compile_hardware
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c -t hw
-    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -c -t hw
+    ${MM_VPP_COMMAND} ${MM_VPP_LINK_FLAGS}
     ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xo) 
   add_custom_target(link_hardware
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw
-    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -l -t hw
+    ${MM_VPP_COMMAND} ${MM_VPP_LINK_FLAGS}
     MatrixMultiplication_hw.xo -o MatrixMultiplication_hw.xclbin) 
   # Hardware emulation
   add_custom_target(compile_hardware_emulation
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -c -t hw_emu
-    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -c -t hw_emu
+    ${MM_VPP_COMMAND} ${MM_VPP_LINK_FLAGS}
     ${MM_KERNEL_SRC} -o MatrixMultiplication_hw_emu.xo) 
   add_custom_target(link_hardware_emulation
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${SDAccel_XOCC} -l -t hw_emu
-    ${MM_XOCC_COMMAND} ${MM_XOCC_LINK_FLAGS}
+    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -l -t hw_emu
+    ${MM_VPP_COMMAND} ${MM_VPP_LINK_FLAGS}
     MatrixMultiplication_hw_emu.xo -o MatrixMultiplication_hw_emu.xclbin) 
 endif()
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
-target_link_libraries(RunHardware.exe ${SDAccel_LIBRARIES} ${BLAS_LIBRARIES} ${SDAccel_FLOATING_POINT_LIBRARY} mmkernel)
+target_link_libraries(RunHardware.exe ${Vitis_LIBRARIES} ${BLAS_LIBRARIES} ${Vitis_FLOATING_POINT_LIBRARY} mmkernel)
 if(MM_POWER_METER)
   target_link_libraries(RunHardware.exe powermeter)
 endif()
