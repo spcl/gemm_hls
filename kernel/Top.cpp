@@ -40,21 +40,17 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
 
   // Memory accesses and pipes for A 
 #ifndef MM_TRANSPOSED_A
-  Stream<Data_t> aSplit[kTransposeWidth];
+  Stream<Data_t, 2 * kOuterTileSizeN> aSplit[kTransposeWidth];
   #pragma HLS STREAM variable=aSplit depth=2*kOuterTileSizeN
   Stream<Data_t> aConvert("aConvert");
 #else
-  Stream<MemoryPackN_t> aMemory("aMemory");
-  #pragma HLS STREAM variable=aMemory depth=2*kOuterTileSizeNMemory
+  Stream<MemoryPackN_t, 2 * kOuterTileSizeNMemory> aMemory("aMemory");
 #endif
-  Stream<ComputePackN_t> aPipes[kComputeTilesN + 1];
-  #pragma HLS STREAM variable=aPipes depth=kPipeDepth
+  Stream<ComputePackN_t, kPipeDepth> aPipes[kComputeTilesN + 1];
 
   // Memory accesses and pipes for B 
-  Stream<MemoryPackM_t> bMemory("bMemory");
-  #pragma HLS STREAM variable=bMemory depth=2*kOuterTileSizeMMemory
-  Stream<ComputePackM_t> bPipes[kComputeTilesN + 1];
-  #pragma HLS STREAM variable=bPipes depth=kPipeDepth
+  Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> bMemory("bMemory");
+  Stream<ComputePackM_t, kPipeDepth> bPipes[kComputeTilesN + 1];
 
   // Pipes for C
   Stream<ComputePackM_t> cPipes[kComputeTilesN + 1];
@@ -109,7 +105,6 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
   HLSLIB_DATAFLOW_FUNCTION(FeedB, bMemory, bPipes[0], size_n, size_k, size_m);
 #endif
 
-UnrollProcessingElements:
   for (unsigned pe = 0; pe < kComputeTilesN; ++pe) {
     #pragma HLS UNROLL
     HLSLIB_DATAFLOW_FUNCTION(ProcessingElement,
@@ -122,8 +117,7 @@ UnrollProcessingElements:
                              pe, size_n, size_k, size_m);
   }
 
-  Stream<MemoryPackM_t> cMemory("cMemory");
-  #pragma HLS STREAM variable=cMemory depth=2*kOuterTileSizeMMemory
+  Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> cMemory("cMemory");
   HLSLIB_DATAFLOW_FUNCTION(ConvertWidthC, cPipes[0], cMemory, size_n, size_k,
                            size_m);
   HLSLIB_DATAFLOW_FUNCTION(WriteC, cMemory, c, size_n, size_k, size_m);

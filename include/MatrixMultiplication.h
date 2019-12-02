@@ -8,20 +8,12 @@
 #include "Config.h"
 #include "hlslib/xilinx/DataPack.h"
 #include "hlslib/xilinx/Resource.h"
-
-// Vitis broke hlslib::Stream, so we have to fall back on hls::stream
-#ifdef HLSLIB_SYNTHESIS
-#include <hls_stream.h>
-template <typename T>
-using Stream = hls::stream<T>;
-#else
 #include "hlslib/xilinx/Stream.h"
-template <typename T>
-using Stream = hlslib::Stream<T>;
-#endif
+
+using hlslib::Stream;
 
 constexpr int kSeed = 5; // For initializing matrices for testing
-constexpr int kFifoDepth = 8;
+constexpr unsigned kPipeDepth = 4;
 
 // Memory bus in K-dimension
 constexpr int kMemoryWidthK = kMemoryWidthBytesK / sizeof(Data_t);

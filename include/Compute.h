@@ -5,10 +5,10 @@
 
 #include "MatrixMultiplication.h"
 
-void ProcessingElement(Stream<ComputePackN_t> &aIn,
-                       Stream<ComputePackN_t> &aOut,
-                       Stream<ComputePackM_t> &bIn,
-                       Stream<ComputePackM_t> &bOut,
+void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
+                       Stream<ComputePackN_t, kPipeDepth> &aOut,
+                       Stream<ComputePackM_t, kPipeDepth> &bIn,
+                       Stream<ComputePackM_t, kPipeDepth> &bOut,
                        Stream<ComputePackM_t> &cOut,
                        Stream<ComputePackM_t> &cIn, const unsigned locationN,
                        const unsigned size_n, const unsigned size_k,
