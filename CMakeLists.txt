@@ -142,16 +142,12 @@ set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHL
   if(MM_MULT_RESOURCE) 
     set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
   endif() 
-# Standalone synthesis target. Starting from Vitis 2019.2, this no longer works,
-# as the tool insists on inlining the processing elements so they're not
-# instantiated as dataflow functions.
-if((${Vitis_MAJOR_VERSION} GREATER 2018 AND ${Vitis_MINOR_VERSION} LESS 2) OR ${Vitis_MAJOR_VERSION} LESS 2019) 
-  set(MM_HLS_PROJECT_NAME "hls")
-  string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-  set(MM_KERNEL_NAME "MatrixMultiplicationKernel")
-  configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
-  add_custom_target(synthesis COMMAND ${Vitis_HLS} -f Synthesis.tcl) 
-endif()
+# Standalone synthesis target 
+set(MM_HLS_PROJECT_NAME "hls")
+string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
+set(MM_KERNEL_NAME "MatrixMultiplicationKernel")
+configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
+add_custom_target(synthesis COMMAND ${Vitis_HLS} -f Synthesis.tcl) 
 string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
 
 # Hardware kernel
