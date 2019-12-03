@@ -10,11 +10,9 @@ set_clock_uncertainty ${MM_TARGET_CLOCK_UNCERTAINTY}
 # SDAccel default options
 set vpp_optimize_level 0
 config_sdx -target xocc
-config_export -vivado_optimization_level $vpp_optimize_level
 config_dataflow -strict_mode warning
 config_rtl -enable_maxiConservative=1
 config_interface -m_axi_addr64
-config_export -format ip_catalog -ipname ${MM_HLS_PROJECT_NAME} 
 
 csynth_design
 
