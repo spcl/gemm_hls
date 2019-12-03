@@ -19,7 +19,7 @@ of the output matrix.
 
 For a detailed description of the optimization techniques used here, we refer to
 [this article](https://arxiv.org/abs/1805.08288). We also gave [a tutorial on
-HLS](https://spcl.inf.ethz.ch/Teaching/2018-sc/) for HPC at SC'18, PPoPP'18, and
+HLS](https://spcl.inf.ethz.ch/Teaching/2019-sc/) for HPC at SC'19, SC'18, PPoPP'18, and
 at ETH Zurich. 
 
 The compute kernel is in `kernel/Compute.cpp`, and the modules accessing memory
@@ -42,9 +42,9 @@ git submodule update --init
 Prerequisites
 -------------
 
-To build and run kernels in hardware, [Xilinx
-SDAccel](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/sdaccel-development-environment.html)
-must be installed and available on the PATH (tested with version 2018.2).
+To build and run kernels in hardware, Xilinx
+[Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html) or SDAccel
+must be installed and available on the PATH (tested with versions 2018.2 and 2019.2).
 
 Configuration and running
 -------------------------
