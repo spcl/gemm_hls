@@ -8,9 +8,12 @@
 #include "Config.h"
 #include "hlslib/xilinx/DataPack.h"
 #include "hlslib/xilinx/Resource.h"
+#include "hlslib/xilinx/Stream.h"
+
+using hlslib::Stream;
 
 constexpr int kSeed = 5; // For initializing matrices for testing
-constexpr int kFifoDepth = 8;
+constexpr unsigned kPipeDepth = 4;
 
 // Memory bus in K-dimension
 constexpr int kMemoryWidthK = kMemoryWidthBytesK / sizeof(Data_t);

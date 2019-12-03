@@ -7,10 +7,6 @@
 #include "MatrixMultiplication.h"
 #include "hlslib/xilinx/Stream.h"
 
-constexpr unsigned kPipeDepth = 4;
-
-using hlslib::Stream;
-
 #ifndef MM_TRANSPOSED_A
 
 // Read wide bursts from memory, then distribute it into separate column
