@@ -3,4 +3,4 @@
 	url = https://github.com/definelicht/hlslib.git 
 [submodule "powermeter"]
 	path = powermeter
-	url = git@github.com:definelicht/powermeter.git
+	url = https://github.com/definelicht/powermeter.git
