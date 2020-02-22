@@ -93,7 +93,7 @@ take the matrix sizes as input.
 Selecting tile sizes
 --------------------
 
-Coming soon...
+See our [publication at FPGA'20](https://spcl.inf.ethz.ch/Publications/.pdf/gemm-fpga.pdf) [1] on how to choose tile sizes for optimal fast memory and compute utilization.
 
 Parallel performance
 --------------------
@@ -117,3 +117,8 @@ Bugs
 
 If you experience bugs, or have suggestions for improvements, please use the
 issue tracker to report them.
+
+References
+----------
+
+[1] Johannes de Fine Licht, Grzegorz Kwasniewski, and Torsten Hoefler, _"Flexible Communication Avoiding Matrix Multiplication on FPGA with High-Level Synthesis"_, in Proceedings of 28th ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA'20), 2020.
