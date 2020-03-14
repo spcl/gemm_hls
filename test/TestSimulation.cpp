@@ -25,6 +25,12 @@ int main(int argc, char **argv) {
     std::cerr << "K must be divisable by memory width." << std::endl;
     return 1;
   }
+#ifndef MM_TRANSPOSED_A
+  if (size_k % kTransposeWidth != 0) {
+    std::cerr << "K must be divisable by the transpose width." << std::endl;
+    return 1;
+  }
+#endif
   if (size_m % kMemoryWidthM != 0) {
     std::cerr << "M must be divisable by memory width." << std::endl;
     return 1;

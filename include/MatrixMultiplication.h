@@ -88,6 +88,13 @@ static_assert(kInnerTileSizeN % kComputeTileSizeN == 0,
 static_assert(kSizeK % kMemoryWidthK == 0,
               "K must be divisable by memory width.");
 
+#ifndef MM_TRANSPOSED_A
+
+static_assert(kSizeK % kTransposeWidth == 0,
+              "K must be divisable by the transpose width.");
+
+#endif
+
 static_assert(kSizeM % kMemoryWidthM == 0,
               "M must be divisable by memory width.");
 
