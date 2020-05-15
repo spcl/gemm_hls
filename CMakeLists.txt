@@ -4,8 +4,8 @@ cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
 
 # Target options 
-set(MM_PART_NAME "xcu280-fsvh2892-2L-e" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_u280_xdma_201920_1" CACHE STRING "DSA string for Vitis.")
+set(MM_PART_NAME "xcu250-figd2104-2L-e" CACHE STRING "Part name for HLS.")
+set(MM_DSA_NAME "xilinx_u250_xdma_201830_2" CACHE STRING "DSA string for Vitis.")
 set(MM_TARGET_CLOCK 200 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
 set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
 set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files")
