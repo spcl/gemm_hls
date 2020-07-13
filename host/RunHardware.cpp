@@ -1,5 +1,4 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2017
 /// @copyright This software is copyrighted under the BSD 3-Clause License.
 
 #include <algorithm>
@@ -28,7 +27,6 @@ void PrintUsage() {
 }
 
 int main(int argc, char **argv) {
-
   std::default_random_engine rng(kSeed);
   typename std::conditional<std::is_integral<Data_t>::value,
                             std::uniform_int_distribution<unsigned long>,
@@ -107,7 +105,7 @@ int main(int argc, char **argv) {
   std::vector<MemoryPackK_t, hlslib::ocl::AlignedAllocator<MemoryPackK_t, 4096>>
       aMem;
   std::vector<MemoryPackM_t, hlslib::ocl::AlignedAllocator<MemoryPackM_t, 4096>>
-       bMem, cMem;
+      bMem, cMem;
   std::cout << "Initializing host memory..." << std::flush;
   if (verify) {
     a = decltype(a)(size_n * size_k);
@@ -132,6 +130,7 @@ int main(int argc, char **argv) {
     auto program = context.MakeProgram(path);
 
     std::cout << "Initializing device memory...\n" << std::flush;
+#ifdef MM_TWO_DIMMS
     auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
         hlslib::ocl::MemoryBank::bank0, size_n * size_k / kMemoryWidthK);
     auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
@@ -139,6 +138,15 @@ int main(int argc, char **argv) {
     auto cDevice =
         context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
             hlslib::ocl::MemoryBank::bank1, size_n * size_m / kMemoryWidthM);
+#else
+    auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
+        size_n * size_k / kMemoryWidthK);
+    auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
+        size_k * size_m / kMemoryWidthM);
+    auto cDevice =
+        context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
+            size_n * size_m / kMemoryWidthM);
+#endif
 
     if (verify) {
       std::cout << "Copying memory to device...\n" << std::flush;
@@ -163,7 +171,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Executing kernel...\n" << std::flush;
     const auto elapsed = kernel.ExecuteTask();
-    
+
 #ifdef MM_POWER_METER
     pm.Stop();
     const auto power = pm.GetSamples();

@@ -1,4 +1,5 @@
 # Author:  Johannes de Fine Licht (definelicht@inf.ethz.ch)
+# Copyright: This software is copyrighted under the BSD 3-Clause License.
 
 cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
@@ -113,6 +114,9 @@ if(((${Vitis_MAJOR_VERSION} LESS 2018) AND (${Vitis_MINOR_VERSION} LESS 3)) OR $
 else()
   add_definitions(-DHLSLIB_LEGACY_SDX=0)
 endif()
+if(MM_DATA_TYPE STREQUAL "half")
+  add_definitions("-DMM_HALF_PRECISION")
+endif()
 
 # Hardware configuration header for HLS
 configure_file(include/Config.h.in Config.h)
@@ -131,17 +135,20 @@ add_executable(PrintSpecifications src/PrintSpecifications.cpp)
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
 target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${Vitis_FLOATING_POINT_LIBRARY} ${Vitis_LIBRARIES} mmkernel)
+if(MM_DATA_TYPE STREQUAL "half")
+  target_link_libraries(TestSimulation ${Vitis_FLOATING_POINT_LIBRARY})
+endif()
 add_test(TestSimulation TestSimulation)
 enable_testing()
 
 # Synthesis flags
 set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS")
-  if(MM_ADD_RESOURCE)
-    set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
-  endif() 
-  if(MM_MULT_RESOURCE) 
-    set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
-  endif() 
+if(MM_ADD_RESOURCE)
+  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
+endif() 
+if(MM_MULT_RESOURCE) 
+  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
+endif() 
 # Standalone synthesis target 
 set(MM_HLS_PROJECT_NAME "hls")
 string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
@@ -190,6 +197,8 @@ if(MM_TARGET_CLOCK GREATER 0)
       --kernel_frequency ${MM_TARGET_CLOCK})
 endif()
 if(MM_TWO_DIMMS)
+  # TODO: Newer versions of Vitis have again changed how this is done, and now
+  # require a separate config file with the global memory mappings.
   if(NOT (MM_DSA_NAME MATCHES "dynamic"))
     set(MM_VPP_COMMAND ${MM_VPP_COMMAND}
       --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
@@ -231,7 +240,13 @@ endif()
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
-target_link_libraries(RunHardware.exe ${Vitis_LIBRARIES} ${BLAS_LIBRARIES} ${Vitis_FLOATING_POINT_LIBRARY} mmkernel)
+target_link_libraries(RunHardware.exe ${Vitis_LIBRARIES} ${BLAS_LIBRARIES} mmkernel)
+if(MM_TWO_DIMMS)
+  target_compile_definitions(RunHardware.exe MM_TWO_DIMMS)
+endif()
+if(MM_DATA_TYPE STREQUAL "half")
+  target_link_libraries(RunHardware.exe ${Vitis_FLOATING_POINT_LIBRARY})
+endif()
 if(MM_POWER_METER)
   target_link_libraries(RunHardware.exe powermeter)
 endif()

@@ -1,12 +1,13 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
+#ifdef MM_HALF_PRECISION
 #include "hls_half.h"
+#endif
 #include "hlslib/xilinx/Operators.h"
 
 using uint8_t = unsigned char;
