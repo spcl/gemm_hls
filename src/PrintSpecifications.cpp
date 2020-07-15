@@ -1,13 +1,11 @@
 #include "MatrixMultiplication.h"
 #include "Memory.h"
 
-void PrintUsage() {
+void PrintUsage(char **argv) {
 #ifndef MM_DYNAMIC_SIZES
-  std::cerr
-      << "Usage: ./PrintSpecifications [<routed frequency>]\n"
-      << std::flush;
+  std::cerr << "Usage: " << argv[0] << " [<routed frequency>]\n" << std::flush;
 #else
-  std::cerr << "Usage: ./PrintSpecifications N K M [<routed_frequency>]\n"
+  std::cerr << "Usage: " << argv[0] << " N K M [<routed_frequency>]\n"
             << std::flush;
 #endif
 }
@@ -18,7 +16,7 @@ void PrintUsage() {
 int main(int argc, char **argv) {
 #ifdef MM_DYNAMIC_SIZES
   if (argc > 5 || argc < 4) {
-    PrintUsage();
+    PrintUsage(argv);
     return 1;
   }
   const unsigned size_n = std::stoul(argv[1]);
@@ -27,7 +25,7 @@ int main(int argc, char **argv) {
   int next_arg = 4;
 #else
   if (argc > 2) {
-    PrintUsage();
+    PrintUsage(argv);
     return 1;
   }
   constexpr auto size_n = kSizeN;
@@ -50,17 +48,18 @@ int main(int argc, char **argv) {
        kInnerTilesN * (kComputeTileSizeM * kInnerTilesM +
                        kComputeTilesN * kComputeTileSizeN * kInnerTilesM)) /
       (1e6 * frequency);
-  const auto peak_runtime = (static_cast<float>(size_n) * size_k * size_m /
-                             (kInnerTileSizeN * kComputeTileSizeM)) /
-                            (1e6 * frequency);
+  const auto ideal_runtime = (static_cast<float>(size_n) * size_k * size_m /
+                              (kInnerTileSizeN * kComputeTileSizeM)) /
+                             (1e6 * frequency);
   const auto expected_perf = 1e-9 * nOps / expected_runtime;
-  const auto peak_perf = 2e-3 * kInnerTileSizeN * kComputeTileSizeM * frequency;
+  const auto ideal_perf =
+      2e-3 * kInnerTileSizeN * kComputeTileSizeM * frequency;
   std::cout << "Expected runtime:     " << expected_runtime << " seconds\n";
-  std::cout << "Peak runtime:         " << peak_runtime << " seconds\n";
-  std::cout << "Percentage of peak:   " << 100 * peak_runtime / expected_runtime
-            << "%\n";
+  std::cout << "Ideal runtime:        " << ideal_runtime << " seconds\n";
+  std::cout << "Percentage of deal:   "
+            << 100 * ideal_runtime / expected_runtime << "%\n";
   std::cout << "Expected performance: " << expected_perf << " GOp/s\n";
-  std::cout << "Peak performance:     " << peak_perf << " GOp/s\n";
+  std::cout << "Ideal performance:    " << ideal_perf << " GOp/s\n";
   std::cout << "Compute tiles: " << kInnerTileSizeN << "x" << kComputeTileSizeM
             << " (" << kInnerTileSizeN * kComputeTileSizeM
             << " parallel adders/multipliers)\n";
@@ -70,8 +69,9 @@ int main(int argc, char **argv) {
             << kInnerTilesN << "\n";
   std::cout << "Tiles in M (outer/inner): " << OuterTilesM(size_m) << " / "
             << kInnerTilesM << "\n";
-  const unsigned long long communicationVolume = size_n * size_m *
-                   (1 + size_k / kOuterTileSizeN + size_k / kOuterTileSizeM);
+  const unsigned long long communicationVolume =
+      size_n * size_m *
+      (1 + size_k / kOuterTileSizeN + size_k / kOuterTileSizeM);
   std::cout << "Communication volume: " << communicationVolume << "\n";
   const double ioAccesses =
       communicationVolume / (3 * static_cast<double>(size_n) * size_m * size_k);
