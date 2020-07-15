@@ -16,19 +16,19 @@ unsigned IndexA(const unsigned n0, const unsigned n1, const unsigned n2,
   const auto index =
       (n0 * kOuterTileSizeN + n1 * kInnerTileSizeN + n2) * SizeKMemory(size_k) +
       (k0 * (kTransposeWidth / kMemoryWidthK) + k1);
-  assert(index < size_n * SizeKMemory(size_k));
+  // assert(index < size_n * SizeKMemory(size_k));
   return index;
 }
 
 #else // MM_TRANSPOSED_A
 
 unsigned IndexATransposed(const unsigned k, const unsigned n0,
-                         const unsigned n1m, const unsigned size_n,
-                         const unsigned size_k, const unsigned size_m) {
+                          const unsigned n1m, const unsigned size_n,
+                          const unsigned size_k, const unsigned size_m) {
   #pragma HLS INLINE
   const auto index =
       k * SizeNMemory(size_n) + (n0 * kOuterTileSizeNMemory + n1m);
-  assert(index < size_k * SizeNMemory(size_n));
+  // assert(index < size_k * SizeNMemory(size_n));
   return index;
 }
 
@@ -40,7 +40,7 @@ unsigned IndexB(const unsigned k, const unsigned m0, const unsigned m1m,
   #pragma HLS INLINE
   const auto index =
       k * SizeMMemory(size_m) + (m0 * kOuterTileSizeMMemory + m1m);
-  assert(index < size_k * SizeMMemory(size_m));
+  // assert(index < size_k * SizeMMemory(size_m));
   return index;
 }
 
@@ -50,7 +50,7 @@ unsigned IndexC(const unsigned n0, const unsigned n1, const unsigned m0,
   #pragma HLS INLINE
   const auto index = (n0 * kOuterTileSizeN + n1) * SizeMMemory(size_m) +
                      (m0 * kOuterTileSizeMMemory + m1m);
-  assert(index < size_n * SizeMMemory(size_m));
+  // assert(index < size_n * SizeMMemory(size_m));
   return index;
 }
 
@@ -340,34 +340,38 @@ void ConvertWidthC(Stream<ComputePackM_t> &narrow,
                    Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &wide,
                    const unsigned size_n, const unsigned size_k,
                    const unsigned size_m) {
-
   assert(kMemoryWidthM % ComputePackM_t::kWidth == 0);
 
-  assert((((size_n * size_m) / MemoryPackM_t::kWidth) *
-          (kMemoryWidthM / ComputePackM_t::kWidth) * ComputePackM_t::kWidth) ==
-         size_n * size_m);
+  // assert((((size_n * size_m) / MemoryPackM_t::kWidth) *
+  //         (kMemoryWidthM / ComputePackM_t::kWidth) * ComputePackM_t::kWidth) ==
+  //        size_n * size_m);
 
-ConvertWidthC_Outer:
-  for (unsigned i = 0; i < (size_n * size_m) / MemoryPackM_t::kWidth; ++i) {
+ConvertWidthC_N:
+  for (unsigned i = 0; i < OuterTilesN(size_n) * kOuterTileSizeN; ++i) {
+  ConvertWidthC_M:
+    for (unsigned j = 0; j < OuterTilesM(size_m) * kOuterTileSizeMMemory; ++j) {
 #ifdef MM_CONVERT_B
-  ConvertWidthB_Memory:
-    MemoryPackM_t memoryPack;
-    for (unsigned j = 0; j < kMemoryWidthM / ComputePackM_t::kWidth; ++j) {
+    ConvertWidthB_Memory:
+      MemoryPackM_t memoryPack;
+      for (unsigned j = 0; j < kMemoryWidthM / ComputePackM_t::kWidth; ++j) {
+        #pragma HLS PIPELINE II=1
+        #pragma HLS LOOP_FLATTEN
+        const auto computePack = narrow.Pop();
+      ConvertWidthB_Compute:
+        for (unsigned w = 0; w < ComputePackM_t::kWidth; ++w) {
+          #pragma HLS UNROLL
+          memoryPack[j * ComputePackM_t::kWidth + w] = computePack[w];
+        }
+        if (j == kMemoryWidthM / ComputePackM_t::kWidth - 1) {
+          wide.Push(memoryPack);
+        }
+      }
+#else
       #pragma HLS PIPELINE II=1
       #pragma HLS LOOP_FLATTEN
-      const auto computePack = narrow.Pop();
-    ConvertWidthB_Compute:
-      for (unsigned w = 0; w < ComputePackM_t::kWidth; ++w) {
-        #pragma HLS UNROLL
-        memoryPack[j * ComputePackM_t::kWidth + w] = computePack[w];
-      }
-      if (j == kMemoryWidthM / ComputePackM_t::kWidth - 1) {
-        wide.Push(memoryPack);
-      }
-    }
-#else
-    wide.Push(narrow.Pop());
+      wide.Push(narrow.Pop());
 #endif
+    }
   }
 }
 
@@ -375,8 +379,8 @@ void WriteC(Stream<MemoryPackM_t, 2 * kOuterTileSizeMMemory> &pipe,
             MemoryPackM_t memory[], const unsigned size_n,
             const unsigned size_k, const unsigned size_m) {
 
-  assert((OuterTilesN(size_n) * OuterTilesM(size_m) * kOuterTileSizeN *
-          kOuterTileSizeMMemory * MemoryPackM_t::kWidth) == size_n * size_m);
+  // assert((OuterTilesN(size_n) * OuterTilesM(size_m) * kOuterTileSizeN *
+  //         kOuterTileSizeMMemory * MemoryPackM_t::kWidth) == size_n * size_m);
 
 WriteC_OuterTile_N:
   for (unsigned n0 = 0; n0 < OuterTilesN(size_n); ++n0) {
@@ -388,7 +392,11 @@ WriteC_OuterTile_N:
         for (unsigned m1m = 0; m1m < kOuterTileSizeMMemory; ++m1m) {
           #pragma HLS PIPELINE II=1
           #pragma HLS LOOP_FLATTEN
-          memory[IndexC(n0, n1, m0, m1m, size_n, size_k, size_m)] = pipe.Pop();
+          const auto val = pipe.Pop();
+          if ((n0 * kOuterTileSizeN + n1 < size_n) &&
+              (m0 * kOuterTileSizeMMemory + m1m < SizeMMemory(size_m))) {
+            memory[IndexC(n0, n1, m0, m1m, size_n, size_k, size_m)] = val;
+          }
         }
       }
 #ifndef MM_SYNTHESIS

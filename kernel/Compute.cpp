@@ -1,5 +1,4 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2018 
 /// @copyright This software is copyrighted under the BSD 3-Clause License. 
 
 #include "hlslib/xilinx/Stream.h"
@@ -17,12 +16,6 @@ void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
                        Stream<ComputePackM_t> &cIn, const unsigned locationN,
                        const unsigned size_n, const unsigned size_k,
                        const unsigned size_m) {
-
-  assert((static_cast<unsigned long>(OuterTilesN(size_n)) * OuterTilesM(size_m) * size_k *
-          kInnerTilesN * kInnerTilesM * kComputeTileSizeN *
-          kComputeTileSizeM) ==
-         ((static_cast<unsigned long>(size_n) * size_k * size_m) /
-          kComputeTilesN));
 
   // A is double-buffered, such that new values can be read while the 
   // previous outer product is being computed. This is required to achieve
@@ -117,6 +110,9 @@ OuterTile_N:
             for (unsigned n2 = 0; n2 < kComputeTileSizeN; ++n2) {
               #pragma HLS UNROLL
 
+              const bool inBoundsN = ((n0 * kInnerTilesN * kComputeTileSizeN +
+                                       n1 * kComputeTileSizeN + n2) < size_n);
+
               ComputePackM_t cStore;
               const auto cPrev = (k > 0)
                                      ? cBuffer[n1 * kInnerTilesM + m1][n2]
@@ -126,13 +122,20 @@ OuterTile_N:
               for (unsigned m2 = 0; m2 < kComputeTileSizeM; ++m2) {
                 #pragma HLS UNROLL
 
+                const bool inBoundsM = ((m0 * kInnerTilesM * kComputeTileSizeM +
+                                         m1 * kComputeTileSizeM + m2) < size_m);
+
+                const bool inBounds = inBoundsN && inBoundsM;
+
                 const auto mapped = OperatorMap::Apply(aVal[n2], bVal[m2]);
                 MM_MULT_RESOURCE_PRAGMA(mapped);
                 const auto prev = cPrev[m2];
 
                 const auto reduced = OperatorReduce::Apply(prev, mapped);
                 MM_ADD_RESOURCE_PRAGMA(reduced);
-                cStore[m2] = reduced; 
+                // If out of bounds, propagate the existing value instead of
+                // storing the newly computed value
+                cStore[m2] = inBounds ? reduced : prev; 
                 #pragma HLS DEPENDENCE variable=cBuffer false
               }
 

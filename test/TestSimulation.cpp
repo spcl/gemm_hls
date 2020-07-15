@@ -35,15 +35,6 @@ int main(int argc, char **argv) {
     std::cerr << "M must be divisable by memory width." << std::endl;
     return 1;
   }
-  if (size_n % kOuterTileSizeN != 0) {
-    std::cerr << "N must be divisable by the outer tile size in N."
-              << std::endl;
-    return 1;
-  }
-  if (size_m % kOuterTileSizeM != 0) {
-    std::cerr << "M must be divisable by the outer tile size in M" << std::endl;
-    return 1;
-  }
 #else
   constexpr auto size_n = kSizeN;
   constexpr auto size_k = kSizeK;
