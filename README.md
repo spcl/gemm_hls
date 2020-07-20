@@ -11,16 +11,18 @@ Experiments run on a [VCU1525](https://www.xilinx.com/products/boards-and-kits/v
 achieved 462 GFLOP/s, 301 GFLOP/s and 132 GFLOP/s for half, single, and double
 precision, respectively, with routing across the three SLRs being the primary
 bottleneck preventing further scaling. The code is not device-specific, and can
-be configured for any Xilinx FPGA supported by the SDAccel environment. 
+be configured for any Xilinx FPGA supported by the SDAccel environment.
+Kernels have also been verified to execute on TUL KU115 and Alveo U250 boards
+with similar results.
 
 The implementation uses a systolic array approach, where linearly connected
 processing elements compute distinct contributions to the outer product of tiles
 of the output matrix. 
 
-For a detailed description of the optimization techniques used here, we refer to
-[this article](https://arxiv.org/abs/1805.08288). We also gave [a tutorial on
-HLS](https://spcl.inf.ethz.ch/Teaching/2019-sc/) for HPC at SC'19, SC'18, PPoPP'18, and
-at ETH Zurich. 
+The approach used to implement this kernel was presented at [FPGA'20](https://spcl.inf.ethz.ch/Publications/.pdf/gemm-fpga.pdf) [1].
+For a general description of the optimization techniques that we apply, we refer to our article on
+[HLS transformations](https://spcl.inf.ethz.ch/Publications/.pdf/hls-transformations.pdf) [2].
+We also gave [a tutorial on HLS](https://spcl.inf.ethz.ch/Teaching/hls-tutorial/) for HPC at SC'19, SC'18, and PPoPP'18.
 
 The compute kernel is in `kernel/Compute.cpp`, and the modules accessing memory
 are in `kernel/Memory.cpp`.
@@ -45,6 +47,8 @@ Prerequisites
 To build and run kernels in hardware, Xilinx
 [Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html) or SDAccel
 must be installed and available on the PATH (tested with versions 2018.2 and 2019.2).
+
+**Vitis 2020.1 is currenly not supported**, due to an incompatibility with the new `vitis_hls` compiler and hlslib streams.
 
 Configuration and running
 -------------------------
@@ -82,14 +86,6 @@ them using the `MM_MAP_OP` and `MM_REDUCE_OP` CMake parameters, respectively. To
 see which operators are pre-implemented, and examples of how to implement new
 operators,  see `hlslib/include/hlslib/Operators.h`.
 
-Dynamic sizes
--------------
-
-By default, all matrix sizes are fixed in hardware at compile time to save
-hardware resources. If dynamic/runtime sizes are required, set
-the `-DMM_DYNAMIC_SIZES=ON` option in CMake. This will require executables to
-take the matrix sizes as input. 
-
 Selecting tile sizes
 --------------------
 
@@ -122,3 +118,5 @@ References
 ----------
 
 [1] Johannes de Fine Licht, Grzegorz Kwasniewski, and Torsten Hoefler, _"Flexible Communication Avoiding Matrix Multiplication on FPGA with High-Level Synthesis"_, in Proceedings of 28th ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA'20), 2020.
+
+[2] Johannes de Fine Licht, Maciej Besta, Simon Meierhans, and Torsten Hoefler. _"Transformations of High-Level Synthesis Codes for High-Performance Computing."_ arXiv preprint arXiv:1805.08288 (2018).
