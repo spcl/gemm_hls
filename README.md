@@ -94,7 +94,7 @@ The amount of parallelism in the code is determined by the `MM_PARALLELISM_N`
 and `MM_PARALLELISM_M` configuration variables. The former determines the number
 of processing element instantiated, and the latter regulates the vector
 width/granularity of each processing element.
-`MM_PARALLELISM_M` should be set to a maximum of 256 bytes / `sizeof(<your operand>)` (i.e., 8 for `float` or `int`, 4 for `double` or `long`, 16 for 16-bit `int`, etc.) to avoid performance and routing issues.
+`MM_PARALLELISM_M` should be set to a maximum of 256 bits / `sizeof(<your operand>)` (i.e., 8 for `float` or `int`, 4 for `double` or `long`, 16 for 16-bit `int`, etc.) to avoid performance and routing issues.
 
 The expected performance in Op/s (FLOP/s in the case of floating point types) of
 a given configuration can be computed as:
