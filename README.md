@@ -72,10 +72,7 @@ make link_hardware
 
 Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`.
 
-Per default the build targets the
-[VCU1525](https://www.xilinx.com/products/boards-and-kits/vcu1525-a.html)
-acceleration board, but this can be configured using the `MM_DSA_NAME` CMake
-parameter.
+Per default the build targets the Alveo U250 acceleration board, but this can be configured using the `MM_DSA_NAME` CMake parameter.
 
 The implementation is not restricted to use multiplication and addition as
 operators. To use other operators, for example addition and minimum to implement
