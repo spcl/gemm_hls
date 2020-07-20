@@ -94,7 +94,7 @@ The amount of parallelism in the code is determined by the `MM_PARALLELISM_N`
 and `MM_PARALLELISM_M` configuration variables. The former determines the number
 of processing element instantiated, and the latter regulates the vector
 width/granularity of each processing element.
-`MM_PARALLELISM_M` should be set to a maximum of 256 bits / `sizeof(<your operand>)` (i.e., 8 for `float` or `int`, 4 for `double` or `long`, 16 for 16-bit `int`, etc.) to avoid performance and routing issues.
+`MM_PARALLELISM_M` should be set to a maximum of 64 bytes / `sizeof(<your operand>)` (i.e., 8 for `float` or `int`, 4 for `double` or `long`, 16 for 16-bit `int`, etc.) to avoid performance and routing issues.
 
 The expected performance in Op/s (FLOP/s in the case of floating point types) of
 a given configuration can be computed as:
@@ -137,5 +137,5 @@ References
 
 [2] Johannes de Fine Licht, Maciej Besta, Simon Meierhans, and Torsten Hoefler. _"Transformations of High-Level Synthesis Codes for High-Performance Computing."_ arXiv preprint arXiv:1805.08288 (2018).
 
-[3] Johannes de Fine Licht, and Torsten Hoefler. _"hlslib: Software engineering for hardware design."_, presented at the Fifth International Workshop on
+[3] Johannes de Fine Licht, and Torsten Hoefler. _"hlslib: Software Engineering for Hardware Design."_, presented at the Fifth International Workshop on
 Heterogeneous High-performance Reconfigurable Computing (H2RC'19).
