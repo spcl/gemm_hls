@@ -11,7 +11,7 @@ Experiments run on a [VCU1525](https://www.xilinx.com/products/boards-and-kits/v
 achieved 462 GFLOP/s, 301 GFLOP/s and 132 GFLOP/s for half, single, and double
 precision, respectively, with routing across the three SLRs being the primary
 bottleneck preventing further scaling. The code is not device-specific, and can
-be configured for any Xilinx FPGA supported by the SDAccel environment.
+be configured for any Xilinx FPGA supported by the Xilinx OpenCL runtime.
 Kernels have also been verified to execute on TUL KU115 and Alveo U250 boards
 with similar results.
 
