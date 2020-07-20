@@ -80,7 +80,7 @@ the [distance
 product](https://en.wikipedia.org/wiki/Min-plus_matrix_multiplication), specify
 them using the `MM_MAP_OP` and `MM_REDUCE_OP` CMake parameters, respectively. To
 see which operators are pre-implemented, and examples of how to implement new
-operators,  see `hlslib/include/hlslib/Operators.h`.
+operators,  see `hlslib/include/hlslib/xilinx/Operators.h`.
 
 Selecting tile sizes
 --------------------
