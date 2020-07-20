@@ -94,15 +94,6 @@ static_assert(kSizeK % kTransposeWidth == 0,
 
 #endif
 
-static_assert(kSizeM % kMemoryWidthM == 0,
-              "M must be divisable by memory width.");
-
-static_assert(kSizeN % kOuterTileSizeN == 0,
-              "N must be divisable by the outer tile size in N.");
-
-static_assert(kSizeM % kOuterTileSizeM == 0,
-              "M must be divisable by the outer tile size in M.");
-
 #endif
 
 inline unsigned SizeKMemory(unsigned k) {
@@ -117,12 +108,12 @@ inline unsigned SizeMMemory(unsigned m) {
 
 inline unsigned OuterTilesN(unsigned n) {
   #pragma HLS INLINE
-  return n / kOuterTileSizeN;
+  return (n + kOuterTileSizeN - 1) / kOuterTileSizeN;
 }
 
 inline unsigned OuterTilesM(unsigned m) {
   #pragma HLS INLINE
-  return m / kOuterTileSizeM;
+  return (m + kOuterTileSizeM - 1) / kOuterTileSizeM;
 }
 
 inline unsigned long TotalReadsFromA(const unsigned size_n,
