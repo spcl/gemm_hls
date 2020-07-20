@@ -116,7 +116,7 @@ issue tracker to report them.
 Publication
 -----------
 
-If this code has been useful to you, please consider citing us:
+If this code has been useful to your research, please consider citing us:
 
 **BibTeX:**
 ```
