@@ -113,6 +113,26 @@ Bugs
 If you experience bugs, or have suggestions for improvements, please use the
 issue tracker to report them.
 
+Publication
+-----------
+
+If this code has been useful to you, please consider citing us:
+
+**BibTeX:**
+```
+@inproceedings{mmm_hls,
+  title={Flexible Communication Avoiding Matrix Multiplication on FPGA with High-Level Synthesis},
+  author={de~Fine~Licht, Johannes and Kwasniewski, Grzegorz and Hoefler, Torsten},
+  booktitle={The 2020 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA'20)},
+  year={2020}
+}
+```
+
+**Plain text:**
+```
+Johannes de Fine Licht, Grzegorz Kwasniewski, and Torsten Hoefler. "Flexible Communication Avoiding Matrix Multiplication on FPGA with High-Level Synthesis." In Proceedings of the 2020 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA'20).
+```
+
 References
 ----------
 
