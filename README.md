@@ -31,7 +31,7 @@ Downloading the code
 --------------------
 
 This project uses the open source Vivado HLS extension library
-[hlslib](https://github.com/definelicht/hlslib) for simulation, vectorization,
+[hlslib](https://github.com/definelicht/hlslib) [3] for simulation, vectorization,
 finding Xilinx tools, host-side integration and more.
 
 Since hlslib is included as a submodule, make sure you clone with `--recursive`
@@ -62,7 +62,7 @@ is shown below (starting from the source directory):
 ```cpp
 mkdir build
 cd build
-cmake ../ -DMM_DATA_TYPE=float -DMM_SIZE_N=8192 -DMM_SIZE_M=8192 -DMM_SIZE_P=8192 -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
+cmake ../ -DMM_DATA_TYPE=float -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
 make
 make synthesis
 make compile_hardware 
@@ -70,8 +70,7 @@ make link_hardware
 ./RunHardware.exe hw
 ```
 
-Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`. For
-dynamic matrix sizes, see below.
+Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`.
 
 Per default the build targets the
 [VCU1525](https://www.xilinx.com/products/boards-and-kits/vcu1525-a.html)
@@ -120,3 +119,6 @@ References
 [1] Johannes de Fine Licht, Grzegorz Kwasniewski, and Torsten Hoefler, _"Flexible Communication Avoiding Matrix Multiplication on FPGA with High-Level Synthesis"_, in Proceedings of 28th ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA'20), 2020.
 
 [2] Johannes de Fine Licht, Maciej Besta, Simon Meierhans, and Torsten Hoefler. _"Transformations of High-Level Synthesis Codes for High-Performance Computing."_ arXiv preprint arXiv:1805.08288 (2018).
+
+[3] Johannes de Fine Licht, and Torsten Hoefler. _"hlslib: Software engineering for hardware design."_, presented at the Fifth International Workshop on
+Heterogeneous High-performance Reconfigurable Computing (H2RC'19).
