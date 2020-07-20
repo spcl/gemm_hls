@@ -4,7 +4,7 @@ Scalable matrix matrix multiplication on FPGA
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3952084.svg)](https://doi.org/10.5281/zenodo.3952084)
 
 This repository includes a pure Vivado HLS implementation of matrix-matrix
-multiplication (A\*B=C) for Xilinx FPGAs, using Xilinx SDx to instantiate memory
+multiplication (A\*B=C) for Xilinx FPGAs, using Xilinx Vitis/SDx/SDAccel to instantiate memory
 and PCIe controllers and interface with the host. 
 
 Experiments run on a [VCU1525](https://www.xilinx.com/products/boards-and-kits/vcu1525-a.html)
