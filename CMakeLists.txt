@@ -128,7 +128,7 @@ add_executable(PrintSpecifications src/PrintSpecifications.cpp)
 
 # Software test
 add_executable(TestSimulation test/TestSimulation.cpp)
-target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${Vitis_FLOATING_POINT_LIBRARY} ${Vitis_LIBRARIES} mmkernel)
+target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${Vitis_LIBRARIES} mmkernel)
 if(MM_DATA_TYPE STREQUAL "half")
   target_link_libraries(TestSimulation ${Vitis_FLOATING_POINT_LIBRARY})
 endif()
