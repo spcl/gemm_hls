@@ -1,18 +1,16 @@
 /// @author    Johannes de Fine Licht (definelicht@inf.ethz.ch)
-/// @date      June 2017 
-/// @copyright This software is copyrighted under the BSD 3-Clause License. 
+/// @copyright This software is copyrighted under the BSD 3-Clause License.
 
-#include "Utility.h"
-#include "MatrixMultiplication.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <random>
 #include <type_traits>
 #include <vector>
+#include "MatrixMultiplication.h"
+#include "Utility.h"
 
 int main(int argc, char **argv) {
-
 #ifdef MM_DYNAMIC_SIZES
   if (argc < 4 || argc > 4) {
     std::cerr << "Usage: ./TestSimulation N K M" << std::endl;
@@ -46,9 +44,10 @@ int main(int argc, char **argv) {
   std::vector<Data_t> cReference(size_n * size_m, 0);
 
   std::default_random_engine rng(kSeed);
-  typename std::conditional<
-      std::is_integral<Data_t>::value, std::uniform_int_distribution<unsigned long>,
-      std::uniform_real_distribution<double>>::type dist(1, 10);
+  typename std::conditional<std::is_integral<Data_t>::value,
+                            std::uniform_int_distribution<unsigned long>,
+                            std::uniform_real_distribution<double>>::type
+      dist(1, 10);
 
   std::for_each(a.begin(), a.end(),
                 [&dist, &rng](Data_t &in) { in = Data_t(dist(rng)); });
@@ -78,9 +77,15 @@ int main(int argc, char **argv) {
       const auto testVal = make_signed<Data_t>(cTest[i * size_m + j]);
       const auto refVal = make_signed<Data_t>(cReference[i * size_m + j]);
       const Data_t diff = std::abs(testVal - refVal);
-      if (diff / refVal > static_cast<Data_t>(1e-3)) {
-        std::cerr << "Mismatch detected at (" << i << ", " << j
-                  << "): " << testVal << " vs. " << refVal << "\n";
+      bool mismatch;
+      if (std::is_floating_point<Data_t>::value) {
+        mismatch = diff / refVal > static_cast<Data_t>(1e-3);
+      } else {
+        mismatch = diff != 0;
+      }
+      if (mismatch) {
+        std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal
+                  << " vs. " << refVal << "\n";
         return 1;
       }
     }

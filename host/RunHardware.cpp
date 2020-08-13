@@ -216,12 +216,18 @@ int main(int argc, char **argv) {
     // Convert to single element vector
     const auto cTest = Unpack<kMemoryWidthM>(cMem);
 
-    for (int i = 0; i < size_n; ++i) {
-      for (int j = 0; j < size_m; ++j) {
+    for (size_t i = 0; i < size_n; ++i) {
+      for (size_t j = 0; j < size_m; ++j) {
         const auto testVal = make_signed<Data_t>(cTest[i * size_m + j]);
         const auto refVal = make_signed<Data_t>(cRef[i * size_m + j]);
         const Data_t diff = std::abs(testVal - refVal);
-        if (diff / refVal > static_cast<Data_t>(1e-3)) {
+        bool mismatch;
+        if (std::is_floating_point<Data_t>::value) {
+          mismatch = diff / refVal > static_cast<Data_t>(1e-3);
+        } else {
+          mismatch = diff != 0;
+        }
+        if (mismatch) {
           std::cerr << "Mismatch at (" << i << ", " << j << "): " << testVal
                     << " vs. " << refVal << "\n";
           return 1;
