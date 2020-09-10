@@ -46,9 +46,7 @@ Prerequisites
 
 To build and run kernels in hardware, Xilinx
 [Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html) or SDAccel
-must be installed and available on the PATH (tested with versions 2018.2 and 2019.2).
-
-**Vitis 2020.1 is currenly not supported**, due to an incompatibility with the new `vitis_hls` compiler and hlslib streams.
+must be installed and available on the PATH (tested with versions 2018.2, 2019.2, and 2020.1).
 
 Configuration and running
 -------------------------
