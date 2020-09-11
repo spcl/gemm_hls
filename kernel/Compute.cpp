@@ -8,15 +8,14 @@
 #include "Memory.h"
 #include <cassert>
 
-void ProcessingElement(Stream<ComputePackN_t, kPipeDepth> &aIn,
-                       Stream<ComputePackN_t, kPipeDepth> &aOut,
-                       Stream<ComputePackM_t, kPipeDepth> &bIn,
-                       Stream<ComputePackM_t, kPipeDepth> &bOut,
+void ProcessingElement(Stream<ComputePackN_t> &aIn,
+                       Stream<ComputePackN_t> &aOut,
+                       Stream<ComputePackM_t> &bIn,
+                       Stream<ComputePackM_t> &bOut,
                        Stream<ComputePackM_t> &cOut,
                        Stream<ComputePackM_t> &cIn, const unsigned locationN,
                        const unsigned size_n, const unsigned size_k,
                        const unsigned size_m) {
-
   // A is double-buffered, such that new values can be read while the 
   // previous outer product is being computed. This is required to achieve
   // a perfect pipeline across the K-dimension, which is necessary for
