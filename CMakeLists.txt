@@ -205,17 +205,10 @@ endif()
 if(MM_TWO_DIMMS)
   # TODO: Newer versions of Vitis have again changed how this is done, and now
   # require a separate config file with the global memory mappings.
-  if(NOT (MM_DSA_NAME MATCHES "dynamic"))
-    set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
-      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
-      --xp misc:map_connect=add.kernel.${MM_KERNEL_NAME}_1.M_AXI_GMEM2.core.OCL_REGION_0.M01_AXI)
-  else()
-    set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
-      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
-      --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
-  endif()
+  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
+    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
 endif()
 
 if(((${Vitis_MAJOR_VERSION} LESS 2018) AND (${Vitis_MINOR_VERSION} LESS 3)) OR ${Vitis_MAJOR_VERSION} LESS 2017)
