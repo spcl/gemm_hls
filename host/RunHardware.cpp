@@ -58,18 +58,6 @@ int main(int argc, char **argv) {
               << kMemoryWidthM << ")." << std::endl;
     return 1;
   }
-  if (size_n % kOuterTileSizeN != 0) {
-    std::cerr << "N (" << size_n
-              << ") must be divisable by the outer tile size in N ("
-              << kOuterTileSizeN << ")." << std::endl;
-    return 1;
-  }
-  if (size_m % kOuterTileSizeM != 0) {
-    std::cerr << "M (" << size_n
-              << ") must be divisable by the outer tile size in M ("
-              << kOuterTileSizeM << ")." << std::endl;
-    return 1;
-  }
 #else
   if (argc > 3) {
     PrintUsage();
