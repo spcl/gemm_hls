@@ -22,7 +22,8 @@ of the output matrix.
 The approach used to implement this kernel was presented at [FPGA'20](https://spcl.inf.ethz.ch/Publications/.pdf/gemm-fpga.pdf) [1].
 For a general description of the optimization techniques that we apply, we refer to our article on
 [HLS transformations](https://spcl.inf.ethz.ch/Publications/.pdf/hls-transformations.pdf) [2].
-We also gave [a tutorial on HLS](https://spcl.inf.ethz.ch/Teaching/hls-tutorial/) for HPC at HiPEAC'20, SC'19, SC'18, and PPoPP'18.
+We also gave [a tutorial on HLS](https://spcl.inf.ethz.ch/Teaching/hls-tutorial/) for HPC at SC'21, ISC'21, SC'20, HiPEAC'20, SC'19,
+SC'18, and PPoPP'18.
 
 The compute kernel is in `kernel/Compute.cpp`, and the modules accessing memory
 are in `kernel/Memory.cpp`.
