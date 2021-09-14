@@ -114,6 +114,7 @@ endif()
 # Query default clock of platform
 if(NOT "${MM_TARGET_CLOCK}")
   if(NOT "${MM_PLATFORM_INTERNAL}" STREQUAL "${MM_PLATFORM}")
+    message(STATUS "Querying default clock for ${MM_PLATFORM}.")
     execute_process(COMMAND ${Vitis_PLATFORMINFO} --platform ${MM_PLATFORM} -jhardwarePlatform.systemClocks
                     OUTPUT_VARIABLE SYSTEM_CLOCKS
                     RESULT_VARIABLE RET)
