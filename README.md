@@ -9,9 +9,7 @@ Experiments run on a [VCU1525](https://www.xilinx.com/products/boards-and-kits/v
 
 The implementation uses a systolic array approach, where linearly connected processing elements compute distinct contributions to the outer product of tiles of the output matrix. 
 
-The approach used to implement this kernel was presented at [FPGA'20](https://spcl.inf.ethz.ch/Publications/.pdf/gemm-fpga.pdf) [1].  For a general description of the optimization techniques that we apply, we refer to our article on [HLS transformations](https://spcl.inf.ethz.ch/Publications/.pdf/hls-transformations.pdf) [2].  We also gave [a tutorial on HLS](https://spcl.inf.ethz.ch/Teaching/hls-tutorial/) for HPC at HiPEAC'20, SC'19, SC'18, and PPoPP'18.
-
-The compute kernel is in `kernel/Compute.cpp`, and the modules accessing memory are in `kernel/Memory.cpp`.
+The approach used to implement this kernel was presented at [FPGA'20](https://spcl.inf.ethz.ch/Publications/.pdf/gemm-fpga.pdf) [1].  For a general description of the optimization techniques that we apply, we refer to our article on [HLS transformations](https://spcl.inf.ethz.ch/Publications/.pdf/hls-transformations.pdf) [2].  We also gave [a tutorial on HLS](https://spcl.inf.ethz.ch/Teaching/hls-tutorial/) for HPC at SC'21, ISC'21, SC'20, HiPEAC'20, SC'19, SC'18, and PPoPP'18.
 
 Downloading the code
 --------------------
@@ -27,7 +25,7 @@ git submodule update --init
 Prerequisites
 -------------
 
-To build and run kernels in hardware, Xilinx [Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html) must be installed and available on the PATH (tested with version 2021.1).
+To build and run kernels in hardware, Xilinx [Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html) must be installed and available on the PATH (tested on Alveo U250 and Alveo U280 with version 2021.1).
 
 Configuration and running
 -------------------------
