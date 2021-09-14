@@ -170,6 +170,8 @@ endif()
 
 if(MM_TWO_DIMMS)
   set(MM_PORT_MAPPING m_axi_gmem0:DDR[0] m_axi_gmem1:DDR[1] m_axi_gmem2:DDR[1])
+else()
+  set(MM_PORT_MAPPING m_axi_gmem0:DDR[1] m_axi_gmem1:DDR[1] m_axi_gmem2:DDR[1])
 endif()
 
 # Hardware kernel
