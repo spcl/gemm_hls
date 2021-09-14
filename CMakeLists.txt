@@ -152,7 +152,14 @@ target_link_libraries(TestSimulation ${Vitis_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT
 if(MM_DATA_TYPE STREQUAL "half")
   target_link_libraries(TestSimulation ${Vitis_FLOATING_POINT_LIBRARY})
 endif()
-add_test(TestSimulation TestSimulation)
+if(MM_DYNAMIC_SIZES)
+  math(EXPR TEST_SIZE_N "2 * ${MM_MEMORY_TILE_SIZE_N} + 1")
+  math(EXPR TEST_SIZE_K "2 * ${MM_PARALLELISM_N} * ${MM_PARALLELISM_M} + ${MM_MEMORY_BUS_WIDTH_K} / ${MM_DATA_WIDTH_${MM_DATA_TYPE}}")
+  math(EXPR TEST_SIZE_M "2 * ${MM_MEMORY_TILE_SIZE_M} + ${MM_MEMORY_WIDTH_M}")
+  add_test(TestSimulation TestSimulation ${TEST_SIZE_N} ${TEST_SIZE_K} ${TEST_SIZE_M})
+else()
+  add_test(TestSimulation TestSimulation)
+endif()
 enable_testing()
 
 # Synthesis flags
