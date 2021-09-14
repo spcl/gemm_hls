@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 #include "MatrixMultiplication.h"
-#include "hlslib/xilinx/SDAccel.h"
+#include "hlslib/xilinx/OpenCL.h"
 #ifdef MM_HAS_BLAS
 #include "cblas.h"
 #endif

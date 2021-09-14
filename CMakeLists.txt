@@ -5,17 +5,11 @@ cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
 
 # Target options 
-set(MM_PART_NAME "xcu250-figd2104-2L-e" CACHE STRING "Part name for HLS.")
-set(MM_DSA_NAME "xilinx_u250_xdma_201830_2" CACHE STRING "DSA string for Vitis.")
-set(MM_TARGET_CLOCK 300 CACHE STRING "Target clock for kernel (<=0 uses DSA default).")
-set(MM_TARGET_CLOCK_UNCERTAINTY 1.08 CACHE STRING "Clock uncertainty for HLS.")
-set(MM_TMP_DIR /tmp CACHE STRING "Temporary directory for SDx build files.")
+set(MM_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "DSA string for Vitis.")
+set(MM_TARGET_CLOCK "" CACHE STRING "Target clock for kernel (uses default is left empty).")
 set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information.")
 set(MM_ENABLE_DEBUGGING OFF CACHE BOOL "Inject debugging cores to design.")
-set(MM_QUICK_BUILD OFF CACHE BOOL "Enable quick build option for Vitis.")
 set(MM_VITIS_FLAGS "" CACHE STRING "Extra flags for Vitis.")
-set(MM_VITIS_COMPILE_FLAGS "" CACHE STRING "Extra flags for Vitis compilation phase.")
-set(MM_VITIS_LINKER_FLAGS "" CACHE STRING "Extra flags for Vitis linking phase.")
 set(MM_POWER_METER OFF CACHE BOOL "Enable Corsair power meter for measuring power consumption with Corsair RMi power supplies.")
 set(MM_ENABLE_BLAS ON CACHE BOOL "Use BLAS library for validation if available.")
 
@@ -117,6 +111,26 @@ if(MM_DATA_TYPE STREQUAL "half")
   add_definitions("-DMM_HALF_PRECISION")
 endif()
 
+# Query default clock of platform
+if(NOT "${MM_TARGET_CLOCK}")
+  if(NOT "${MM_PLATFORM_INTERNAL}" STREQUAL "${MM_PLATFORM}")
+    execute_process(COMMAND ${Vitis_PLATFORMINFO} --platform ${MM_PLATFORM} -jhardwarePlatform.systemClocks
+                    OUTPUT_VARIABLE SYSTEM_CLOCKS
+                    RESULT_VARIABLE RET)
+    if(RET EQUAL 0)
+      string(FIND "${SYSTEM_CLOCKS}" "\"default\": \"true\"" LOC)
+      string(SUBSTRING "${SYSTEM_CLOCKS}" ${LOC} -1 SYSTEM_CLOCKS)
+      string(REGEX MATCH "\"frequency\": \"[0-9\\.]+\"" SYSTEM_CLOCKS "${SYSTEM_CLOCKS}")
+      string(REGEX REPLACE "\"frequency\": \"([0-9\\.]+)\"" "\\1" CLOCK "${SYSTEM_CLOCKS}")
+      set(MM_CLOCK_INTERNAL "${CLOCK}" CACHE INTERNAL "")
+      set(MM_PLATFORM_INTERNAL "${MM_PLATFORM}" CACHE INTERNAL "")
+    else()
+      message(WARNING "Failed to query default frequency for platform ${MM_PLATFORM}. Assuming 300 MHz.")
+      set(MM_CLOCK_INTERNAL "300" CACHE INTERNAL "")
+    endif()
+  endif()
+endif()
+
 # Hardware configuration header for HLS
 configure_file(include/Config.h.in Config.h)
 
@@ -141,15 +155,9 @@ add_test(TestSimulation TestSimulation)
 enable_testing()
 
 # Synthesis flags
-set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -std=c++11 -O3 -DMM_SYNTHESIS -DHLSLIB_SYNTHESIS -DVITIS_MAJOR_VERSION=${Vitis_MAJOR_VERSION} -DVITIS_MINOR_VERSION=${Vitis_MINOR_VERSION} -DVITIS_VERSION=${Vitis_VERSION}")
+set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -O3 -DMM_SYNTHESIS")
 if(MM_DATA_TYPE STREQUAL "half")
   set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_HALF_PRECISION")
-endif()
-# Vitis 2020.1 introduces breaking changes to hls::stream
-if(NOT Vitis_USE_VITIS_HLS)
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -D__VIVADO_HLS__")
-else()
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -D__VITIS_HLS__")
 endif()
 
 if(MM_ADD_RESOURCE)
@@ -158,123 +166,28 @@ endif()
 if(MM_MULT_RESOURCE) 
   set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
 endif() 
-# Standalone synthesis target 
-set(MM_HLS_PROJECT_NAME "hls")
-string(REPLACE ";" " " MM_SRC_SYNTHESIS "${MM_KERNEL_SRC}")
-set(MM_KERNEL_NAME "MatrixMultiplicationKernel")
-configure_file(scripts/Synthesis.tcl.in Synthesis.tcl)
-add_custom_target(synthesis COMMAND ${Vitis_HLS} -f Synthesis.tcl) 
-string(REPLACE " " ";" MM_SYNTHESIS_FLAGS ${MM_SYNTHESIS_FLAGS})
+
+if(MM_TWO_DIMMS)
+  set(MM_PORT_MAPPING m_axi_gmem0:DDR[0] m_axi_gmem1:DDR[1] m_axi_gmem2:DDR[1])
+endif()
 
 # Hardware kernel
-string(REPLACE " " ";" MM_VITIS_FLAGS "${MM_VITIS_FLAGS}")
-set(MM_VITIS_COMMAND
-  -s
-  ${MM_VITIS_FLAGS}
-  -I${CMAKE_SOURCE_DIR}/include
-  -I${CMAKE_SOURCE_DIR}/hlslib/include
-  -I${CMAKE_BINARY_DIR}
-  --kernel ${MM_KERNEL_NAME} 
-  --platform ${MM_DSA_NAME})
-if(MM_ENABLE_PROFILING)
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-    --profile_kernel "data:all:all:all"
-    --profile_kernel "stall:all:all"
-    --profile_kernel "exec:all:all")
-endif()
-if(Vitis_IS_LEGACY)
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-  --xp prop:kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}"
-  --max_memory_ports all)
-else()
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-      --advanced.prop kernel.${MM_KERNEL_NAME}.kernel_flags="${MM_SYNTHESIS_FLAGS}")
-endif()
-if(MM_QUICK_BUILD)
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND} -Oquick)
-else()
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND} -O3)
-endif()
-if(MM_ENABLE_DEBUGGING)
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND} -g
-    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM0
-    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM1
-    --dk chipscope:MatrixMultiplicationKernel_1:M_AXI_GMEM2)
-endif()
-if(MM_TARGET_CLOCK GREATER 0)
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-      --kernel_frequency ${MM_TARGET_CLOCK})
-endif()
-if(MM_TWO_DIMMS)
-  # TODO: Newer versions of Vitis have again changed how this is done, and now
-  # require a separate config file with the global memory mappings.
-  set(MM_VITIS_COMMAND ${MM_VITIS_COMMAND}
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem0:bank0
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem1:bank1
-    --sp ${MM_KERNEL_NAME}_1.m_axi_gmem2:bank1)
-endif()
-
-if(((${Vitis_MAJOR_VERSION} LESS 2018) AND (${Vitis_MINOR_VERSION} LESS 3)) OR ${Vitis_MAJOR_VERSION} LESS 2017)
-  add_custom_target(build_kernel
-    COMMAND XILINX_PATH=${CMAKE_BINARY_DIR} ${Vitis_COMPILER} -t hw
-    ${MM_VITIS_COMMAND} ${MM_VITIS_COMPILE_FLAGS} ${MM_VITIS_LINKER_FLAGS}
-    ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xclbin) 
-else()
-  # Hardware emulation
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw_emu.xo
-    COMMENT "Compiling for hardware emulation."
-    COMMAND ${CMAKE_COMMAND} -E env
-            XILINX_PATH=${CMAKE_BINARY_DIR}
-            ${Vitis_COMPILER} -c -t hw_emu
-            ${MM_VITIS_COMMAND} ${MM_VITIS_COMPILE_FLAGS} ${MM_VITIS_FLAGS}
-            ${MM_KERNEL_SRC} -o MatrixMultiplication_hw_emu.xo
-    DEPENDS ${MM_KERNEL_SRC})
-  add_custom_target(compile_hardware_emulation DEPENDS
-                    ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw_emu.xo)
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw_emu.xclbin
-    COMMENT "Linking for hardware emulation."
-    COMMAND ${CMAKE_COMMAND} -E env
-            XILINX_PATH=${CMAKE_BINARY_DIR}
-            ${Vitis_COMPILER} -l -t hw_emu
-            ${MM_VITIS_COMMAND} ${MM_VITIS_LINKER_FLAGS} ${MM_VITIS_FLAGS}
-            MatrixMultiplication_hw_emu.xo
-            -o MatrixMultiplication_hw_emu.xclbin
-    DEPENDS ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw_emu.xo)
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/emconfig.json
-    COMMENT "Generating emconfig.json file for hardware emulation."
-    COMMAND ${VITIS_ROOT_DIR}/bin/emconfigutil --platform
-            ${MM_DSA_NAME})
-  add_custom_target(link_hardware_emulation DEPENDS
-                    ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw_emu.xclbin
-                    ${CMAKE_BINARY_DIR}/emconfig.json)
-  # Hardware
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xo
-    COMMENT "Compiling for hardware."
-    COMMAND ${CMAKE_COMMAND} -E env
-            XILINX_PATH=${CMAKE_BINARY_DIR}
-            ${Vitis_COMPILER} -c -t hw
-            ${MM_VITIS_COMMAND} ${MM_VITIS_COMPILE_FLAGS} ${MM_VITIS_FLAGS}
-            ${MM_KERNEL_SRC} -o MatrixMultiplication_hw.xo
-    DEPENDS ${MM_KERNEL_SRC})
-  add_custom_target(compile_hardware DEPENDS
-                    ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xo)
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xclbin
-    COMMENT "Linking for hardware (this will run the full synthesis, placement and routing flow)."
-    COMMAND ${CMAKE_COMMAND} -E env
-            XILINX_PATH=${CMAKE_BINARY_DIR}
-            ${Vitis_COMPILER} -l -t hw
-            ${MM_VITIS_COMMAND} ${MM_VITIS_LINKER_FLAGS} ${MM_VITIS_FLAGS}
-            MatrixMultiplication_hw.xo
-            -o MatrixMultiplication_hw.xclbin
-    DEPENDS ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xo)
-  add_custom_target(link_hardware DEPENDS
-                    ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xclbin)
-endif()
+add_vitis_kernel(MatrixMultiplication ${MM_PLATFORM}
+                 KERNEL "MatrixMultiplicationKernel"
+                 CLOCK ${MM_TARGET_CLOCK}
+                 FILES ${MM_KERNEL_SRC}
+                 BUILD_FLAGS ${MM_VITIS_FLAGS}
+                 HLS_FLAGS ${MM_SYNTHESIS_FLAGS}
+                 INCLUDE_DIRS include
+                              hlslib/include
+                              ${CMAKE_BINARY_DIR}
+                 PORT_MAPPING ${MM_PORT_MAPPING} 
+                 PROFILING ${MM_ENABLE_PROFILING}
+                 DEBUGGING ${MM_ENABLE_DEBUGGING}
+                 DEPENDS include/Compute.h
+                         include/MatrixMultiplication.h
+                         include/Memory.h
+                         ${CMAKE_BINARY_DIR}/Config.h)
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
