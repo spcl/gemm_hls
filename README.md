@@ -45,7 +45,7 @@ make hw
 
 Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`.
 
-Per default the build targets the Alveo U250 acceleration board, but this can be configured using the `MM_DSA_NAME` CMake parameter.
+Per default the build targets the Alveo U250 acceleration board, but this can be configured using the `MM_PLATFORM` CMake parameter.
 
 The implementation is not restricted to use multiplication and addition as operators. To use other operators, for example addition and minimum to implement the [distance product](https://en.wikipedia.org/wiki/Min-plus_matrix_multiplication), specify them using the `MM_MAP_OP` and `MM_REDUCE_OP` CMake parameters, respectively. To see which operators are pre-implemented, and examples of how to implement new operators,  see `hlslib/include/hlslib/xilinx/Operators.h`.
 

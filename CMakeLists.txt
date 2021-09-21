@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.0)
 project(sdaccel_mm)
 
 # Target options 
-set(MM_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "DSA string for Vitis.")
+set(MM_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
 set(MM_TARGET_CLOCK "" CACHE STRING "Target clock for kernel (uses default is left empty).")
 set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information.")
 set(MM_ENABLE_DEBUGGING OFF CACHE BOOL "Inject debugging cores to design.")
