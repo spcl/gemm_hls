@@ -72,15 +72,17 @@ ReadA_Unroll:
 template <unsigned innerReads>
 void _ReadAInnerLoop(MemoryPackK_t const a[],
                      Stream<Data_t> aSplit[kTransposeWidth], unsigned n0,
-                     unsigned n1, unsigned n2, unsigned k0,
-                     const unsigned size_n, const unsigned size_k,
-                     const unsigned size_m) {
+                     unsigned n1, unsigned k0, const unsigned size_n,
+                     const unsigned size_k, const unsigned size_m) {
   #pragma HLS INLINE
-ReadA_TransposeWidth:
-  for (unsigned k1 = 0; k1 < (kTransposeWidth / kMemoryWidthK); ++k1) {
-    #pragma HLS PIPELINE II=1
-    #pragma HLS LOOP_FLATTEN
-    _ReadAInner(a, aSplit, n0, n1, n2, k0, k1, size_n, size_k, size_m);
+ReadA_N2:
+  for (unsigned n2 = 0; n2 < kInnerTileSizeN; ++n2) {
+  ReadA_TransposeWidth:
+    for (unsigned k1 = 0; k1 < (kTransposeWidth / kMemoryWidthK); ++k1) {
+      #pragma HLS PIPELINE II=1
+      #pragma HLS LOOP_FLATTEN
+      _ReadAInner(a, aSplit, n0, n1, n2, k0, k1, size_n, size_k, size_m);
+    }
   }
 }
 
@@ -89,13 +91,16 @@ ReadA_TransposeWidth:
 template <>
 void _ReadAInnerLoop<1>(MemoryPackK_t const a[],
                         Stream<Data_t> aSplit[kTransposeWidth],
-                        const unsigned n0, const unsigned n1, const unsigned n2,
-                        const unsigned k0, const unsigned size_n,
-                        const unsigned size_k, const unsigned size_m) {
+                        const unsigned n0, const unsigned n1, const unsigned k0,
+                        const unsigned size_n, const unsigned size_k,
+                        const unsigned size_m) {
   #pragma HLS INLINE
-  #pragma HLS PIPELINE II=1
-  #pragma HLS LOOP_FLATTEN
-  _ReadAInner(a, aSplit, n0, n1, n2, k0, 0, size_n, size_k, size_m);
+ReadA_N2:
+  for (unsigned n2 = 0; n2 < kInnerTileSizeN; ++n2) {
+    #pragma HLS PIPELINE II=1
+    #pragma HLS LOOP_FLATTEN
+    _ReadAInner(a, aSplit, n0, n1, n2, k0, 0, size_n, size_k, size_m);
+  }
 }
 
 void ReadA(MemoryPackK_t const a[], Stream<Data_t> aSplit[kTransposeWidth],
@@ -114,11 +119,8 @@ ReadA_N0:
       for (unsigned k0 = 0; k0 < size_k / kTransposeWidth; ++k0) {
       ReadA_N1:
         for (unsigned n1 = 0; n1 < kInnerTilesN; ++n1) {
-        ReadA_N2:
-          for (unsigned n2 = 0; n2 < kInnerTileSizeN; ++n2) {
-            _ReadAInnerLoop<kTransposeWidth / kMemoryWidthK>(
-                a, aSplit, n0, n1, n2, k0, size_n, size_k, size_m);
-          }
+          _ReadAInnerLoop<kTransposeWidth / kMemoryWidthK>(
+              a, aSplit, n0, n1, k0, size_n, size_k, size_m);
         }
       }
     }

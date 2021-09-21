@@ -8,7 +8,7 @@
 #include <vector>
 #include "MatrixMultiplication.h"
 #include "Utility.h"
-#include "hlslib/xilinx/SDAccel.h"
+#include "hlslib/xilinx/OpenCL.h"
 #include "hlslib/xilinx/Utility.h"
 #ifdef MM_POWER_METER
 #include "PowerMeter.h"

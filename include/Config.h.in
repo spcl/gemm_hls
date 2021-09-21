@@ -28,7 +28,7 @@ constexpr int kComputeTileSizeM = ${MM_PARALLELISM_M};
 // constexpr int kComputeTileSizeN = ${MM_GRANULARITY_N}; // NYI
 constexpr int kComputeTileSizeN = 1;
 constexpr int kTransposeWidthBytes = ${MM_TRANSPOSE_WIDTH};
-constexpr float kFrequency = ${MM_TARGET_CLOCK};
+constexpr float kFrequency = ${MM_CLOCK_INTERNAL};
 constexpr auto kGoldenDir = "${MM_GOLDEN_DIR}"; 
 
 using OperatorMap = hlslib::op::${MM_MAP_OP}<Data_t>;

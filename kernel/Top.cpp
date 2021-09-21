@@ -20,15 +20,6 @@ void MatrixMultiplicationKernel(MemoryPackK_t const a[],
   #pragma HLS INTERFACE m_axi port=a offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=b offset=slave bundle=gmem1
   #pragma HLS INTERFACE m_axi port=c offset=slave bundle=gmem2
-  #pragma HLS INTERFACE s_axilite port=a bundle=control
-  #pragma HLS INTERFACE s_axilite port=b bundle=control
-  #pragma HLS INTERFACE s_axilite port=c bundle=control
-#ifdef MM_DYNAMIC_SIZES
-  #pragma HLS INTERFACE s_axilite port=size_n bundle=control
-  #pragma HLS INTERFACE s_axilite port=size_k bundle=control
-  #pragma HLS INTERFACE s_axilite port=size_m bundle=control
-#endif
-  #pragma HLS INTERFACE s_axilite port=return bundle=control
 
   #pragma HLS DATAFLOW
 
