@@ -91,7 +91,7 @@ if(MM_POWER_METER)
   add_definitions("-DMM_POWER_METER")
 endif()
 
-include_directories(include hlslib/include ${CMAKE_BINARY_DIR} ${Vitis_INCLUDE_DIRS})
+include_directories(include ${CMAKE_BINARY_DIR} SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 if(MM_DYNAMIC_SIZES)
   add_definitions("-DMM_DYNAMIC_SIZES")
@@ -182,22 +182,23 @@ else()
 endif()
 
 # Hardware kernel
-add_vitis_kernel(MatrixMultiplication ${MM_PLATFORM}
+add_vitis_kernel(MatrixMultiplication
                  KERNEL "MatrixMultiplicationKernel"
-                 CLOCK ${MM_TARGET_CLOCK}
                  FILES ${MM_KERNEL_SRC}
-                 BUILD_FLAGS ${MM_VITIS_FLAGS}
                  HLS_FLAGS ${MM_SYNTHESIS_FLAGS}
                  INCLUDE_DIRS include
                               hlslib/include
                               ${CMAKE_BINARY_DIR}
                  PORT_MAPPING ${MM_PORT_MAPPING} 
-                 PROFILING ${MM_ENABLE_PROFILING}
-                 DEBUGGING ${MM_ENABLE_DEBUGGING}
                  DEPENDS include/Compute.h
                          include/MatrixMultiplication.h
                          include/Memory.h
                          ${CMAKE_BINARY_DIR}/Config.h)
+add_vitis_program(MatrixMultiplication ${MM_PLATFORM}
+                  CLOCK ${MM_TARGET_CLOCK}
+                  BUILD_FLAGS ${MM_VITIS_FLAGS}
+                  PROFILING ${MM_ENABLE_PROFILING}
+                  DEBUGGING ${MM_ENABLE_DEBUGGING})
 
 # Host code to launch kernel
 add_executable(RunHardware.exe host/RunHardware.cpp)
