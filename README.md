@@ -40,7 +40,7 @@ cd build
 cmake ../ -DMM_DATA_TYPE=float -DMM_PARALLELISM_N=32 -DMM_PARALLELISM_M=8 -DMM_MEMORY_TILE_SIZE_N=512 -DMM_MEMORY_TILE_SIZE_M=512
 make
 make hw
-./RunHardware.exe hw
+./RunHardware.exe 1024 1024 1024 hw
 ```
 
 Matrix sizes use the convention that `A: NxK`, `B: KxM`, and `C: NxM`.
