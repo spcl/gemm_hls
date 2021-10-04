@@ -6,6 +6,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+
 #include "MatrixMultiplication.h"
 #include "Utility.h"
 #include "hlslib/xilinx/OpenCL.h"
@@ -120,20 +121,20 @@ int main(int argc, char **argv) {
     std::cout << "Initializing device memory...\n" << std::flush;
 #ifdef MM_TWO_DIMMS
     auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank0, size_n * size_k / kMemoryWidthK);
+        hlslib::ocl::StorageType::DDR, 0, size_n * size_k / kMemoryWidthK);
     auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
-        hlslib::ocl::MemoryBank::bank1, size_k * size_m / kMemoryWidthM);
+        hlslib::ocl::StorageType::DDR, 1, size_k * size_m / kMemoryWidthM);
     auto cDevice =
         context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
-            hlslib::ocl::MemoryBank::bank1, size_n * size_m / kMemoryWidthM);
+            hlslib::ocl::StorageType::DDR, 1, size_n * size_m / kMemoryWidthM);
 #else
     auto aDevice = context.MakeBuffer<MemoryPackK_t, hlslib::ocl::Access::read>(
-        size_n * size_k / kMemoryWidthK);
+        hlslib::ocl::StorageType::DDR, 1, size_n * size_k / kMemoryWidthK);
     auto bDevice = context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::read>(
-        size_k * size_m / kMemoryWidthM);
+        hlslib::ocl::StorageType::DDR, 1, size_k * size_m / kMemoryWidthM);
     auto cDevice =
         context.MakeBuffer<MemoryPackM_t, hlslib::ocl::Access::write>(
-            size_n * size_m / kMemoryWidthM);
+            hlslib::ocl::StorageType::DDR, 1, size_n * size_m / kMemoryWidthM);
 #endif
 
     if (verify) {
