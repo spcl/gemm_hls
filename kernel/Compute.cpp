@@ -159,7 +159,9 @@ OuterTile_N:
            (kComputeTilesN - locationN - 1) * kComputeTileSizeN * kInnerTilesM);
       const unsigned writeFlattened = kInnerTilesN * writeFlattenedInner;
       ap_uint<hlslib::ConstLog2(kInnerTilesN)> n1 = 0;
-      ap_uint<hlslib::ConstLog2(kComputeTileSizeN)> n2 = 0;
+      ap_uint<((kComputeTileSizeN > 1) ? hlslib::ConstLog2(kComputeTileSizeN)
+                                       : 1)>
+          n2 = 0;
       ap_uint<hlslib::ConstLog2(kInnerTilesM)> m1 = 0;
       unsigned inner = 0;
     WriteC_Flattened:
