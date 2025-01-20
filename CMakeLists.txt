@@ -1,10 +1,10 @@
 # Author:  Johannes de Fine Licht (definelicht@inf.ethz.ch)
 # Copyright: This software is copyrighted under the BSD 3-Clause License.
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.27)
 project(sdaccel_mm)
 
-# Target options 
+# Target options
 set(MM_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
 set(MM_TARGET_CLOCK "" CACHE STRING "Target clock for kernel (uses default is left empty).")
 set(MM_ENABLE_PROFILING OFF CACHE BOOL "Collect profiling information.")
@@ -33,7 +33,7 @@ set(MM_TWO_DIMMS OFF CACHE BOOL "Use two DDR DIMMs instead of one")
 set(MM_MAP_OP "Multiply" CACHE STRING "Map operation to perform between A and B matrices.")
 set(MM_REDUCE_OP "Add" CACHE STRING "Reduction operation to write back to C.")
 set(MM_ADD_RESOURCE OFF CACHE STRING "")
-set(MM_MULT_RESOURCE OFF CACHE STRING "")  
+set(MM_MULT_RESOURCE OFF CACHE STRING "")
 
 # Internal
 set(MM_KERNEL_NAME MatrixMultiplicationKernel)
@@ -45,7 +45,7 @@ if(NOT MM_DATA_WIDTH_${MM_DATA_TYPE}) # Non-primitive data type
   elseif(MM_DATA_TYPE STREQUAL "uint8_t")
     set(MM_DATA_WIDTH_${MM_DATA_TYPE} 1)
   else()
-    message(FATAL_ERROR "Could not get size of data type ${MM_DATA_TYPE}.") 
+    message(FATAL_ERROR "Could not get size of data type ${MM_DATA_TYPE}.")
   endif()
 endif()
 math(EXPR MM_KERNEL_WIDTH_N "${MM_DATA_WIDTH_${MM_DATA_TYPE}} * ${MM_PARALLELISM_N}")
@@ -135,7 +135,7 @@ endif()
 # Hardware configuration header for HLS
 configure_file(include/Config.h.in Config.h)
 
-# C++ source code 
+# C++ source code
 set(MM_KERNEL_SRC
     ${CMAKE_SOURCE_DIR}/kernel/Compute.cpp
     ${CMAKE_SOURCE_DIR}/kernel/Memory.cpp
@@ -143,7 +143,7 @@ set(MM_KERNEL_SRC
 add_library(mmkernel ${MM_KERNEL_SRC})
 target_link_libraries(mmkernel ${CMAKE_THREAD_LIBS_INIT})
 
-# Executables 
+# Executables
 add_executable(PrintSpecifications src/PrintSpecifications.cpp)
 
 # Software test
@@ -169,11 +169,11 @@ if(MM_DATA_TYPE STREQUAL "half")
 endif()
 
 if(MM_ADD_RESOURCE)
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}") 
-endif() 
-if(MM_MULT_RESOURCE) 
-  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}") 
-endif() 
+  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_ADD_RESOURCE=${MM_ADD_RESOURCE}")
+endif()
+if(MM_MULT_RESOURCE)
+  set(MM_SYNTHESIS_FLAGS "${MM_SYNTHESIS_FLAGS} -DMM_MULT_RESOURCE=${MM_MULT_RESOURCE}")
+endif()
 
 if(MM_TWO_DIMMS)
   set(MM_PORT_MAPPING m_axi_gmem0:DDR[0] m_axi_gmem1:DDR[1] m_axi_gmem2:DDR[1])
@@ -189,7 +189,7 @@ add_vitis_kernel(MatrixMultiplication
                  INCLUDE_DIRS include
                               hlslib/include
                               ${CMAKE_BINARY_DIR}
-                 PORT_MAPPING ${MM_PORT_MAPPING} 
+                 PORT_MAPPING ${MM_PORT_MAPPING}
                  DEPENDS include/Compute.h
                          include/MatrixMultiplication.h
                          include/Memory.h
